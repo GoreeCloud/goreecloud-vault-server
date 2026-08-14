@@ -1,0 +1,86 @@
+name: GoreeVault Apply Security Fix
+
+on:
+  push:
+    branches:
+      - agent/goreevault-v0.2.1-org-attachments
+    paths:
+      - .github/workflows/goreevault-apply-security-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-confirmed-membership-invariant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/goreevault-v0.2.1-org-attachments
+          fetch-depth: 0
+
+      - name: Patch direct organization-cipher authorization
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("src/db/models/cipher.rs")
+          text = path.read_text()
+
+          old = '''        // Check whether this cipher is directly owned by the user, or is in
+          // a collection that the user has full access to. If so, there are no
+          // access restrictions.
+          if self.is_owned_by_user(user_uuid)
+              || self.is_in_full_access_org(user_uuid, cipher_sync_data, conn).await
+              || self.is_in_full_access_group(user_uuid, cipher_sync_data, conn).await
+          {
+              return Some((false, false, true));
+          }
+          '''
+
+          new = '''        // A directly owned personal cipher does not depend on organization membership.
+          if self.is_owned_by_user(user_uuid) {
+              return Some((false, false, true));
+          }
+
+          // Uncached/direct authorization paths must never grant access to an
+          // organization-owned cipher until that user's membership is Confirmed.
+          // Full sync already builds its cached access data from confirmed
+          // memberships, so avoid an extra membership query on every synced cipher.
+          if cipher_sync_data.is_none()
+              && let Some(ref org_uuid) = self.organization_uuid
+              && Membership::find_confirmed_by_user_and_org(user_uuid, org_uuid, conn).await.is_none()
+          {
+              return None;
+          }
+
+          // Confirmed organization/group full access has no collection restrictions.
+          if self.is_in_full_access_org(user_uuid, cipher_sync_data, conn).await
+              || self.is_in_full_access_group(user_uuid, cipher_sync_data, conn).await
+          {
+              return Some((false, false, true));
+          }
+          '''
+
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one authorization block, found {count}")
+
+          path.write_text(text.replace(old, new, 1))
+
+      - name: Format and verify focused diff
+        run: |
+          cargo fmt --all --check || cargo fmt --all
+          git diff --check
+          git diff -- src/db/models/cipher.rs
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = "src/db/models/cipher.rs"
+
+      - name: Commit security fix
+        run: |
+          git config user.name "goreevault-ci"
+          git config user.email "295260680+GoreeCloud@users.noreply.github.com"
+          git add src/db/models/cipher.rs
+          git commit -m "Require confirmed membership for direct org cipher access"
+          git push origin HEAD:agent/goreevault-v0.2.1-org-attachments
