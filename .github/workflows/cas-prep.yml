@@ -1,0 +1,41 @@
+name: Atomic Refresh CAS Prep
+
+on:
+  push:
+    branches:
+      - scratch/cas-prep
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout scratch branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Apply exact refresh CAS patch
+        run: python3 scripts/prepare-cas.py
+
+      - name: Format and validate generated sources
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          python3 -m py_compile tests/compat/compat.py
+          git diff --check
+
+      - name: Show generated source diff
+        run: git diff -- src/auth.rs src/db/models/device.rs tests/compat/compat.py
+
+      - name: Commit generated source patch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/auth.rs src/db/models/device.rs tests/compat/compat.py
+          git diff --cached --quiet && { echo 'No generated changes to commit.' >&2; exit 1; }
+          git commit -m 'Prepare atomic concurrent refresh-token consume'
+          git push origin HEAD:scratch/cas-prep
