@@ -40,6 +40,8 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: docker.io/aquasec/trivy-java-db:1,public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
         with:
           scan-type: repo
+          scan-ref: .
+          scanners: vuln
           ignore-unfixed: true
           format: sarif
           output: goreevault-trivy-repository.sarif
@@ -73,6 +75,8 @@ jobs:
         with:
           scan-type: image
           image-ref: goreevault-security:${{ github.sha }}
+          scanners: vuln
+          skip-setup-trivy: true
           ignore-unfixed: true
           vuln-type: os,library
           format: sarif
