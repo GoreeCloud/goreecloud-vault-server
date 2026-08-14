@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GoreeVault black-box compatibility smoke tests.
+"""GoreeVault black-box compatibility tests.
 
 The harness deliberately treats encrypted vault values as opaque strings. That
 matches the server's responsibility: clients perform vault encryption and the
@@ -92,6 +92,52 @@ def wait_for_server(timeout: int = 180) -> None:
     raise AssertionError(f"GoreeVault did not become healthy: {last}")
 
 
+def health_contract() -> None:
+    resp = request("HEAD", "/alive")
+    require_success(resp, "HEAD /alive")
+    print("PASS  HEAD /alive")
+
+    resp = request("GET", "/api/alive")
+    require_success(resp, "/api/alive")
+    require(resp.body, "/api/alive returned an empty body")
+    print("PASS  database-backed /api/alive")
+
+
+def config_contract(*, registration_disabled: bool) -> None:
+    resp = request("GET", "/api/config")
+    require_success(resp, "config")
+    body = resp.json()
+    require(isinstance(body, dict), "config did not return an object")
+    require(body.get("object") == "config", "config object marker changed")
+
+    server = body.get("server")
+    require(isinstance(server, dict), "config did not return server metadata")
+    require(server.get("name") == "GoreeVault", f"unexpected server name: {server}")
+    require(
+        server.get("url") == "https://github.com/GoreeCloud/goreevault-server",
+        f"unexpected GoreeVault source URL: {server}",
+    )
+
+    settings = body.get("settings")
+    require(isinstance(settings, dict), "config did not return settings")
+    require(
+        settings.get("disableUserRegistration") is registration_disabled,
+        "config registration policy does not match runtime policy",
+    )
+
+    environment = body.get("environment")
+    require(isinstance(environment, dict), "config did not return environment URLs")
+    require(str(environment.get("api", "")).endswith("/api"), "config API URL is invalid")
+    require(str(environment.get("identity", "")).endswith("/identity"), "config identity URL is invalid")
+    print("PASS  GoreeVault config and server identity")
+
+
+def unauthenticated_sync_denied() -> None:
+    resp = request("GET", "/api/sync")
+    require(resp.status in (401, 403), f"unauthenticated sync returned HTTP {resp.status}: {resp.text()}")
+    print("PASS  unauthenticated vault sync denied")
+
+
 def kdf() -> dict[str, Any]:
     return {
         "kdf": 0,
@@ -127,11 +173,16 @@ def prelogin() -> None:
     require_success(resp, "prelogin")
     body = resp.json()
     require(isinstance(body, dict), "prelogin did not return an object")
+    require("kdf" in body, "prelogin response is missing kdf")
+    require("kdfIterations" in body, "prelogin response is missing kdfIterations")
     print("PASS  prelogin API contract")
 
 
 def closed_registration_test() -> None:
     wait_for_server()
+    health_contract()
+    config_contract(registration_disabled=True)
+    unauthenticated_sync_denied()
     prelogin()
     resp = request("POST", "/identity/accounts/register", json_body=registration_payload())
     require(400 <= resp.status < 500, f"closed registration unexpectedly returned HTTP {resp.status}")
@@ -174,7 +225,7 @@ def login() -> tuple[str, str]:
     return access, refresh
 
 
-def refresh_login(refresh_token: str) -> str:
+def refresh_login(refresh_token: str) -> tuple[str, str]:
     resp = request(
         "POST",
         "/identity/connect/token",
@@ -187,9 +238,28 @@ def refresh_login(refresh_token: str) -> str:
     require_success(resp, "refresh token")
     body = resp.json()
     access = body.get("access_token") if isinstance(body, dict) else None
+    new_refresh = body.get("refresh_token") if isinstance(body, dict) else None
     require(isinstance(access, str) and access, "refresh did not return access_token")
+    require(isinstance(new_refresh, str) and new_refresh, "refresh did not return refresh_token")
+    require(new_refresh != refresh_token, "refresh token was not rotated")
     print("PASS  refresh-token rotation")
-    return access
+    return access, new_refresh
+
+
+def refresh_replay_rejected(old_refresh_token: str) -> None:
+    resp = request(
+        "POST",
+        "/identity/connect/token",
+        form={
+            "grant_type": "refresh_token",
+            "client_id": "web",
+            "refresh_token": old_refresh_token,
+        },
+    )
+    require(resp.status == 400, f"replayed refresh token returned HTTP {resp.status}: {resp.text()}")
+    body = resp.json()
+    require(isinstance(body, dict) and body.get("error") == "invalid_grant", "refresh replay was not invalid_grant")
+    print("PASS  rotated refresh-token replay rejected")
 
 
 def sync(token: str) -> dict[str, Any]:
@@ -270,13 +340,17 @@ def cipher_crud(token: str) -> None:
 
 def full_test() -> None:
     wait_for_server()
+    health_contract()
+    config_contract(registration_disabled=False)
+    unauthenticated_sync_denied()
     prelogin()
     register()
     access, refresh = login()
     first_sync = sync(access)
     require(first_sync["ciphers"] == [], "new account unexpectedly contained ciphers")
     print("PASS  clean-account initial sync")
-    access = refresh_login(refresh)
+    access, _new_refresh = refresh_login(refresh)
+    refresh_replay_rejected(refresh)
     cipher_crud(access)
 
 
