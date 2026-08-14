@@ -36,16 +36,6 @@ jobs:
             exit 1
           fi
 
-  container-build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Build GoreeVault PostgreSQL image
-        run: |
-          docker build \
-            --file docker/Dockerfile.debian \
-            --build-arg DB=postgresql \
-            --tag goreevault-server:ci \
-            .
+# The black-box GoreeVault Compatibility workflow builds the same PostgreSQL
+# container image and then boots it for API tests. Keeping a second Docker build
+# here duplicated the most expensive CI work without adding coverage.
