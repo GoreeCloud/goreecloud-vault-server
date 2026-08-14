@@ -1,6 +1,24 @@
-/.github @dani-garcia @BlackDex
-/.github/** @dani-garcia @BlackDex
-/.github/CODEOWNERS @dani-garcia @BlackDex
-/.github/ISSUE_TEMPLATE/** @dani-garcia @BlackDex
-/.github/workflows/** @dani-garcia @BlackDex
-/SECURITY.md @dani-garcia @BlackDex
+# GoreeVault review ownership
+#
+# GoreeVault is maintained by GoreeCloud. Upstream Vaultwarden maintainers are
+# not automatically responsible for reviewing GoreeVault-specific changes.
+
+# Repository automation, policy, and release/security workflows
+/.github/** @GoreeCloud
+/SECURITY.md @GoreeCloud
+
+# Dependency and build inputs
+/Cargo.toml @GoreeCloud
+/Cargo.lock @GoreeCloud
+/build.rs @GoreeCloud
+/docker/** @GoreeCloud
+/deploy/** @GoreeCloud
+
+# All GoreeVault runtime source, including authentication, cryptography,
+# authorization, persistence, SSO, rate limiting, and configuration
+/src/** @GoreeCloud
+/migrations/** @GoreeCloud
+
+# Release-blocking compatibility, recovery, and operational harnesses
+/tests/** @GoreeCloud
+/scripts/** @GoreeCloud
