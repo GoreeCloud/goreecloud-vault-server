@@ -11,6 +11,8 @@ Supported release tags are:
 
 The release workflow rejects tags outside those formats and rejects tags whose commit is not contained in `main`.
 
+A Stable tag is not allowed to introduce new source after RC testing. For a Stable tag such as `v0.2.0`, the release workflow resolves the latest matching `v0.2.0-rc.N` tag and requires both tags to point to the same source commit. If there is no prior matching RC, or the latest RC points to different source, Stable publishing fails.
+
 ## Pre-tag release validation
 
 Pull requests run the same PostgreSQL Debian Dockerfile as a non-publishing Linux AMD64 + ARM64 OCI build. The preflight enables the same BuildKit SBOM and maximum-provenance settings used by the publisher and validates that a multi-architecture OCI manifest digest is produced.
@@ -57,6 +59,6 @@ Before creating a release tag:
 2. Confirm the protected `release` environment and source-branch protections are active.
 3. Create an RC tag first and deploy that exact digest to the GoreeCloud test environment.
 4. Complete the real Bitwarden client matrix and restore/rollback rehearsal against the RC digest.
-5. Promote the same tested source commit to the stable version tag only after all release gates are satisfied.
+5. Promote the same tested source commit to the Stable version tag only after all release gates are satisfied. The workflow independently enforces that the Stable tag resolves to the same commit as the latest matching RC tag.
 
 Never rebuild a different source commit under the same release version.
