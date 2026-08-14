@@ -6,11 +6,16 @@ This directory contains black-box integration tests for GoreeVault's Bitwarden-c
 
 The harness never uses a production database, production data directory, real user email address, or real vault secret. PostgreSQL and `/data` use ephemeral `tmpfs` storage and are destroyed after each phase.
 
-The test identity is `compat-user@example.invalid`, an intentionally non-deliverable address reserved for examples and testing.
+The authenticated test phase uses two intentionally non-deliverable identities under `example.invalid`:
+
+- `compat-owner@example.invalid`
+- `compat-outsider@example.invalid`
+
+All vault values and keys are obvious synthetic opaque strings.
 
 ## What is tested
 
-The first v0.2 gate verifies:
+The current v0.2 harness verifies:
 
 1. fresh PostgreSQL startup and migrations
 2. DB-backed `/alive`
@@ -22,8 +27,20 @@ The first v0.2 gate verifies:
 8. clean-account vault sync
 9. personal cipher create/read/update/delete
 10. sync consistency after update and delete
+11. organization creation and owner access
+12. outsider denial for organization data
+13. initial and newly created collections
+14. outsider denial for collection details
+15. organization-owned cipher creation in a collection
+16. owner sync visibility and outsider sync isolation for organization data
+17. attachment metadata creation on an organization cipher
+18. outsider denial for attachment metadata
+19. multipart attachment upload
+20. signed attachment download with byte-for-byte verification
+21. attachment deletion and post-delete denial
+22. organization cipher and collection cleanup
 
-Encrypted values are represented by obvious opaque test strings. The server is not expected to decrypt vault contents; client-side cryptography will receive its own dedicated compatibility fixtures in later gates.
+Encrypted values are represented by opaque test strings. The server is not expected to decrypt vault contents; client-side cryptography will receive its own dedicated compatibility fixtures in later gates.
 
 ## Run locally
 
@@ -38,8 +55,10 @@ From the repository root:
 bash scripts/compat.sh
 ```
 
-The runner performs two isolated phases. It first starts GoreeVault with registration disabled and verifies rejection. It then destroys that environment, starts a fresh test instance with registration enabled, and runs authenticated API tests.
+The runner performs two isolated phases. It first starts GoreeVault with registration disabled and verifies rejection. It then destroys that environment, starts a fresh test instance with registration enabled, and runs authenticated API and authorization tests.
+
+On failure, the runner prints container status and recent GoreeVault/PostgreSQL logs before destroying the ephemeral environment.
 
 ## Planned expansion
 
-Additional v0.2 gates will cover organizations/collections, attachments, TOTP, WebAuthn/passkeys, import/export, backup/restore, and supported official-client compatibility.
+Additional v0.2 gates will cover member invitations/role transitions, deeper collection ACL combinations, import/export, TOTP, WebAuthn/passkeys, backup/restore, migration/rollback, and supported official-client compatibility.
