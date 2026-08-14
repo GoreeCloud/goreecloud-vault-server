@@ -20,6 +20,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Validate compatibility harness
+        run: |
+          python3 -m py_compile tests/compat/compat.py
+          bash -n scripts/compat.sh
+          docker compose -f tests/compat/compose.yaml config --quiet
+
       - name: Show Docker versions
         run: |
           docker version
