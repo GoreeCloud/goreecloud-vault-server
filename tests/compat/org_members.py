@@ -268,8 +268,12 @@ def main() -> int:
         member_id = object_id(member, "accepted membership")
         require(member.get("status") == 1, f"existing member should auto-accept with mail disabled: {member}")
         require(member.get("type") == 2, f"restricted member type changed: {member}")
-        require(assigned_collection_ids(member) == {assigned_id}, f"accepted member assignment mismatch: {member}")
-        print("PASS  existing account invited as accepted restricted user")
+        # Accepted memberships are intentionally not effective collection
+        # memberships yet. Collection queries require Confirmed status.
+        require(assigned_collection_ids(member) == set(), f"accepted member unexpectedly had effective collections: {member}")
+        accepted_ids = list_ids(request("GET", "/api/collections", token=member_token), "accepted member collection list")
+        require(default_id not in accepted_ids and assigned_id not in accepted_ids, "accepted member received collection access before confirmation")
+        print("PASS  accepted member has no effective collection access")
 
         resp = request(
             "POST",
@@ -280,7 +284,8 @@ def main() -> int:
         require_success(resp, "confirm restricted member")
         member = find_member(owner_token, org_id)
         require(member.get("status") == 2, f"member did not become confirmed: {member}")
-        print("PASS  restricted member confirmed")
+        require(assigned_collection_ids(member) == {assigned_id}, f"confirmed member assignment mismatch: {member}")
+        print("PASS  restricted member confirmed with assigned collection")
 
         member_ids = list_ids(request("GET", "/api/collections", token=member_token), "member collection list")
         require(assigned_id in member_ids, "confirmed member cannot see assigned collection")
