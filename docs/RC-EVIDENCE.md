@@ -1,17 +1,20 @@
 # GoreeVault Release Candidate Evidence
 
-Use this file as a template for each release candidate. Copy it into a versioned/datestamped evidence record or complete it in the release PR before promotion. Do not replace evidence from one source commit with results from another.
+Use this file as a template for each release candidate. Copy it into a versioned/datestamped evidence record or complete it in the release PR before promotion. Do not replace evidence from one source commit or OCI digest with results from another.
 
 ## Candidate identity
 
 - RC tag:
+- Target Stable version:
 - Source commit SHA:
 - OCI image: `ghcr.io/goreecloud/goreevault-server@sha256:`
-- Semantic image tag:
+- RC semantic image tag:
 - Source-SHA image tag:
 - Test environment/domain:
 - Evidence collection date/time and timezone:
 - Reviewer:
+
+The OCI digest above is the artifact identity for this evidence cycle. Client, recovery, migration, and security approval must refer to this exact published manifest.
 
 ## Repository release controls
 
@@ -46,7 +49,9 @@ A skipped inherited/upstream-only check does not satisfy a GoreeVault gate.
 - BuildKit SBOM generated: NOT VERIFIED
 - BuildKit maximum provenance generated: NOT VERIFIED
 - GitHub OIDC/Sigstore artifact attestation verified for the candidate digest: NOT VERIFIED
-- Published digest matches the image used for client testing: NOT VERIFIED
+- Published RC digest matches the image used for client testing: NOT VERIFIED
+- Source-SHA image tag resolves to the candidate digest: NOT VERIFIED
+- Stable publisher is configured to promote the latest matching RC manifest without rebuilding: NOT VERIFIED
 
 ## Backup, restore, and migration evidence
 
@@ -80,6 +85,18 @@ Complete `docs/CLIENT-COMPATIBILITY.md` against the exact OCI digest above.
 - CLI required rows complete: NO
 - Real WebAuthn/passkey registration and authentication with an actual authenticator: NO
 
+## Stable promotion verification
+
+Complete these after the Stable tag workflow finishes and before treating the release as successfully promoted:
+
+- Stable tag points to the same source commit as the approved latest matching RC: NOT VERIFIED
+- Stable semantic image tag resolves to the candidate RC digest above: NOT VERIFIED
+- `latest` resolves to the candidate RC digest above: NOT VERIFIED
+- Stable workflow did not rebuild the production image: NOT VERIFIED
+- Stable-run GitHub artifact attestation references the same candidate digest: NOT VERIFIED
+
+Any digest mismatch is a failed Stable promotion even when source SHAs match.
+
 ## Final promotion decision
 
 - All automated RC gates green on this source commit: NO
@@ -92,4 +109,4 @@ Complete `docs/CLIENT-COMPATIBILITY.md` against the exact OCI digest above.
 - Approved for Stable promotion: NO
 - Final approver/date:
 
-Stable must use the same tested source commit. Any source change requires a new RC evidence cycle.
+Stable must use the same tested source commit **and exact tested RC OCI manifest**. Any source or artifact change requires a new RC evidence cycle.
