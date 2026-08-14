@@ -11,6 +11,8 @@ Supported release tags are:
 
 The release workflow rejects tags outside those formats and rejects tags whose commit is not contained in `main`.
 
+A Stable tag is not allowed to introduce new source or a newly rebuilt container after RC testing. For a Stable tag such as `v0.2.0`, the workflow resolves the latest matching `v0.2.0-rc.N` tag, requires both tags to point to the same source commit, and promotes the exact tested RC OCI manifest digest to `0.2.0` and `latest`. If there is no prior matching RC, the source commit differs, the source-SHA image differs, or the promoted digest changes, Stable publishing fails.
+
 ## Pre-tag release validation
 
 Pull requests run the same PostgreSQL Debian Dockerfile as a non-publishing Linux AMD64 + ARM64 OCI build. The preflight enables the same BuildKit SBOM and maximum-provenance settings used by the publisher and validates that a multi-architecture OCI manifest digest is produced.
@@ -23,16 +25,35 @@ The canonical container is:
 
 `ghcr.io/goreecloud/goreevault-server`
 
-Every release publishes two immutable references:
+Release candidates publish:
 
-- the semantic version tag, such as `0.2.0` or `0.2.0-rc.1`
+- the RC semantic tag, such as `0.2.0-rc.1`
 - a source tag in the form `sha-<12-character-commit>`
 
-Stable releases also update `latest`. Release candidates never move `latest`.
+The RC container is built with the target Stable application version (`0.2.0` for the example above); RC status is represented by the registry/GitHub release tag. This allows a tested RC manifest to be promoted without changing the application bits.
+
+Stable promotion does **not** rebuild the container. It copies the exact latest matching RC manifest to:
+
+- the Stable semantic tag, such as `0.2.0`
+- `latest`
+
+The workflow verifies both promoted references resolve to the exact RC digest. Release candidates never move `latest`.
+
+## RC deployment identity
+
+Release-candidate testing must use the exact published OCI manifest digest, for example:
+
+`ghcr.io/goreecloud/goreevault-server@sha256:<candidate-digest>`
+
+Record that digest in the RC evidence before running the client matrix. Do not substitute a local source build, the development image, `latest`, or only a mutable semantic tag when collecting release evidence.
+
+`deploy/compose.yaml` is the GoreeVault **development** deployment and builds the server locally. It is not the source of truth for RC/Stable artifact validation.
 
 ## Supply-chain evidence
 
-The release workflow builds Linux AMD64 and ARM64 images with BuildKit provenance and SBOM generation enabled. After the multi-architecture image is pushed, GitHub Actions creates an artifact attestation for the manifest digest using GitHub OIDC/Sigstore identity and pushes the attestation to the registry.
+The RC publisher builds Linux AMD64 and ARM64 images with BuildKit provenance and SBOM generation enabled. After the multi-architecture image is pushed, GitHub Actions creates an artifact attestation for the manifest digest using GitHub OIDC/Sigstore identity and pushes the attestation to the registry.
+
+Stable promotion operates on that already-published manifest by digest rather than rebuilding it. The Stable workflow verifies the source-SHA reference, Stable semantic tag, and `latest` all resolve to the tested RC manifest and creates a Stable-run artifact attestation for the same digest.
 
 Deployments should pin the manifest digest whenever practical rather than relying only on a mutable tag.
 
@@ -57,6 +78,7 @@ Before creating a release tag:
 2. Confirm the protected `release` environment and source-branch protections are active.
 3. Create an RC tag first and deploy that exact digest to the GoreeCloud test environment.
 4. Complete the real Bitwarden client matrix and restore/rollback rehearsal against the RC digest.
-5. Promote the same tested source commit to the stable version tag only after all release gates are satisfied.
+5. Create the Stable tag on the **same source commit** only after all release gates are satisfied.
+6. Verify the Stable workflow promotes the exact tested RC digest to the Stable semantic tag and `latest` without rebuilding the image.
 
-Never rebuild a different source commit under the same release version.
+Never rebuild a different artifact for Stable after the RC digest has earned release approval.
