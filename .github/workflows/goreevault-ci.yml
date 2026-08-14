@@ -1,53 +1,62 @@
 name: GoreeVault CI
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'agent/**'
+  pull_request:
 
 permissions:
   contents: read
 
 concurrency:
-  group: goreevault-ci-${{ github.workflow }}-${{ github.ref }}
+  group: goreevault-ci-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  CARGO_TERM_COLOR: always
 
 jobs:
   rust-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install PostgreSQL build dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpq-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpq-dev pkg-config
 
       - name: Show Rust toolchain
-        run: rustup show
+        run: |
+          rustc --version
+          cargo --version
 
       - name: Formatting
-        run: cargo fmt --all --check
+        run: cargo fmt --all -- --check
 
       - name: Compile PostgreSQL target
-        run: cargo check --locked --features postgresql
+        run: cargo check --locked --no-default-features --features postgresql
 
       - name: Compile PostgreSQL test targets
-        run: cargo test --locked --features postgresql --no-run
+        run: cargo test --locked --no-default-features --features postgresql --no-run
 
       - name: Validate GoreeVault harness sources
         run: |
-          bash -n scripts/preflight.sh scripts/compat.sh
-          python3 -m py_compile tests/compat/compat.py
+          bash -n scripts/preflight.sh
+          bash -n scripts/compat.sh
+          bash -n scripts/recovery.sh
+          python3 -m py_compile \
+            tests/compat/compat.py \
+            tests/compat/org_members.py \
+            tests/recovery/recovery.py
+          docker compose -f tests/compat/compose.yaml config >/dev/null
+          docker compose -f tests/recovery/compose.yaml config >/dev/null
 
       - name: Verify deployment secrets are not tracked
-        shell: bash
         run: |
-          set -euo pipefail
           if git ls-files --error-unmatch deploy/.env >/dev/null 2>&1; then
-            echo "deploy/.env must never be committed" >&2
+            echo 'deploy/.env must never be committed' >&2
             exit 1
           fi
+          echo 'No tracked deployment .env file.'

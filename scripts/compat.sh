@@ -37,4 +37,9 @@ cleanup
 SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 240
 python3 tests/compat/compat.py --mode full
 
+printf '\n==> GoreeVault compatibility: restricted organization member phase\n'
+cleanup
+SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 240
+python3 tests/compat/org_members.py
+
 printf '\nGoreeVault compatibility harness passed.\n'
