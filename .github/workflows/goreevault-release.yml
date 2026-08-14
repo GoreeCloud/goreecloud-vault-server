@@ -112,7 +112,9 @@ jobs:
           fi
 
           VERSION="${REF_NAME#v}"
+          BUILD_VERSION="${VERSION%%-rc.*}"
           SHORT_SHA="${GITHUB_SHA:0:12}"
+          LATEST_RC=""
           if [[ "${VERSION}" == *-rc.* ]]; then
             PRERELEASE=true
           else
@@ -139,11 +141,14 @@ jobs:
 
           {
             echo "version=${VERSION}"
+            echo "build_version=${BUILD_VERSION}"
             echo "short_sha=${SHORT_SHA}"
             echo "prerelease=${PRERELEASE}"
+            echo "latest_rc=${LATEST_RC}"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Initialize QEMU binfmt support
+      - name: Initialize QEMU binfmt support for RC build
+        if: steps.release_meta.outputs.prerelease == 'true'
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
         with:
           platforms: "arm64"
@@ -162,44 +167,89 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push immutable multi-arch image
-        id: build_image
+      - name: Build RC or promote exact tested RC manifest
+        id: release_image
         env:
           VERSION: ${{ steps.release_meta.outputs.version }}
+          BUILD_VERSION: ${{ steps.release_meta.outputs.build_version }}
           SHORT_SHA: ${{ steps.release_meta.outputs.short_sha }}
           PRERELEASE: ${{ steps.release_meta.outputs.prerelease }}
+          LATEST_RC: ${{ steps.release_meta.outputs.latest_rc }}
         run: |
           set -euo pipefail
 
-          TAG_ARGS=(
-            --tag "${IMAGE}:${VERSION}"
-            --tag "${IMAGE}:sha-${SHORT_SHA}"
-          )
-          if [[ "${PRERELEASE}" == "false" ]]; then
-            TAG_ARGS+=(--tag "${IMAGE}:latest")
-          fi
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            METADATA_FILE="${RUNNER_TEMP}/goreevault-build-metadata.json"
+            docker buildx build \
+              --platform linux/amd64,linux/arm64 \
+              --file docker/Dockerfile.debian \
+              --build-arg DB=postgresql \
+              --build-arg "VW_VERSION=${BUILD_VERSION}" \
+              --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+              --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+              --label "org.opencontainers.image.version=${BUILD_VERSION}" \
+              --provenance=mode=max \
+              --sbom=true \
+              --metadata-file "${METADATA_FILE}" \
+              --push \
+              --tag "${IMAGE}:${VERSION}" \
+              --tag "${IMAGE}:sha-${SHORT_SHA}" \
+              .
 
-          METADATA_FILE="${RUNNER_TEMP}/goreevault-build-metadata.json"
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --file docker/Dockerfile.debian \
-            --build-arg DB=postgresql \
-            --build-arg "VW_VERSION=${VERSION}" \
-            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            --label "org.opencontainers.image.version=${VERSION}" \
-            --provenance=mode=max \
-            --sbom=true \
-            --metadata-file "${METADATA_FILE}" \
-            --push \
-            "${TAG_ARGS[@]}" \
-            .
+            DIGEST="$(jq -r '."containerimage.digest" // empty' "${METADATA_FILE}")"
+            if [[ ! "${DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+              echo "Unable to determine pushed RC image digest." >&2
+              cat "${METADATA_FILE}" >&2
+              exit 1
+            fi
+            echo "Published RC manifest ${IMAGE}@${DIGEST}."
+          else
+            if [[ -z "${LATEST_RC}" ]]; then
+              echo "Stable promotion is missing the validated latest RC tag." >&2
+              exit 1
+            fi
 
-          DIGEST="$(jq -r '."containerimage.digest" // empty' "${METADATA_FILE}")"
-          if [[ ! "${DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-            echo "Unable to determine pushed image digest." >&2
-            cat "${METADATA_FILE}" >&2
-            exit 1
+            RC_VERSION="${LATEST_RC#v}"
+            RC_REF="${IMAGE}:${RC_VERSION}"
+            RC_DIGEST="$(docker buildx imagetools inspect "${RC_REF}" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
+            if [[ ! "${RC_DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+              echo "Unable to determine latest RC manifest digest for ${RC_REF}." >&2
+              exit 1
+            fi
+
+            SHA_DIGEST="$(docker buildx imagetools inspect "${IMAGE}:sha-${SHORT_SHA}" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
+            if [[ "${SHA_DIGEST}" != "${RC_DIGEST}" ]]; then
+              echo "Source-SHA image does not match latest RC manifest." >&2
+              echo "RC digest: ${RC_DIGEST}" >&2
+              echo "SHA digest: ${SHA_DIGEST}" >&2
+              exit 1
+            fi
+
+            STABLE_METADATA="${RUNNER_TEMP}/goreevault-stable-promotion-metadata.json"
+            docker buildx imagetools create \
+              --tag "${IMAGE}:${VERSION}" \
+              --metadata-file "${STABLE_METADATA}" \
+              "${IMAGE}@${RC_DIGEST}"
+            docker buildx imagetools create \
+              --tag "${IMAGE}:latest" \
+              "${IMAGE}@${RC_DIGEST}"
+
+            DIGEST="$(jq -r '."containerimage.descriptor".digest // empty' "${STABLE_METADATA}")"
+            if [[ "${DIGEST}" != "${RC_DIGEST}" ]]; then
+              echo "Stable version tag did not preserve the tested RC manifest digest." >&2
+              echo "RC digest: ${RC_DIGEST}" >&2
+              echo "Stable digest: ${DIGEST}" >&2
+              exit 1
+            fi
+
+            for REF in "${IMAGE}:${VERSION}" "${IMAGE}:latest"; do
+              PROMOTED_DIGEST="$(docker buildx imagetools inspect "${REF}" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
+              if [[ "${PROMOTED_DIGEST}" != "${RC_DIGEST}" ]]; then
+                echo "Promoted reference ${REF} does not match tested RC manifest ${RC_DIGEST}." >&2
+                exit 1
+              fi
+            done
+            echo "Promoted exact tested RC manifest ${RC_DIGEST} to ${VERSION} and latest without rebuilding."
           fi
 
           echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
@@ -209,7 +259,7 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ env.IMAGE }}
-          subject-digest: ${{ steps.build_image.outputs.digest }}
+          subject-digest: ${{ steps.release_image.outputs.digest }}
           push-to-registry: true
 
       - name: Create GitHub release
@@ -217,7 +267,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.release_meta.outputs.version }}
           PRERELEASE: ${{ steps.release_meta.outputs.prerelease }}
-          DIGEST: ${{ steps.build_image.outputs.digest }}
+          LATEST_RC: ${{ steps.release_meta.outputs.latest_rc }}
+          DIGEST: ${{ steps.release_image.outputs.digest }}
         run: |
           set -euo pipefail
 
@@ -240,6 +291,6 @@ jobs:
             if [[ "${PRERELEASE}" == "true" ]]; then
               echo "RC release: \`latest\` was not changed."
             else
-              echo "Stable release: \`latest\` now points at this manifest."
+              echo "Stable release: exact tested ${LATEST_RC} manifest promoted to \`${VERSION}\` and \`latest\` without rebuilding."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
