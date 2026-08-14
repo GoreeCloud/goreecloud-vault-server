@@ -15,38 +15,44 @@ All vault values and keys are obvious synthetic opaque strings.
 
 ## What is tested
 
-The current v0.2 harness verifies:
+### Gate A — Core API lifecycle
 
-1. fresh PostgreSQL startup and migrations
-2. DB-backed `/alive`
-3. prelogin contract
-4. public registration remains rejected when `SIGNUPS_ALLOWED=false`
-5. isolated account creation when test-only signups are enabled
-6. password grant login
-7. refresh-token rotation
-8. clean-account vault sync
-9. personal cipher create/read/update/delete
-10. sync consistency after update and delete
-11. organization creation and owner access
-12. outsider denial for organization data
-13. initial and newly created collections
-14. outsider denial for collection details
-15. organization-owned cipher creation in a collection
-16. owner sync visibility and outsider sync isolation for organization data
-17. attachment metadata creation on an organization cipher
-18. outsider denial for attachment metadata
-19. multipart attachment upload
-20. signed attachment download with byte-for-byte verification
-21. attachment deletion and post-delete denial
-22. existing-account organization invitation in no-mail self-hosted mode
-23. accepted-but-unconfirmed member denial
-24. owner confirmation of an accepted member
-25. confirmed member collection/cipher visibility
-26. writable collection member cipher update
-27. read-only collection ACL denial
-28. restoration from read-only to writable access
-29. member removal and immediate loss of organization access
-30. organization cipher and collection cleanup
+- fresh PostgreSQL startup and migrations
+- DB-backed `/alive`
+- prelogin contract
+- closed-registration policy
+- isolated account creation
+- password grant login
+- refresh-token rotation
+- clean-account vault sync
+- personal cipher create/read/update/delete
+- sync consistency after update and delete
+
+### Gate B — Collaboration and storage
+
+- organization creation and owner access
+- outsider denial for organization data
+- initial and newly created collections
+- outsider denial for collection details
+- organization-owned cipher creation in a collection
+- owner sync visibility and outsider sync isolation
+- attachment metadata creation on an organization cipher
+- outsider denial for attachment metadata
+- multipart attachment upload
+- signed attachment download with byte-for-byte verification
+- attachment deletion and post-delete denial
+- existing-account organization invitation in no-mail self-hosted mode
+- accepted-but-unconfirmed member denial
+- owner confirmation of an accepted member
+- confirmed member collection/cipher visibility
+- writable collection member cipher update
+- read-only collection ACL denial
+- restoration from read-only to writable access
+- member removal and immediate loss of organization access
+- personal import with folder/cipher relationship verification
+- organization export containing expected collection and cipher
+- outsider denial for organization export
+- organization cipher and collection cleanup
 
 Encrypted values are represented by opaque test strings. The server is not expected to decrypt vault contents; client-side cryptography will receive its own dedicated compatibility fixtures in later gates.
 
@@ -63,7 +69,7 @@ From the repository root:
 bash scripts/compat.sh
 ```
 
-The runner performs two isolated phases. It first starts GoreeVault with registration disabled and verifies rejection. It then destroys that environment, starts a fresh test instance with registration enabled, and runs authenticated API and authorization tests.
+The runner performs two isolated server phases. It first starts GoreeVault with registration disabled and verifies rejection. It then destroys that environment, starts a fresh test instance with registration enabled, and runs authenticated API, authorization, import, and export tests.
 
 On failure, the runner prints container status and recent GoreeVault/PostgreSQL logs before destroying the ephemeral environment.
 
@@ -71,4 +77,4 @@ The GitHub Actions workflow performs Python syntax, shell syntax, and Compose co
 
 ## Planned expansion
 
-Additional v0.2 gates will cover import/export, TOTP, WebAuthn/passkeys, backup/restore, migration/rollback, and supported official-client compatibility.
+The next v0.2 gates cover TOTP, WebAuthn/passkeys, backup/restore, migration/rollback, and supported official-client compatibility.
