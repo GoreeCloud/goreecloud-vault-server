@@ -1,0 +1,51 @@
+name: GoreeVault CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install PostgreSQL build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpq-dev
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Formatting
+        run: cargo fmt --all --check
+
+      - name: Compile PostgreSQL target
+        run: cargo check --locked --features postgresql
+
+      - name: Verify deployment secrets are not tracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files --error-unmatch deploy/.env >/dev/null 2>&1; then
+            echo "deploy/.env must never be committed" >&2
+            exit 1
+          fi
+
+  container-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build GoreeVault PostgreSQL image
+        run: |
+          docker build \
+            --file docker/Dockerfile.debian \
+            --build-arg DB=postgresql \
+            --tag goreevault-server:ci \
+            .
