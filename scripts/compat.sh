@@ -25,16 +25,16 @@ trap on_exit EXIT
 
 cd "$ROOT_DIR"
 
+docker compose -f "$COMPOSE_FILE" config >/dev/null
+
 printf '\n==> GoreeVault compatibility: closed-registration phase\n'
 cleanup
-SIGNUPS_ALLOWED=false docker compose -f "$COMPOSE_FILE" up -d --build --wait postgres
-SIGNUPS_ALLOWED=false docker compose -f "$COMPOSE_FILE" up -d server
+SIGNUPS_ALLOWED=false docker compose -f "$COMPOSE_FILE" up -d --build --wait --wait-timeout 240
 python3 tests/compat/compat.py --mode closed
 
 printf '\n==> GoreeVault compatibility: authenticated CRUD phase\n'
 cleanup
-SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --build --wait postgres
-SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d server
+SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 240
 python3 tests/compat/compat.py --mode full
 
 printf '\nGoreeVault compatibility harness passed.\n'
