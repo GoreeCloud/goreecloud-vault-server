@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'agent/**'
+      - 'scratch/cas-prep'
   pull_request:
 
 permissions:
