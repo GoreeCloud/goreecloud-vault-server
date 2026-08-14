@@ -46,6 +46,7 @@ jobs:
           bash -n scripts/preflight.sh
           bash -n scripts/compat.sh
           bash -n scripts/recovery.sh
+          bash -n scripts/migration-handoff.sh
           python3 -m py_compile \
             tests/compat/compat.py \
             tests/compat/org_members.py \
@@ -53,6 +54,7 @@ jobs:
             tests/recovery/recovery.py
           docker compose -f tests/compat/compose.yaml config >/dev/null
           docker compose -f tests/recovery/compose.yaml config >/dev/null
+          docker compose -f tests/migration/compose.yaml config >/dev/null
 
       - name: Verify deployment secrets are not tracked
         run: |

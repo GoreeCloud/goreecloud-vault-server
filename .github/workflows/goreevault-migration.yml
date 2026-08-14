@@ -1,0 +1,45 @@
+name: GoreeVault Migration Handoff
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-migration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upstream-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkout exact Vaultwarden baseline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: dani-garcia/vaultwarden
+          ref: 0cefa4cca7c9f2a5579dd290f78193b543818c51
+          path: _upstream/vaultwarden-baseline
+          persist-credentials: false
+
+      - name: Show Docker versions
+        run: |
+          docker version
+          docker compose version
+
+      - name: Build exact upstream Vaultwarden baseline
+        run: |
+          docker build \
+            --file _upstream/vaultwarden-baseline/docker/Dockerfile.debian \
+            --build-arg DB=postgresql \
+            --tag vaultwarden-baseline:migration \
+            _upstream/vaultwarden-baseline
+
+      - name: Run Vaultwarden to GoreeVault migration and rollback rehearsal
+        run: bash scripts/migration-handoff.sh
