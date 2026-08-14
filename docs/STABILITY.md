@@ -36,7 +36,8 @@ Release candidates must prove the authenticated lifecycle and recovery path.
 Required in addition to Preview:
 
 - isolated account creation and login fixture
-- refresh-token rotation
+- password refresh-token rotation and sequential replay rejection
+- atomic refresh-token consumption under concurrent replay
 - vault sync
 - cipher create/read/update/delete
 - organization and collection access-control tests
@@ -64,6 +65,7 @@ The following are release-blocking requirements:
 6. **PostgreSQL is not exposed to the public edge network.** Only the GoreeVault server may reach the database network in the standard deployment.
 7. **Changes to cryptography, authentication, migrations, or authorization receive dedicated compatibility tests before production promotion.**
 8. **Upstream provenance remains documented.** GoreeVault may change product identity without obscuring the Vaultwarden-derived implementation and license obligations.
+9. **Refresh-token replay resistance is verified for both sequential and concurrent use.** A stable release must ensure a consumed password refresh token cannot be successfully reused, including during competing refresh requests.
 
 ## Current status
 
