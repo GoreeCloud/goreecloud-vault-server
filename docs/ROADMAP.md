@@ -35,11 +35,14 @@ Implemented in the current Gate B work:
 - attachment metadata/create/upload/read/delete lifecycle
 - signed attachment download with byte-for-byte verification
 - outsider authorization denial for cipher and attachment metadata
+- existing-account invitation behavior for self-hosted no-mail mode
+- accepted-to-confirmed membership transition
+- confirmed member collection visibility
+- writable/read-only/writable collection ACL transitions
+- member removal and immediate organization-access loss
 
 Still required to complete Gate B:
 
-- member invitation/acceptance/confirmation lifecycle
-- member role and collection ACL transitions
 - import/export fixtures
 
 ### Gate C — Authentication regression
