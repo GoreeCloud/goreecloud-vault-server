@@ -23,9 +23,7 @@
 - vault sync
 - personal cipher create/read/update/delete
 
-### Gate B — Collaboration and storage 🚧
-
-Implemented in the current Gate B work:
+### Gate B — Collaboration and storage ✅
 
 - organization creation and owner access
 - outsider authorization denial for organization resources
@@ -40,10 +38,9 @@ Implemented in the current Gate B work:
 - confirmed member collection visibility
 - writable/read-only/writable collection ACL transitions
 - member removal and immediate organization-access loss
-
-Still required to complete Gate B:
-
-- import/export fixtures
+- personal import with folder/cipher relationship verification
+- organization export containing expected collection and cipher
+- outsider authorization denial for organization export
 
 ### Gate C — Authentication regression
 
