@@ -231,8 +231,8 @@ fn config() -> Json<Value> {
         "version": "2026.6.0",
         "gitHash": option_env!("GIT_REV"),
         "server": {
-          "name": "Vaultwarden",
-          "url": "https://github.com/dani-garcia/vaultwarden"
+          "name": "GoreeVault",
+          "url": "https://github.com/GoreeCloud/goreevault-server"
         },
         "settings": {
             "disableUserRegistration": CONFIG.is_signup_disabled(),
@@ -286,7 +286,6 @@ async fn accept_org_invite(
     if member.status != MembershipStatus::Invited as i32 {
         err!("User already accepted the invitation");
     }
-
     member.status = MembershipStatus::Accepted as i32;
     member.reset_password_key = reset_password_key;
 
@@ -299,7 +298,6 @@ async fn accept_org_invite(
         let Some(org) = Organization::find_by_uuid(&member.org_uuid, conn).await else {
             err!("Organization not found.")
         };
-        // User was invited to an organization, so they must be confirmed manually after acceptance
         mail::send_invite_accepted(&user.email, &member.invited_by_email.unwrap_or(org.billing_email), &org.name)
             .await?;
     }
