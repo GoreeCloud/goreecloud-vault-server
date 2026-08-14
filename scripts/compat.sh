@@ -48,17 +48,26 @@ run_org_members() {
   python3 tests/compat/org_members.py
 }
 
+run_totp() {
+  printf '\n==> GoreeVault compatibility: TOTP authentication phase\n'
+  cleanup
+  SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --build --wait --wait-timeout 240
+  python3 tests/compat/totp.py
+}
+
 case "$PHASE" in
   closed) run_closed ;;
   full) run_full ;;
   org-members) run_org_members ;;
+  totp) run_totp ;;
   all)
     run_closed
     run_full
     run_org_members
+    run_totp
     ;;
   *)
-    echo "Usage: $0 [closed|full|org-members|all]" >&2
+    echo "Usage: $0 [closed|full|org-members|totp|all]" >&2
     exit 2
     ;;
 esac
