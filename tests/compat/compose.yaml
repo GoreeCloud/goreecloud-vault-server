@@ -34,7 +34,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DOMAIN: http://127.0.0.1:18080
+      DOMAIN: ${DOMAIN:-http://127.0.0.1:18080}
       DATABASE_URL: postgresql://goreevault_compat:goreevault_compat_0123456789abcdef0123456789abcdef@postgres:5432/goreevault_compat
       SIGNUPS_ALLOWED: ${SIGNUPS_ALLOWED:-false}
       INVITATIONS_ALLOWED: "false"

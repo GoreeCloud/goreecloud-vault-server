@@ -51,6 +51,7 @@ jobs:
             tests/compat/compat.py \
             tests/compat/org_members.py \
             tests/compat/totp.py \
+            tests/compat/webauthn.py \
             tests/recovery/recovery.py
           docker compose -f tests/compat/compose.yaml config >/dev/null
           docker compose -f tests/recovery/compose.yaml config >/dev/null

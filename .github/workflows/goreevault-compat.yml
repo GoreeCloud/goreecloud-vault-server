@@ -15,7 +15,7 @@ concurrency:
 jobs:
   api-compatibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 80
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,3 +39,6 @@ jobs:
 
       - name: TOTP authentication and recovery compatibility
         run: bash scripts/compat.sh totp
+
+      - name: WebAuthn challenge and rejection compatibility
+        run: bash scripts/compat.sh webauthn
