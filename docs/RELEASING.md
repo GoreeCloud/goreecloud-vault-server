@@ -32,6 +32,16 @@ Every release publishes two immutable references:
 
 Stable releases also update `latest`. Release candidates never move `latest`.
 
+## RC deployment identity
+
+Release-candidate testing must use the exact published OCI manifest digest, for example:
+
+`ghcr.io/goreecloud/goreevault-server@sha256:<candidate-digest>`
+
+Record that digest in the RC evidence before running the client matrix. Do not substitute a local source build, the development image, `latest`, or only a mutable semantic tag when collecting release evidence.
+
+`deploy/compose.yaml` is the GoreeVault **development** deployment and builds the server locally. It is not the source of truth for RC/Stable artifact validation.
+
 ## Supply-chain evidence
 
 The release workflow builds Linux AMD64 and ARM64 images with BuildKit provenance and SBOM generation enabled. After the multi-architecture image is pushed, GitHub Actions creates an artifact attestation for the manifest digest using GitHub OIDC/Sigstore identity and pushes the attestation to the registry.
