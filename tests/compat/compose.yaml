@@ -1,0 +1,51 @@
+name: goreevault-compat
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: goreevault_compat
+      POSTGRES_USER: goreevault_compat
+      POSTGRES_PASSWORD: goreevault_compat_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goreevault_compat -d goreevault_compat"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - backend
+
+  server:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.debian
+      args:
+        DB: postgresql
+    image: goreevault-server:compat
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOMAIN: http://127.0.0.1:18080
+      DATABASE_URL: postgresql://goreevault_compat:goreevault_compat_only@postgres:5432/goreevault_compat
+      SIGNUPS_ALLOWED: ${SIGNUPS_ALLOWED:-false}
+      INVITATIONS_ALLOWED: "false"
+      WEB_VAULT_ENABLED: "false"
+      ENABLE_WEBSOCKET: "false"
+      LOG_LEVEL: warn
+      JOB_POLL_INTERVAL_MS: "0"
+      ADMIN_TOKEN: ""
+    tmpfs:
+      - /data
+    ports:
+      - "127.0.0.1:18080:80"
+    networks:
+      - backend
+      - edge
+
+networks:
+  backend:
+    internal: true
+  edge:
