@@ -257,7 +257,7 @@ def main() -> int:
         print("PASS  used TOTP replay rejected")
 
         recovery_access = access_token(
-            login(provider=8, two_factor_token=recovery_code),
+            login(provider=8, two_factor_token=recovery_code.lower()),
             "login with recovery code",
         )
         print("PASS  recovery-code login")
