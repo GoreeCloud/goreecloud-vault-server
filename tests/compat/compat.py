@@ -22,6 +22,9 @@ BASE_URL = "http://127.0.0.1:18080"
 EMAIL = "compat-user@example.invalid"
 PASSWORD_HASH = "goreevault-compat-client-auth-hash-v1"
 DEVICE_ID = "11111111-2222-4333-8444-555555555555"
+OUTSIDER_EMAIL = "compat-outsider@example.invalid"
+OUTSIDER_PASSWORD_HASH = "goreevault-compat-outsider-auth-hash-v1"
+OUTSIDER_DEVICE_ID = "66666666-7777-4888-8999-aaaaaaaaaaaa"
 ATTACHMENT_BYTES = b"goreevault-compat-encrypted-attachment-payload-v1\x00\x01\xff"
 
 
@@ -128,6 +131,10 @@ def require_success(resp: Response, label: str) -> None:
     require(200 <= resp.status < 300, f"{label}: HTTP {resp.status}: {resp.text()}")
 
 
+def require_denied(resp: Response, label: str) -> None:
+    require(resp.status in (401, 403, 404), f"{label}: expected access denial, got HTTP {resp.status}: {resp.text()}")
+
+
 def wait_for_server(timeout: int = 180) -> None:
     deadline = time.monotonic() + timeout
     last = "not started"
@@ -200,25 +207,34 @@ def kdf() -> dict[str, Any]:
     }
 
 
-def registration_payload() -> dict[str, Any]:
+def registration_payload_for(email: str, password_hash: str, name: str, key_prefix: str) -> dict[str, Any]:
     return {
-        "email": EMAIL,
-        "name": "GoreeVault Compatibility User",
+        "email": email,
+        "name": name,
         "masterPasswordAuthentication": {
             "kdf": kdf(),
-            "salt": EMAIL,
-            "hash": PASSWORD_HASH,
+            "salt": email,
+            "hash": password_hash,
         },
         "masterPasswordUnlock": {
             "kdf": kdf(),
-            "salt": EMAIL,
-            "key": "2.compat-encrypted-user-key",
+            "salt": email,
+            "key": f"2.{key_prefix}-encrypted-user-key",
         },
         "keys": {
-            "encryptedPrivateKey": "2.compat-encrypted-private-key",
-            "publicKey": "compat-public-key",
+            "encryptedPrivateKey": f"2.{key_prefix}-encrypted-private-key",
+            "publicKey": f"{key_prefix}-public-key",
         },
     }
+
+
+def registration_payload() -> dict[str, Any]:
+    return registration_payload_for(
+        EMAIL,
+        PASSWORD_HASH,
+        "GoreeVault Compatibility User",
+        "compat",
+    )
 
 
 def prelogin() -> None:
@@ -246,13 +262,26 @@ def closed_registration_test() -> None:
     print("PASS  public registration disabled")
 
 
+def register_account(email: str, password_hash: str, name: str, key_prefix: str) -> None:
+    resp = request(
+        "POST",
+        "/identity/accounts/register",
+        json_body=registration_payload_for(email, password_hash, name, key_prefix),
+    )
+    require_success(resp, f"register {email}")
+    print(f"PASS  isolated test-account registration ({email})")
+
+
 def register() -> None:
-    resp = request("POST", "/identity/accounts/register", json_body=registration_payload())
-    require_success(resp, "register")
-    print("PASS  isolated test-account registration")
+    register_account(EMAIL, PASSWORD_HASH, "GoreeVault Compatibility User", "compat")
 
 
-def login() -> tuple[str, str]:
+def login_account(
+    email: str,
+    password_hash: str,
+    device_id: str,
+    device_name: str,
+) -> tuple[str, str]:
     resp = request(
         "POST",
         "/identity/connect/token",
@@ -260,22 +289,26 @@ def login() -> tuple[str, str]:
             "grant_type": "password",
             "client_id": "web",
             "scope": "api offline_access",
-            "username": EMAIL,
-            "password": PASSWORD_HASH,
-            "device_identifier": DEVICE_ID,
-            "device_name": "GoreeVault Compatibility Harness",
+            "username": email,
+            "password": password_hash,
+            "device_identifier": device_id,
+            "device_name": device_name,
             "device_type": "14",
         },
     )
-    require_success(resp, "login")
+    require_success(resp, f"login {email}")
     body = resp.json()
     require(isinstance(body, dict), "login did not return an object")
     access = body.get("access_token")
     refresh = body.get("refresh_token")
     require(isinstance(access, str) and access, "login did not return access_token")
     require(isinstance(refresh, str) and refresh, "login did not return refresh_token")
-    print("PASS  password login")
+    print(f"PASS  password login ({email})")
     return access, refresh
+
+
+def login() -> tuple[str, str]:
+    return login_account(EMAIL, PASSWORD_HASH, DEVICE_ID, "GoreeVault Compatibility Harness")
 
 
 def refresh_login(refresh_token: str) -> tuple[str, str]:
@@ -343,8 +376,96 @@ def cipher_payload(name: str) -> dict[str, Any]:
 
 def get_id(body: dict[str, Any]) -> str:
     value = body.get("id") or body.get("Id")
-    require(isinstance(value, str) and value, f"cipher response missing id: {body}")
+    require(isinstance(value, str) and value, f"response missing id: {body}")
     return value
+
+
+def response_ids(body: Any) -> set[str]:
+    require(isinstance(body, dict), f"list response was not an object: {body}")
+    data = body.get("data")
+    require(isinstance(data, list), f"list response did not contain data: {body}")
+    return {
+        value
+        for item in data
+        if isinstance(item, dict)
+        for value in (item.get("id") or item.get("Id"),)
+        if isinstance(value, str) and value
+    }
+
+
+def organization_isolation(owner_token: str, outsider_token: str) -> None:
+    resp = request(
+        "POST",
+        "/api/organizations",
+        json_body={
+            "billingEmail": EMAIL,
+            "collectionName": "GoreeVault Compatibility Default Collection",
+            "key": "2.compat-encrypted-organization-key",
+            "name": "GoreeVault Compatibility Organization",
+            "keys": {
+                "encryptedPrivateKey": "2.compat-encrypted-organization-private-key",
+                "publicKey": "compat-organization-public-key",
+            },
+            "planType": 0,
+        },
+        token=owner_token,
+    )
+    require_success(resp, "create organization")
+    organization = resp.json()
+    require(isinstance(organization, dict), "organization create did not return an object")
+    org_id = get_id(organization)
+    print("PASS  organization owner create")
+
+    resp = request("GET", f"/api/organizations/{org_id}", token=owner_token)
+    require_success(resp, "owner read organization")
+    owner_org = resp.json()
+    require(isinstance(owner_org, dict) and get_id(owner_org) == org_id, "owner organization read mismatch")
+    print("PASS  organization owner read")
+
+    resp = request("GET", f"/api/organizations/{org_id}", token=outsider_token)
+    require_denied(resp, "outsider read organization")
+    print("PASS  outsider organization read denied")
+
+    org_collections_path = f"/api/organizations/{org_id}/collections"
+    resp = request("GET", org_collections_path, token=owner_token)
+    require_success(resp, "owner list organization collections")
+    initial_collection_ids = response_ids(resp.json())
+    require(initial_collection_ids, "new organization did not contain its default collection")
+    print("PASS  organization owner collection list")
+
+    resp = request("GET", org_collections_path, token=outsider_token)
+    require_denied(resp, "outsider list organization collections")
+    print("PASS  outsider organization collection list denied")
+
+    collection_payload = {
+        "name": "GoreeVault Compatibility Secondary Collection",
+        "groups": [],
+        "users": [],
+        "externalId": None,
+    }
+    resp = request("POST", org_collections_path, json_body=collection_payload, token=owner_token)
+    require_success(resp, "owner create organization collection")
+    collection = resp.json()
+    require(isinstance(collection, dict), "collection create did not return an object")
+    collection_id = get_id(collection)
+    print("PASS  organization owner collection create")
+
+    resp = request("POST", org_collections_path, json_body=collection_payload, token=outsider_token)
+    require_denied(resp, "outsider create organization collection")
+    print("PASS  outsider organization collection create denied")
+
+    resp = request("GET", "/api/collections", token=owner_token)
+    require_success(resp, "owner user-collection list")
+    owner_collection_ids = response_ids(resp.json())
+    require(collection_id in owner_collection_ids, "owner user-collection list omitted created collection")
+    require(initial_collection_ids.issubset(owner_collection_ids), "owner user-collection list omitted default collection")
+
+    resp = request("GET", "/api/collections", token=outsider_token)
+    require_success(resp, "outsider user-collection list")
+    outsider_collection_ids = response_ids(resp.json())
+    require(collection_id not in outsider_collection_ids, "outsider could see owner's created collection")
+    require(initial_collection_ids.isdisjoint(outsider_collection_ids), "outsider could see owner's default collection")
+    print("PASS  organization collections isolated across accounts")
 
 
 def attachment_lifecycle(token: str, cipher_id: str) -> None:
@@ -467,6 +588,20 @@ def full_test() -> None:
     print("PASS  clean-account initial sync")
     access, _new_refresh = refresh_login(refresh)
     refresh_replay_rejected(refresh)
+
+    register_account(
+        OUTSIDER_EMAIL,
+        OUTSIDER_PASSWORD_HASH,
+        "GoreeVault Compatibility Outsider",
+        "compat-outsider",
+    )
+    outsider_access, _outsider_refresh = login_account(
+        OUTSIDER_EMAIL,
+        OUTSIDER_PASSWORD_HASH,
+        OUTSIDER_DEVICE_ID,
+        "GoreeVault Compatibility Outsider Harness",
+    )
+    organization_isolation(access, outsider_access)
     cipher_crud(access)
 
 
