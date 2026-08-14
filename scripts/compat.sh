@@ -7,7 +7,21 @@ COMPOSE_FILE="$ROOT_DIR/tests/compat/compose.yaml"
 cleanup() {
   docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans >/dev/null 2>&1 || true
 }
-trap cleanup EXIT
+
+show_logs() {
+  printf '\n==> GoreeVault compatibility failure logs\n' >&2
+  docker compose -f "$COMPOSE_FILE" ps >&2 || true
+  docker compose -f "$COMPOSE_FILE" logs --no-color --tail=250 >&2 || true
+}
+
+on_exit() {
+  local status=$?
+  if [[ $status -ne 0 ]]; then
+    show_logs
+  fi
+  cleanup
+}
+trap on_exit EXIT
 
 cd "$ROOT_DIR"
 
