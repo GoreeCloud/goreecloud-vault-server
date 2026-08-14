@@ -1,0 +1,227 @@
+name: GoreeVault Release
+
+on:
+  pull_request:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions: {}
+
+concurrency:
+  group: goreevault-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-image-preflight:
+    name: Validate multi-arch release image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Initialize QEMU binfmt support
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        with:
+          platforms: "arm64"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          cache-binary: false
+          driver-opts: |
+            network=host
+
+      - name: Build non-publishing multi-arch OCI release candidate
+        env:
+          PREFLIGHT_VERSION: 0.0.0-ci.${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          OUTPUT_FILE="${RUNNER_TEMP}/goreevault-release-preflight.tar"
+          METADATA_FILE="${RUNNER_TEMP}/goreevault-release-preflight-metadata.json"
+
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --file docker/Dockerfile.debian \
+            --build-arg DB=postgresql \
+            --build-arg "VW_VERSION=${PREFLIGHT_VERSION}" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.version=${PREFLIGHT_VERSION}" \
+            --provenance=mode=max \
+            --sbom=true \
+            --metadata-file "${METADATA_FILE}" \
+            --output "type=oci,dest=${OUTPUT_FILE}" \
+            .
+
+          test -s "${OUTPUT_FILE}"
+          tar -tf "${OUTPUT_FILE}" >/dev/null
+          DIGEST="$(jq -r '."containerimage.digest" // empty' "${METADATA_FILE}")"
+          if [[ ! "${DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "Release preflight did not produce a valid OCI manifest digest." >&2
+            cat "${METADATA_FILE}" >&2
+            exit 1
+          fi
+          echo "Validated multi-arch release OCI manifest ${DIGEST}."
+
+  release:
+    name: Build, attest, and publish GoreeVault
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: release-image-preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment: release
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    env:
+      IMAGE: ghcr.io/goreecloud/goreevault-server
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Validate GoreeVault release tag and source
+        id: release_meta
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]; then
+            echo "Unsupported GoreeVault release tag: ${REF_NAME}" >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "Release tag must point to a commit contained in main." >&2
+            exit 1
+          fi
+
+          VERSION="${REF_NAME#v}"
+          SHORT_SHA="${GITHUB_SHA:0:12}"
+          if [[ "${VERSION}" == *-rc.* ]]; then
+            PRERELEASE=true
+          else
+            PRERELEASE=false
+          fi
+
+          {
+            echo "version=${VERSION}"
+            echo "short_sha=${SHORT_SHA}"
+            echo "prerelease=${PRERELEASE}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Initialize QEMU binfmt support
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        with:
+          platforms: "arm64"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          cache-binary: false
+          driver-opts: |
+            network=host
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push immutable multi-arch image
+        id: build_image
+        env:
+          VERSION: ${{ steps.release_meta.outputs.version }}
+          SHORT_SHA: ${{ steps.release_meta.outputs.short_sha }}
+          PRERELEASE: ${{ steps.release_meta.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          TAG_ARGS=(
+            --tag "${IMAGE}:${VERSION}"
+            --tag "${IMAGE}:sha-${SHORT_SHA}"
+          )
+          if [[ "${PRERELEASE}" == "false" ]]; then
+            TAG_ARGS+=(--tag "${IMAGE}:latest")
+          fi
+
+          METADATA_FILE="${RUNNER_TEMP}/goreevault-build-metadata.json"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --file docker/Dockerfile.debian \
+            --build-arg DB=postgresql \
+            --build-arg "VW_VERSION=${VERSION}" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            --provenance=mode=max \
+            --sbom=true \
+            --metadata-file "${METADATA_FILE}" \
+            --push \
+            "${TAG_ARGS[@]}" \
+            .
+
+          DIGEST="$(jq -r '."containerimage.digest" // empty' "${METADATA_FILE}")"
+          if [[ ! "${DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "Unable to determine pushed image digest." >&2
+            cat "${METADATA_FILE}" >&2
+            exit 1
+          fi
+
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+          docker buildx imagetools inspect "${IMAGE}@${DIGEST}"
+
+      - name: Attest GoreeVault container image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build_image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.release_meta.outputs.version }}
+          PRERELEASE: ${{ steps.release_meta.outputs.prerelease }}
+          DIGEST: ${{ steps.build_image.outputs.digest }}
+        run: |
+          set -euo pipefail
+
+          RELEASE_ARGS=(
+            "${GITHUB_REF_NAME}"
+            --verify-tag
+            --generate-notes
+            --title "GoreeVault ${VERSION}"
+          )
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            RELEASE_ARGS+=(--prerelease)
+          fi
+
+          gh release create "${RELEASE_ARGS[@]}"
+          {
+            echo "### GoreeVault ${VERSION} published"
+            echo
+            echo "Container: \`${IMAGE}@${DIGEST}\`"
+            echo
+            if [[ "${PRERELEASE}" == "true" ]]; then
+              echo "RC release: \`latest\` was not changed."
+            else
+              echo "Stable release: \`latest\` now points at this manifest."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
