@@ -62,11 +62,14 @@ Deployments should pin the manifest digest whenever practical rather than relyin
 Before the first GoreeVault RC tag is created:
 
 1. Create a GitHub Actions environment named `release`.
-2. Configure explicit environment protection appropriate for a security-sensitive vault release, including required reviewer approval where the repository plan supports it.
-3. Verify the `main` branch protection/ruleset used by GoreeCloud prevents unreviewed source from becoming the release source of truth.
-4. Verify the release workflow can write packages, attestations, releases, and OIDC identity only through its scoped `GITHUB_TOKEN` permissions.
+2. Configure at least one required reviewer for that environment.
+3. Enable prevention of self-review so the person who triggers a release cannot approve their own deployment.
+4. Verify the `main` branch protection/ruleset used by GoreeCloud prevents unreviewed source from becoming the release source of truth.
+5. Verify the release workflow can write packages, attestations, releases, and OIDC identity only through its scoped `GITHUB_TOKEN` permissions.
 
-The workflow references `environment: release`, but that reference by itself is **not** proof that approval rules are configured. Do not create an RC tag until the repository-side environment protection has been verified.
+The release workflow has a tag-only `release-controls` job that reads the `release` environment through GitHub's API before publishing. It fails closed if the environment does not exist, has no required reviewer, or allows self-review. The publishing job depends on both this controls check and the multi-architecture image preflight.
+
+This explicit check is required because GitHub can create a referenced but nonexistent environment automatically without protection rules. The `environment: release` declaration by itself is therefore **not** accepted as evidence of release approval protection.
 
 The workflow uses the repository-provided `GITHUB_TOKEN`; no long-lived GHCR password is required.
 
