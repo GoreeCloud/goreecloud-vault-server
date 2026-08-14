@@ -31,10 +31,11 @@ SIGNUPS_ALLOWED=false docker compose -f "$COMPOSE_FILE" up -d --build --wait pos
 SIGNUPS_ALLOWED=false docker compose -f "$COMPOSE_FILE" up -d server
 python3 tests/compat/compat.py --mode closed
 
-printf '\n==> GoreeVault compatibility: authenticated CRUD phase\n'
+printf '\n==> GoreeVault compatibility: authenticated API phase\n'
 cleanup
 SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --build --wait postgres
 SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d server
 python3 tests/compat/compat.py --mode full
+python3 tests/compat/import_export.py
 
 printf '\nGoreeVault compatibility harness passed.\n'
