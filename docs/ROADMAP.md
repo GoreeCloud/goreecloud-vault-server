@@ -1,6 +1,6 @@
 # GoreeVault Roadmap
 
-## v0.1.0 — Foundation
+## v0.1.0 — Foundation ✅
 
 - Vaultwarden-derived server baseline
 - GoreeVault product-facing server/admin identity
@@ -10,15 +10,40 @@
 - development-only deployment
 - upstream tracking strategy
 
-## v0.2.0 — Compatibility harness
+## v0.2.0 — Compatibility harness 🚧
 
-- API smoke tests using supported Bitwarden clients
-- account creation/login/sync tests
-- cipher create/update/delete tests
-- organization/collection tests
-- attachment tests
-- TOTP and WebAuthn regression tests
-- backup/restore test automation
+### Gate A — Core API lifecycle
+
+- fresh PostgreSQL startup and migrations
+- database-backed health check
+- prelogin contract
+- registration-closed policy test
+- isolated account creation/login
+- refresh-token rotation
+- vault sync
+- personal cipher create/read/update/delete
+
+### Gate B — Collaboration and storage
+
+- organization/member lifecycle
+- collection access-control tests
+- attachment create/upload/read/delete
+- import/export fixtures
+
+### Gate C — Authentication regression
+
+- TOTP enable/login/recovery tests
+- WebAuthn/passkey regression tests
+- trusted-device and 2FA-remember behavior
+
+### Gate D — Recovery and supported clients
+
+- PostgreSQL backup/restore automation
+- data-directory backup/restore automation
+- migration/rollback rehearsal
+- supported Bitwarden CLI/browser/mobile compatibility matrix
+
+v0.2 is complete only when the applicable gates are deterministic, isolated from production data, and repeatable in CI.
 
 ## v0.3.0 — GoreeVault Web foundation
 
