@@ -3,7 +3,9 @@ name: GoreeVault Compatibility
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
+      - scratch/cas-prep
 
 permissions:
   contents: read
