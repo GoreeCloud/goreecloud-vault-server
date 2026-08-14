@@ -19,9 +19,12 @@ from dataclasses import dataclass
 from typing import Any
 
 BASE_URL = "http://127.0.0.1:18080"
-EMAIL = "compat-user@example.invalid"
-PASSWORD_HASH = "goreevault-compat-client-auth-hash-v1"
-DEVICE_ID = "11111111-2222-4333-8444-555555555555"
+OWNER_EMAIL = "compat-owner@example.invalid"
+OWNER_PASSWORD_HASH = "goreevault-compat-owner-auth-hash-v1"
+OWNER_DEVICE_ID = "11111111-2222-4333-8444-555555555555"
+OUTSIDER_EMAIL = "compat-outsider@example.invalid"
+OUTSIDER_PASSWORD_HASH = "goreevault-compat-outsider-auth-hash-v1"
+OUTSIDER_DEVICE_ID = "66666666-7777-4888-8999-aaaaaaaaaaaa"
 
 
 @dataclass
@@ -41,24 +44,29 @@ class Response:
 
 def request(
     method: str,
-    path: str,
+    path_or_url: str,
     *,
     json_body: Any | None = None,
     form: dict[str, str] | None = None,
+    raw_body: bytes | None = None,
+    content_type: str | None = None,
     token: str | None = None,
 ) -> Response:
     headers = {"User-Agent": "GoreeVault-Compatibility-Harness/0.2"}
-    data = None
+    data = raw_body
     if json_body is not None:
         data = json.dumps(json_body).encode("utf-8")
         headers["Content-Type"] = "application/json"
     elif form is not None:
         data = urllib.parse.urlencode(form).encode("utf-8")
         headers["Content-Type"] = "application/x-www-form-urlencoded"
+    elif content_type is not None:
+        headers["Content-Type"] = content_type
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    req = urllib.request.Request(BASE_URL + path, data=data, headers=headers, method=method)
+    url = path_or_url if path_or_url.startswith(("http://", "https://")) else BASE_URL + path_or_url
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return Response(resp.status, resp.read(), resp.headers)
@@ -73,6 +81,10 @@ def require(condition: bool, message: str) -> None:
 
 def require_success(resp: Response, label: str) -> None:
     require(200 <= resp.status < 300, f"{label}: HTTP {resp.status}: {resp.text()}")
+
+
+def require_denied(resp: Response, label: str) -> None:
+    require(400 <= resp.status < 500, f"{label}: expected authorization/client denial, got HTTP {resp.status}: {resp.text()}")
 
 
 def wait_for_server(timeout: int = 180) -> None:
@@ -101,29 +113,30 @@ def kdf() -> dict[str, Any]:
     }
 
 
-def registration_payload() -> dict[str, Any]:
+def registration_payload(email: str, password_hash: str, name: str) -> dict[str, Any]:
+    marker = email.split("@", 1)[0]
     return {
-        "email": EMAIL,
-        "name": "GoreeVault Compatibility User",
+        "email": email,
+        "name": name,
         "masterPasswordAuthentication": {
             "kdf": kdf(),
-            "salt": EMAIL,
-            "hash": PASSWORD_HASH,
+            "salt": email,
+            "hash": password_hash,
         },
         "masterPasswordUnlock": {
             "kdf": kdf(),
-            "salt": EMAIL,
-            "key": "2.compat-encrypted-user-key",
+            "salt": email,
+            "key": f"2.compat-encrypted-user-key-{marker}",
         },
         "keys": {
-            "encryptedPrivateKey": "2.compat-encrypted-private-key",
-            "publicKey": "compat-public-key",
+            "encryptedPrivateKey": f"2.compat-encrypted-private-key-{marker}",
+            "publicKey": f"compat-public-key-{marker}",
         },
     }
 
 
-def prelogin() -> None:
-    resp = request("POST", "/identity/accounts/prelogin", json_body={"email": EMAIL})
+def prelogin(email: str = OWNER_EMAIL) -> None:
+    resp = request("POST", "/identity/accounts/prelogin", json_body={"email": email})
     require_success(resp, "prelogin")
     body = resp.json()
     require(isinstance(body, dict), "prelogin did not return an object")
@@ -133,7 +146,11 @@ def prelogin() -> None:
 def closed_registration_test() -> None:
     wait_for_server()
     prelogin()
-    resp = request("POST", "/identity/accounts/register", json_body=registration_payload())
+    resp = request(
+        "POST",
+        "/identity/accounts/register",
+        json_body=registration_payload(OWNER_EMAIL, OWNER_PASSWORD_HASH, "GoreeVault Compatibility Owner"),
+    )
     require(400 <= resp.status < 500, f"closed registration unexpectedly returned HTTP {resp.status}")
     require(
         "Registration not allowed" in resp.text(),
@@ -142,13 +159,17 @@ def closed_registration_test() -> None:
     print("PASS  public registration disabled")
 
 
-def register() -> None:
-    resp = request("POST", "/identity/accounts/register", json_body=registration_payload())
-    require_success(resp, "register")
-    print("PASS  isolated test-account registration")
+def register(email: str, password_hash: str, name: str, label: str) -> None:
+    resp = request(
+        "POST",
+        "/identity/accounts/register",
+        json_body=registration_payload(email, password_hash, name),
+    )
+    require_success(resp, f"register {label}")
+    print(f"PASS  isolated {label} registration")
 
 
-def login() -> tuple[str, str]:
+def login(email: str, password_hash: str, device_id: str, label: str) -> tuple[str, str]:
     resp = request(
         "POST",
         "/identity/connect/token",
@@ -156,21 +177,21 @@ def login() -> tuple[str, str]:
             "grant_type": "password",
             "client_id": "web",
             "scope": "api offline_access",
-            "username": EMAIL,
-            "password": PASSWORD_HASH,
-            "device_identifier": DEVICE_ID,
-            "device_name": "GoreeVault Compatibility Harness",
+            "username": email,
+            "password": password_hash,
+            "device_identifier": device_id,
+            "device_name": f"GoreeVault Compatibility {label}",
             "device_type": "14",
         },
     )
-    require_success(resp, "login")
+    require_success(resp, f"login {label}")
     body = resp.json()
     require(isinstance(body, dict), "login did not return an object")
     access = body.get("access_token")
     refresh = body.get("refresh_token")
     require(isinstance(access, str) and access, "login did not return access_token")
     require(isinstance(refresh, str) and refresh, "login did not return refresh_token")
-    print("PASS  password login")
+    print(f"PASS  password login ({label})")
     return access, refresh
 
 
@@ -202,8 +223,13 @@ def sync(token: str) -> dict[str, Any]:
     return body
 
 
-def cipher_payload(name: str) -> dict[str, Any]:
-    return {
+def cipher_payload(
+    name: str,
+    *,
+    organization_id: str | None = None,
+    key: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "type": 1,
         "name": name,
         "notes": "2.compat-encrypted-notes",
@@ -216,11 +242,16 @@ def cipher_payload(name: str) -> dict[str, Any]:
             "uris": [{"uri": "2.compat-encrypted-uri", "match": None}],
         },
     }
+    if organization_id is not None:
+        payload["organizationId"] = organization_id
+    if key is not None:
+        payload["key"] = key
+    return payload
 
 
-def get_id(body: dict[str, Any]) -> str:
+def get_id(body: dict[str, Any], label: str = "response") -> str:
     value = body.get("id") or body.get("Id")
-    require(isinstance(value, str) and value, f"cipher response missing id: {body}")
+    require(isinstance(value, str) and value, f"{label} missing id: {body}")
     return value
 
 
@@ -232,7 +263,7 @@ def cipher_crud(token: str) -> None:
     require_success(resp, "create cipher")
     created = resp.json()
     require(isinstance(created, dict), "create cipher did not return an object")
-    cipher_id = get_id(created)
+    cipher_id = get_id(created, "cipher response")
     require(created.get("name") == initial_name or created.get("Name") == initial_name, "created cipher name mismatch")
     print("PASS  cipher create")
 
@@ -268,16 +299,243 @@ def cipher_crud(token: str) -> None:
     print("PASS  vault sync after delete")
 
 
+def organization_and_collection_tests(owner_token: str, outsider_token: str) -> tuple[str, str, str]:
+    org_payload = {
+        "billingEmail": OWNER_EMAIL,
+        "collectionName": "2.compat-encrypted-default-collection",
+        "key": "2.compat-encrypted-organization-key",
+        "name": "GoreeVault Compatibility Organization",
+        "planType": 0,
+    }
+    resp = request("POST", "/api/organizations", json_body=org_payload, token=owner_token)
+    require_success(resp, "create organization")
+    org_body = resp.json()
+    require(isinstance(org_body, dict), "create organization did not return an object")
+    org_id = get_id(org_body, "organization response")
+    print("PASS  organization create")
+
+    resp = request("GET", f"/api/organizations/{org_id}", token=owner_token)
+    require_success(resp, "read organization")
+    print("PASS  organization owner access")
+
+    resp = request("GET", f"/api/organizations/{org_id}", token=outsider_token)
+    require_denied(resp, "outsider organization read")
+    print("PASS  organization outsider denied")
+
+    resp = request("GET", f"/api/organizations/{org_id}/collections", token=owner_token)
+    require_success(resp, "list organization collections")
+    collection_list = resp.json()
+    require(isinstance(collection_list, dict), "collection list did not return an object")
+    require(isinstance(collection_list.get("data"), list), "collection list did not return data list")
+    require(len(collection_list["data"]) >= 1, "organization did not contain its initial collection")
+    print("PASS  initial organization collection")
+
+    new_collection_payload = {
+        "name": "2.compat-encrypted-gated-collection",
+        "groups": [],
+        "users": [],
+        "externalId": None,
+    }
+    resp = request(
+        "POST",
+        f"/api/organizations/{org_id}/collections",
+        json_body=new_collection_payload,
+        token=owner_token,
+    )
+    require_success(resp, "create organization collection")
+    collection_body = resp.json()
+    require(isinstance(collection_body, dict), "create collection did not return an object")
+    collection_id = get_id(collection_body, "collection response")
+    print("PASS  organization collection create")
+
+    resp = request(
+        "GET",
+        f"/api/organizations/{org_id}/collections/{collection_id}/details",
+        token=owner_token,
+    )
+    require_success(resp, "read collection details")
+    print("PASS  collection owner access")
+
+    resp = request(
+        "GET",
+        f"/api/organizations/{org_id}/collections/{collection_id}/details",
+        token=outsider_token,
+    )
+    require_denied(resp, "outsider collection read")
+    print("PASS  collection outsider denied")
+
+    shared_payload = {
+        "cipher": cipher_payload(
+            "2.compat-encrypted-org-item",
+            organization_id=org_id,
+            key="2.compat-encrypted-org-item-key",
+        ),
+        "collectionIds": [collection_id],
+    }
+    resp = request("POST", "/api/ciphers/create", json_body=shared_payload, token=owner_token)
+    require_success(resp, "create organization cipher")
+    cipher_body = resp.json()
+    require(isinstance(cipher_body, dict), "organization cipher did not return an object")
+    cipher_id = get_id(cipher_body, "organization cipher response")
+    response_org_id = cipher_body.get("organizationId") or cipher_body.get("OrganizationId")
+    require(response_org_id == org_id, "organization cipher response did not retain organizationId")
+    print("PASS  organization cipher create")
+
+    owner_sync = sync(owner_token)
+    require(
+        any(isinstance(c, dict) and (c.get("id") == cipher_id or c.get("Id") == cipher_id) for c in owner_sync["ciphers"]),
+        "organization cipher missing from owner sync",
+    )
+    require(
+        any(isinstance(c, dict) and (c.get("id") == collection_id or c.get("Id") == collection_id) for c in owner_sync.get("collections", [])),
+        "created organization collection missing from owner sync",
+    )
+    print("PASS  organization cipher and collection sync")
+
+    outsider_sync = sync(outsider_token)
+    require(
+        not any(isinstance(c, dict) and (c.get("id") == cipher_id or c.get("Id") == cipher_id) for c in outsider_sync["ciphers"]),
+        "organization cipher leaked into outsider sync",
+    )
+    resp = request("GET", f"/api/ciphers/{cipher_id}", token=outsider_token)
+    require_denied(resp, "outsider organization cipher read")
+    print("PASS  organization cipher outsider denied")
+
+    return org_id, collection_id, cipher_id
+
+
+def multipart_file(field: str, filename: str, content: bytes) -> tuple[bytes, str]:
+    boundary = "----GoreeVaultCompatBoundary7MA4YWxkTrZu0gW"
+    body = b"".join(
+        [
+            f"--{boundary}\r\n".encode(),
+            f'Content-Disposition: form-data; name="{field}"; filename="{filename}"\r\n'.encode(),
+            b"Content-Type: application/octet-stream\r\n\r\n",
+            content,
+            b"\r\n",
+            f"--{boundary}--\r\n".encode(),
+        ]
+    )
+    return body, f"multipart/form-data; boundary={boundary}"
+
+
+def attachment_tests(owner_token: str, outsider_token: str, cipher_id: str) -> None:
+    attachment_bytes = b"goreevault-compat-attachment-v1\x00opaque-ciphertext"
+    metadata_payload = {
+        "key": "2.compat-encrypted-attachment-key",
+        "fileName": "2.compat-encrypted-attachment-name",
+        "fileSize": len(attachment_bytes),
+        "adminRequest": False,
+    }
+    resp = request(
+        "POST",
+        f"/api/ciphers/{cipher_id}/attachment/v2",
+        json_body=metadata_payload,
+        token=owner_token,
+    )
+    require_success(resp, "create attachment metadata")
+    upload_data = resp.json()
+    require(isinstance(upload_data, dict), "attachment metadata did not return an object")
+    attachment_id = upload_data.get("attachmentId")
+    upload_url = upload_data.get("url")
+    require(isinstance(attachment_id, str) and attachment_id, "attachment metadata missing attachmentId")
+    require(isinstance(upload_url, str) and upload_url.startswith("/ciphers/"), "attachment metadata missing upload URL")
+    print("PASS  attachment metadata create")
+
+    resp = request(
+        "GET",
+        f"/api/ciphers/{cipher_id}/attachment/{attachment_id}",
+        token=outsider_token,
+    )
+    require_denied(resp, "outsider attachment metadata read")
+    print("PASS  attachment metadata outsider denied")
+
+    multipart_body, content_type = multipart_file("data", "compat.bin", attachment_bytes)
+    resp = request(
+        "POST",
+        "/api" + upload_url,
+        raw_body=multipart_body,
+        content_type=content_type,
+        token=owner_token,
+    )
+    require_success(resp, "upload attachment data")
+    print("PASS  attachment data upload")
+
+    resp = request(
+        "GET",
+        f"/api/ciphers/{cipher_id}/attachment/{attachment_id}",
+        token=owner_token,
+    )
+    require_success(resp, "read attachment metadata")
+    attachment = resp.json()
+    require(isinstance(attachment, dict), "attachment read did not return an object")
+    require((attachment.get("id") or attachment.get("Id")) == attachment_id, "attachment id mismatch")
+    download_url = attachment.get("url") or attachment.get("Url")
+    require(isinstance(download_url, str) and download_url.startswith(BASE_URL + "/attachments/"), "invalid attachment download URL")
+    print("PASS  attachment metadata read")
+
+    resp = request("GET", download_url)
+    require_success(resp, "download attachment")
+    require(resp.body == attachment_bytes, "downloaded attachment bytes did not match uploaded bytes")
+    print("PASS  signed attachment download")
+
+    resp = request(
+        "DELETE",
+        f"/api/ciphers/{cipher_id}/attachment/{attachment_id}",
+        token=owner_token,
+    )
+    require_success(resp, "delete attachment")
+    print("PASS  attachment delete")
+
+    resp = request(
+        "GET",
+        f"/api/ciphers/{cipher_id}/attachment/{attachment_id}",
+        token=owner_token,
+    )
+    require_denied(resp, "deleted attachment read")
+    print("PASS  deleted attachment unavailable")
+
+
+def organization_cleanup(owner_token: str, org_id: str, collection_id: str, cipher_id: str) -> None:
+    resp = request("DELETE", f"/api/ciphers/{cipher_id}", token=owner_token)
+    require_success(resp, "delete organization cipher")
+
+    resp = request(
+        "DELETE",
+        f"/api/organizations/{org_id}/collections/{collection_id}",
+        token=owner_token,
+    )
+    require_success(resp, "delete organization collection")
+
+    resp = request("GET", f"/api/organizations/{org_id}/collections", token=owner_token)
+    require_success(resp, "verify collection cleanup")
+    body = resp.json()
+    data = body.get("data") if isinstance(body, dict) else None
+    require(isinstance(data, list), "collection cleanup response did not contain data list")
+    require(
+        not any(isinstance(c, dict) and (c.get("id") == collection_id or c.get("Id") == collection_id) for c in data),
+        "deleted organization collection remained visible",
+    )
+    print("PASS  organization test cleanup")
+
+
 def full_test() -> None:
     wait_for_server()
     prelogin()
-    register()
-    access, refresh = login()
-    first_sync = sync(access)
-    require(first_sync["ciphers"] == [], "new account unexpectedly contained ciphers")
+    register(OWNER_EMAIL, OWNER_PASSWORD_HASH, "GoreeVault Compatibility Owner", "owner")
+    owner_access, refresh = login(OWNER_EMAIL, OWNER_PASSWORD_HASH, OWNER_DEVICE_ID, "owner")
+    first_sync = sync(owner_access)
+    require(first_sync["ciphers"] == [], "new owner account unexpectedly contained ciphers")
     print("PASS  clean-account initial sync")
-    access = refresh_login(refresh)
-    cipher_crud(access)
+    owner_access = refresh_login(refresh)
+    cipher_crud(owner_access)
+
+    register(OUTSIDER_EMAIL, OUTSIDER_PASSWORD_HASH, "GoreeVault Compatibility Outsider", "outsider")
+    outsider_access, _ = login(OUTSIDER_EMAIL, OUTSIDER_PASSWORD_HASH, OUTSIDER_DEVICE_ID, "outsider")
+
+    org_id, collection_id, org_cipher_id = organization_and_collection_tests(owner_access, outsider_access)
+    attachment_tests(owner_access, outsider_access, org_cipher_id)
+    organization_cleanup(owner_access, org_id, collection_id, org_cipher_id)
 
 
 def main() -> int:
