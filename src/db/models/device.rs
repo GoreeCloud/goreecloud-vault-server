@@ -238,13 +238,16 @@ impl Device {
 
         let updated = conn
             .run(move |conn| {
-                diesel::update(devices::table)
+                let result = diesel::update(devices::table)
                     .filter(devices::uuid.eq(uuid))
                     .filter(devices::user_uuid.eq(user_uuid))
                     .filter(devices::refresh_token.eq(expected_refresh_token))
                     .set((devices::refresh_token.eq(new_refresh_token_for_update), devices::updated_at.eq(updated_at)))
-                    .execute(conn)
-                    .map_res("Error consuming device refresh token")
+                    .execute(conn);
+                <Result<usize, diesel::result::Error> as MapResult<usize>>::map_res(
+                    result,
+                    "Error consuming device refresh token",
+                )
             })
             .await?;
 
