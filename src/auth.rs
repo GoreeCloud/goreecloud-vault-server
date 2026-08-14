@@ -1333,7 +1333,14 @@ pub async fn refresh_tokens(
         }
         AuthMethod::Sso => err!("SSO is now disabled, Login again using email and master password"),
         AuthMethod::Password if CONFIG.sso_enabled() && CONFIG.sso_only() => err!("SSO is now required, Login again"),
-        AuthMethod::Password => AuthTokens::new(&device, &user, refresh_claims.sub, client_id),
+        AuthMethod::Password => {
+            // Password refresh tokens are single-use. Rotate the server-side
+            // device secret before minting the next refresh JWT so replaying
+            // the prior JWT cannot find a matching device token.
+            device.refresh_token = Device::generate_refresh_token();
+            device.save(false, conn).await?;
+            AuthTokens::new(&device, &user, refresh_claims.sub, client_id)
+        }
         _ => err!("Invalid auth method, cannot refresh token"),
     };
 
