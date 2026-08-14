@@ -38,7 +38,15 @@ The current v0.2 harness verifies:
 19. multipart attachment upload
 20. signed attachment download with byte-for-byte verification
 21. attachment deletion and post-delete denial
-22. organization cipher and collection cleanup
+22. existing-account organization invitation in no-mail self-hosted mode
+23. accepted-but-unconfirmed member denial
+24. owner confirmation of an accepted member
+25. confirmed member collection/cipher visibility
+26. writable collection member cipher update
+27. read-only collection ACL denial
+28. restoration from read-only to writable access
+29. member removal and immediate loss of organization access
+30. organization cipher and collection cleanup
 
 Encrypted values are represented by opaque test strings. The server is not expected to decrypt vault contents; client-side cryptography will receive its own dedicated compatibility fixtures in later gates.
 
@@ -59,6 +67,8 @@ The runner performs two isolated phases. It first starts GoreeVault with registr
 
 On failure, the runner prints container status and recent GoreeVault/PostgreSQL logs before destroying the ephemeral environment.
 
+The GitHub Actions workflow performs Python syntax, shell syntax, and Compose configuration validation before starting the expensive container build so harness mistakes fail quickly.
+
 ## Planned expansion
 
-Additional v0.2 gates will cover member invitations/role transitions, deeper collection ACL combinations, import/export, TOTP, WebAuthn/passkeys, backup/restore, migration/rollback, and supported official-client compatibility.
+Additional v0.2 gates will cover import/export, TOTP, WebAuthn/passkeys, backup/restore, migration/rollback, and supported official-client compatibility.
