@@ -30,28 +30,28 @@ docker compose -f "$COMPOSE_FILE" config >/dev/null
 run_closed() {
   printf '\n==> GoreeVault compatibility: closed-registration phase\n'
   cleanup
-  SIGNUPS_ALLOWED=false docker compose -f "$COMPOSE_FILE" up -d --build --wait --wait-timeout 240
+  SIGNUPS_ALLOWED=false docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 240
   python3 tests/compat/compat.py --mode closed
 }
 
 run_full() {
   printf '\n==> GoreeVault compatibility: authenticated CRUD phase\n'
   cleanup
-  SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --build --wait --wait-timeout 240
+  SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 240
   python3 tests/compat/compat.py --mode full
 }
 
 run_org_members() {
   printf '\n==> GoreeVault compatibility: restricted organization member phase\n'
   cleanup
-  SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --build --wait --wait-timeout 240
+  SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 240
   python3 tests/compat/org_members.py
 }
 
 run_totp() {
   printf '\n==> GoreeVault compatibility: TOTP authentication phase\n'
   cleanup
-  SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --build --wait --wait-timeout 240
+  SIGNUPS_ALLOWED=true docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout 240
   python3 tests/compat/totp.py
 }
 
