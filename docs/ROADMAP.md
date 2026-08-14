@@ -12,7 +12,7 @@
 
 ## v0.2.0 — Compatibility harness 🚧
 
-### Gate A — Core API lifecycle
+### Gate A — Core API lifecycle ✅
 
 - fresh PostgreSQL startup and migrations
 - database-backed health check
@@ -23,11 +23,23 @@
 - vault sync
 - personal cipher create/read/update/delete
 
-### Gate B — Collaboration and storage
+### Gate B — Collaboration and storage 🚧
 
-- organization/member lifecycle
-- collection access-control tests
-- attachment create/upload/read/delete
+Implemented in the current Gate B work:
+
+- organization creation and owner access
+- outsider authorization denial for organization resources
+- collection creation/read/delete lifecycle
+- outsider authorization denial for collection details
+- organization-owned cipher creation and sync isolation
+- attachment metadata/create/upload/read/delete lifecycle
+- signed attachment download with byte-for-byte verification
+- outsider authorization denial for cipher and attachment metadata
+
+Still required to complete Gate B:
+
+- member invitation/acceptance/confirmation lifecycle
+- member role and collection ACL transitions
 - import/export fixtures
 
 ### Gate C — Authentication regression
