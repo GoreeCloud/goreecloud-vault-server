@@ -255,6 +255,12 @@ def get_id(body: dict[str, Any], label: str = "response") -> str:
     return value
 
 
+def contains_id(items: Any, item_id: str) -> bool:
+    return isinstance(items, list) and any(
+        isinstance(item, dict) and (item.get("id") == item_id or item.get("Id") == item_id) for item in items
+    )
+
+
 def cipher_crud(token: str) -> None:
     initial_name = "2.compat-encrypted-name-v1"
     updated_name = "2.compat-encrypted-name-v2"
@@ -292,10 +298,7 @@ def cipher_crud(token: str) -> None:
     print("PASS  cipher delete")
 
     synced = sync(token)
-    require(
-        not any(isinstance(c, dict) and (c.get("id") == cipher_id or c.get("Id") == cipher_id) for c in synced["ciphers"]),
-        "deleted cipher remained in sync response",
-    )
+    require(not contains_id(synced["ciphers"], cipher_id), "deleted cipher remained in sync response")
     print("PASS  vault sync after delete")
 
 
@@ -382,21 +385,12 @@ def organization_and_collection_tests(owner_token: str, outsider_token: str) -> 
     print("PASS  organization cipher create")
 
     owner_sync = sync(owner_token)
-    require(
-        any(isinstance(c, dict) and (c.get("id") == cipher_id or c.get("Id") == cipher_id) for c in owner_sync["ciphers"]),
-        "organization cipher missing from owner sync",
-    )
-    require(
-        any(isinstance(c, dict) and (c.get("id") == collection_id or c.get("Id") == collection_id) for c in owner_sync.get("collections", [])),
-        "created organization collection missing from owner sync",
-    )
+    require(contains_id(owner_sync["ciphers"], cipher_id), "organization cipher missing from owner sync")
+    require(contains_id(owner_sync.get("collections"), collection_id), "created organization collection missing from owner sync")
     print("PASS  organization cipher and collection sync")
 
     outsider_sync = sync(outsider_token)
-    require(
-        not any(isinstance(c, dict) and (c.get("id") == cipher_id or c.get("Id") == cipher_id) for c in outsider_sync["ciphers"]),
-        "organization cipher leaked into outsider sync",
-    )
+    require(not contains_id(outsider_sync["ciphers"], cipher_id), "organization cipher leaked into outsider sync")
     resp = request("GET", f"/api/ciphers/{cipher_id}", token=outsider_token)
     require_denied(resp, "outsider organization cipher read")
     print("PASS  organization cipher outsider denied")
@@ -496,6 +490,145 @@ def attachment_tests(owner_token: str, outsider_token: str, cipher_id: str) -> N
     print("PASS  deleted attachment unavailable")
 
 
+def member_collection_access(collection_id: str, *, read_only: bool) -> dict[str, Any]:
+    return {
+        "id": collection_id,
+        "readOnly": read_only,
+        "hidePasswords": False,
+        "manage": False,
+    }
+
+
+def set_member_access(
+    owner_token: str,
+    org_id: str,
+    member_id: str,
+    collection_id: str,
+    *,
+    read_only: bool,
+) -> None:
+    resp = request(
+        "PUT",
+        f"/api/organizations/{org_id}/users/{member_id}",
+        json_body={
+            "type": 2,
+            "collections": [member_collection_access(collection_id, read_only=read_only)],
+            "groups": [],
+            "permissions": {},
+        },
+        token=owner_token,
+    )
+    require_success(resp, "update member collection access")
+
+
+def membership_acl_tests(
+    owner_token: str,
+    outsider_token: str,
+    org_id: str,
+    collection_id: str,
+    cipher_id: str,
+) -> None:
+    invite_payload = {
+        "emails": [OUTSIDER_EMAIL],
+        "groups": [],
+        "type": 2,
+        "collections": [member_collection_access(collection_id, read_only=False)],
+        "permissions": {},
+    }
+    resp = request(
+        "POST",
+        f"/api/organizations/{org_id}/users/invite",
+        json_body=invite_payload,
+        token=owner_token,
+    )
+    require_success(resp, "invite existing organization member")
+    print("PASS  existing-account organization invitation")
+
+    resp = request(
+        "GET",
+        f"/api/organizations/{org_id}/users?includeCollections=true&includeGroups=false",
+        token=owner_token,
+    )
+    require_success(resp, "list organization members")
+    member_list = resp.json()
+    members = member_list.get("data") if isinstance(member_list, dict) else None
+    require(isinstance(members, list), "organization member list missing data")
+    matches = [m for m in members if isinstance(m, dict) and m.get("email") == OUTSIDER_EMAIL]
+    require(len(matches) == 1, "invited outsider missing or duplicated in organization member list")
+    outsider_member = matches[0]
+    member_id = get_id(outsider_member, "organization member")
+    require(outsider_member.get("status") == 1, f"existing no-mail invite should be Accepted before confirm: {outsider_member}")
+    require(contains_id(outsider_member.get("collections"), collection_id), "invited member missing assigned collection")
+    print("PASS  no-mail invitation enters accepted state")
+
+    resp = request("GET", f"/api/ciphers/{cipher_id}", token=outsider_token)
+    require_denied(resp, "accepted-but-unconfirmed member cipher read")
+    print("PASS  accepted member blocked before confirmation")
+
+    resp = request(
+        "POST",
+        f"/api/organizations/{org_id}/users/{member_id}/confirm",
+        json_body={"key": "2.compat-encrypted-member-organization-key"},
+        token=owner_token,
+    )
+    require_success(resp, "confirm organization member")
+    print("PASS  organization member confirmation")
+
+    outsider_sync = sync(outsider_token)
+    require(contains_id(outsider_sync["ciphers"], cipher_id), "confirmed collection member cannot sync organization cipher")
+    require(contains_id(outsider_sync.get("collections"), collection_id), "confirmed member cannot sync assigned collection")
+    resp = request("GET", f"/api/ciphers/{cipher_id}", token=outsider_token)
+    require_success(resp, "confirmed member read organization cipher")
+    print("PASS  confirmed member collection read access")
+
+    writable_payload = cipher_payload(
+        "2.compat-encrypted-member-write-v1",
+        organization_id=org_id,
+        key="2.compat-encrypted-org-item-key",
+    )
+    resp = request("PUT", f"/api/ciphers/{cipher_id}", json_body=writable_payload, token=outsider_token)
+    require_success(resp, "writable collection member cipher update")
+    print("PASS  writable collection member update")
+
+    set_member_access(owner_token, org_id, member_id, collection_id, read_only=True)
+    resp = request(
+        "PUT",
+        f"/api/ciphers/{cipher_id}",
+        json_body=cipher_payload(
+            "2.compat-encrypted-readonly-write-attempt",
+            organization_id=org_id,
+            key="2.compat-encrypted-org-item-key",
+        ),
+        token=outsider_token,
+    )
+    require_denied(resp, "read-only collection member cipher update")
+    print("PASS  read-only collection ACL blocks update")
+
+    set_member_access(owner_token, org_id, member_id, collection_id, read_only=False)
+    resp = request(
+        "PUT",
+        f"/api/ciphers/{cipher_id}",
+        json_body=cipher_payload(
+            "2.compat-encrypted-member-write-v2",
+            organization_id=org_id,
+            key="2.compat-encrypted-org-item-key",
+        ),
+        token=outsider_token,
+    )
+    require_success(resp, "restored writable collection member update")
+    print("PASS  writable ACL restoration permits update")
+
+    resp = request("DELETE", f"/api/organizations/{org_id}/users/{member_id}", token=owner_token)
+    require_success(resp, "remove organization member")
+    print("PASS  organization member removal")
+
+    resp = request("GET", f"/api/ciphers/{cipher_id}", token=outsider_token)
+    require_denied(resp, "removed member cipher read")
+    outsider_sync = sync(outsider_token)
+    require(not contains_id(outsider_sync["ciphers"], cipher_id), "removed member still receives organization cipher in sync")
+    print("PASS  removed member loses organization access")
+
+
 def organization_cleanup(owner_token: str, org_id: str, collection_id: str, cipher_id: str) -> None:
     resp = request("DELETE", f"/api/ciphers/{cipher_id}", token=owner_token)
     require_success(resp, "delete organization cipher")
@@ -512,10 +645,7 @@ def organization_cleanup(owner_token: str, org_id: str, collection_id: str, ciph
     body = resp.json()
     data = body.get("data") if isinstance(body, dict) else None
     require(isinstance(data, list), "collection cleanup response did not contain data list")
-    require(
-        not any(isinstance(c, dict) and (c.get("id") == collection_id or c.get("Id") == collection_id) for c in data),
-        "deleted organization collection remained visible",
-    )
+    require(not contains_id(data, collection_id), "deleted organization collection remained visible")
     print("PASS  organization test cleanup")
 
 
@@ -535,6 +665,7 @@ def full_test() -> None:
 
     org_id, collection_id, org_cipher_id = organization_and_collection_tests(owner_access, outsider_access)
     attachment_tests(owner_access, outsider_access, org_cipher_id)
+    membership_acl_tests(owner_access, outsider_access, org_id, collection_id, org_cipher_id)
     organization_cleanup(owner_access, org_id, collection_id, org_cipher_id)
 
 
