@@ -8,9 +8,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: goreevault-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   rust-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,6 +35,12 @@ jobs:
       - name: Compile PostgreSQL target
         run: cargo check --locked --features postgresql
 
+      - name: Compile PostgreSQL test targets
+        run: cargo test --locked --features postgresql --no-run
+
+      - name: Validate GoreeVault shell scripts
+        run: bash -n scripts/preflight.sh tests/compat/smoke.sh
+
       - name: Verify deployment secrets are not tracked
         shell: bash
         run: |
@@ -36,16 +50,69 @@ jobs:
             exit 1
           fi
 
-  container-build:
+  compatibility-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Build GoreeVault PostgreSQL image
+      - name: Create isolated CI environment
+        shell: bash
         run: |
-          docker build \
-            --file docker/Dockerfile.debian \
-            --build-arg DB=postgresql \
-            --tag goreevault-server:ci \
-            .
+          set -euo pipefail
+          umask 077
+          postgres_password="$(openssl rand -hex 32)"
+          cat > deploy/.env <<EOF
+          GOREVAULT_DOMAIN=http://localhost:8080
+          POSTGRES_DB=goreevault_ci
+          POSTGRES_USER=goreevault_ci
+          POSTGRES_PASSWORD=${postgres_password}
+          SIGNUPS_ALLOWED=false
+          INVITATIONS_ALLOWED=true
+          ADMIN_TOKEN=
+          SMTP_HOST=
+          SMTP_PORT=587
+          SMTP_SECURITY=starttls
+          SMTP_FROM=
+          SMTP_FROM_NAME=GoreeVault
+          SMTP_USERNAME=
+          SMTP_PASSWORD=
+          EVENTS_DAYS_RETAIN=90
+          TRASH_AUTO_DELETE_DAYS=30
+          INCOMPLETE_2FA_TIME_LIMIT=3
+          EOF
+          chmod 600 deploy/.env
+
+      - name: Deployment preflight
+        run: ./scripts/preflight.sh
+
+      - name: Build and start isolated PostgreSQL stack
+        run: docker compose --env-file deploy/.env -f deploy/compose.yaml up --detach --build
+
+      - name: Wait for GoreeVault readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8080/alive >/dev/null; then
+              echo "GoreeVault is ready after ${attempt} readiness checks."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "GoreeVault did not become ready within 180 seconds." >&2
+          exit 1
+
+      - name: Compatibility smoke suite
+        run: ./tests/compat/smoke.sh
+
+      - name: Show stack status on failure
+        if: failure()
+        run: |
+          docker compose --env-file deploy/.env -f deploy/compose.yaml ps || true
+          docker compose --env-file deploy/.env -f deploy/compose.yaml logs --no-color --tail=300 || true
+
+      - name: Destroy isolated CI stack
+        if: always()
+        run: docker compose --env-file deploy/.env -f deploy/compose.yaml down --volumes --remove-orphans
