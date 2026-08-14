@@ -1,0 +1,66 @@
+name: goreevault
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: goreevault-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - goreevault-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - goreevault-backend
+
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.debian
+      args:
+        DB: postgresql
+    image: goreecloud/goreevault-server:dev
+    container_name: goreevault-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${GOREVAULT_DOMAIN}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SIGNUPS_ALLOWED: ${SIGNUPS_ALLOWED:-false}
+      INVITATIONS_ALLOWED: ${INVITATIONS_ALLOWED:-true}
+      ENABLE_WEBSOCKET: "true"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-GoreeVault}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EVENTS_DAYS_RETAIN: ${EVENTS_DAYS_RETAIN:-90}
+      TRASH_AUTO_DELETE_DAYS: ${TRASH_AUTO_DELETE_DAYS:-30}
+      INCOMPLETE_2FA_TIME_LIMIT: ${INCOMPLETE_2FA_TIME_LIMIT:-3}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    volumes:
+      - goreevault-data:/data
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - goreevault-backend
+      - goreevault-edge
+
+volumes:
+  goreevault-postgres:
+  goreevault-data:
+
+networks:
+  goreevault-backend:
+    internal: true
+  goreevault-edge:

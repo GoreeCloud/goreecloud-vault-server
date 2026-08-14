@@ -14,3 +14,9 @@ data
 
 # Web vault
 web-vault
+
+# GoreeVault deployment secrets and local state
+deploy/.env
+*.local.env
+backups/
+restore-tests/
