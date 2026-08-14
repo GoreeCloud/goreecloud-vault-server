@@ -119,6 +119,24 @@ jobs:
             PRERELEASE=false
           fi
 
+          if [[ "${PRERELEASE}" == "false" ]]; then
+            git fetch --force --tags origin
+            LATEST_RC="$(git tag --list "${REF_NAME}-rc.*" --sort=-version:refname | head -n 1)"
+            if [[ -z "${LATEST_RC}" ]]; then
+              echo "Stable release ${REF_NAME} requires a prior matching RC tag." >&2
+              exit 1
+            fi
+
+            RC_COMMIT="$(git rev-list -n 1 "${LATEST_RC}")"
+            if [[ "${RC_COMMIT}" != "${GITHUB_SHA}" ]]; then
+              echo "Stable release ${REF_NAME} must use the same source commit as latest RC ${LATEST_RC}." >&2
+              echo "Stable source: ${GITHUB_SHA}" >&2
+              echo "Latest RC source: ${RC_COMMIT}" >&2
+              exit 1
+            fi
+            echo "Stable source matches latest RC ${LATEST_RC} at ${RC_COMMIT}."
+          fi
+
           {
             echo "version=${VERSION}"
             echo "short_sha=${SHORT_SHA}"
