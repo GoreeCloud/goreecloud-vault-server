@@ -22,7 +22,7 @@ jobs:
 
       - name: Validate compatibility harness
         run: |
-          python3 -m py_compile tests/compat/compat.py
+          python3 -m py_compile tests/compat/compat.py tests/compat/import_export.py
           bash -n scripts/compat.sh
           docker compose -f tests/compat/compose.yaml config --quiet
 
