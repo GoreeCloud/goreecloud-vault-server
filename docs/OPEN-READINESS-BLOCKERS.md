@@ -12,7 +12,7 @@ It is an implementation tracker, not authorization to bypass `docs/PRODUCTION-RE
 
 **Recorded:** August 15, 2026
 
-The current server stabilization chain has strong automated compatibility, security, recovery, migration, deployment, release-image, Stable-evidence, and Glaze UI source checks. The following gates remain open.
+The current server stabilization chain has strong automated compatibility, security, recovery, migration, deployment, release-image, Stable-evidence, Glaze UI, repository-readiness, and evidence-tooling source checks. The following gates remain open.
 
 ## Blocker 1 — GitHub repository governance
 
@@ -74,7 +74,13 @@ Exercise the reviewed production contract in the intended GoreeCloud target envi
 - privacy-conscious logging;
 - approved private administrative access path.
 
-No production activation should be inferred merely from completing a rehearsal.
+### Tooling status
+
+`scripts/collect-target-evidence.py` now provides a read-only, secret-minimizing collector for the Stable record's `target_environment` section. It machine-checks the controls that can be observed safely from the reviewed production source, Docker metadata, immutable image references, and the canonical HTTPS health endpoint. Controls such as real HTTPS/WSS validation, backup/restore, rollback, monitoring, log review, and NetBird path verification require explicit operator attestations after the work is actually completed.
+
+The collector does not run a deployment, create a backup, perform a restore, change Docker state, alter Caddy/NetBird, or close this blocker by itself.
+
+No production activation should be inferred merely from completing a rehearsal or generating a passing JSON section.
 
 ## Blocker 5 — Product-wide Glaze UI ownership
 
@@ -83,6 +89,12 @@ The bundled upstream-compatible web vault remains a temporary development/compat
 Under the current GoreeCloud mandatory Glaze UI baseline, Stable is blocked until GoreeVault owns the primary browser-vault presentation and product-wide Glaze UI conformance is proven.
 
 The approved current path is GoreeVault Web as defined in `docs/ROADMAP.md`.
+
+### Contract status
+
+`docs/WEB-CLIENT-CONTRACT.md` now defines the future GoreeVault Web Role and Purpose, server/client ownership boundary, client-side zero-knowledge rules, multi-user browser isolation, browser storage policy, compatible workflow baseline, Glaze UI requirements, accessibility acceptance, CSP/dependency direction, privacy/telemetry rules, immutable release evidence, and reversible migration/fallback requirements.
+
+This establishes the implementation boundary but does not create the dedicated client repository, implement browser cryptography, or provide production browser evidence. The blocker therefore remains open.
 
 Required completion evidence includes:
 
@@ -109,6 +121,8 @@ After all other Stable gates are complete:
 - attach it to the matching RC GitHub release;
 - obtain the required release approval;
 - only then create the Stable tag.
+
+The target-environment collector may provide only the `target_environment` object. It must not be treated as a complete Stable evidence file or as approval for any other section.
 
 ## Completion rule
 
