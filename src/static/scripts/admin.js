@@ -2,23 +2,15 @@
 /* exported BASE_URL, _post, _delete */
 
 function getBaseUrl() {
-    // If the base URL is `https://vaultwarden.example.com/base/path/admin/`,
-    // `window.location.href` should have one of the following forms:
-    //
-    // - `https://vaultwarden.example.com/base/path/admin`
-    // - `https://vaultwarden.example.com/base/path/admin/#/some/route[?queryParam=...]`
-    //
-    // We want to get to just `https://vaultwarden.example.com/base/path`.
     const pathname = window.location.pathname;
     const adminPos = pathname.indexOf("/admin");
-    const newPathname = pathname.substring(0, adminPos != -1 ? adminPos : pathname.length);
+    const newPathname = pathname.substring(0, adminPos !== -1 ? adminPos : pathname.length);
     return `${window.location.origin}${newPathname}`;
 }
 const BASE_URL = getBaseUrl();
 
 function reload() {
-    // Reload the page by setting the exact same href
-    // Using window.location.reload() could cause a repost.
+    // Setting the same href avoids a browser repost prompt that reload() can trigger.
     window.location = window.location.href;
 }
 
@@ -39,7 +31,6 @@ function _fetch(method, url, successMsg, errMsg, body, reload_page = true) {
     }).then(resp => {
         if (resp.ok) {
             msg(successMsg, reload_page);
-            // Abuse the catch handler by setting error to false and continue
             return Promise.reject({ error: false });
         }
         respStatus = resp.status;
@@ -50,17 +41,16 @@ function _fetch(method, url, successMsg, errMsg, body, reload_page = true) {
             const respJson = JSON.parse(respText);
             if (respJson.errorModel && respJson.errorModel.message) {
                 return respJson.errorModel.message;
-            } else {
-                return Promise.reject({ body: `${respStatus} - ${respStatusText}\n\nUnknown error`, error: true });
             }
+            return Promise.reject({ body: `${respStatus} - ${respStatusText}\n\nUnknown error`, error: true });
         } catch (e) {
             return Promise.reject({ body: `${respStatus} - ${respStatusText}\n\n[Catch] ${e}`, error: true });
         }
     }).then(apiMsg => {
         msg(`${errMsg}\n${apiMsg}`, reload_page);
     }).catch(e => {
-        if (e.error === false) { return true; }
-        else { msg(`${errMsg}\n${e.body}`, reload_page); }
+        if (e.error === false) return true;
+        msg(`${errMsg}\n${e.body}`, reload_page);
     });
 }
 
@@ -72,43 +62,63 @@ function _delete(url, successMsg, errMsg, body, reload_page = true) {
     return _fetch("DELETE", url, successMsg, errMsg, body, reload_page);
 }
 
-// Bootstrap Theme Selector
-const getStoredTheme = () => localStorage.getItem("theme");
-const setStoredTheme = theme => localStorage.setItem("theme", theme);
+// GoreeCloud Glaze appearance preference. Only explicit Light/Dark overrides
+// persist; System removes the override. This state never leaves the browser.
+const THEME_STORAGE_KEY = "goreecloud-goreevault-theme";
+const VALID_THEMES = new Set(["system", "light", "dark"]);
 
-const getPreferredTheme = () => {
-    const storedTheme = getStoredTheme();
-    if (storedTheme) {
-        return storedTheme;
+function getStoredTheme() {
+    try {
+        const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+        return value === "light" || value === "dark" ? value : null;
+    } catch (_error) {
+        return null;
     }
+}
 
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-};
-
-const setTheme = theme => {
-    if (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        document.documentElement.setAttribute("data-bs-theme", "dark");
-    } else {
-        document.documentElement.setAttribute("data-bs-theme", theme);
+function setStoredTheme(theme) {
+    try {
+        if (theme === "system") {
+            window.localStorage.removeItem(THEME_STORAGE_KEY);
+        } else {
+            window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+        }
+    } catch (_error) {
+        // Browser-local storage is optional. System/in-memory behavior remains usable.
     }
-};
+}
 
+function getPreferredTheme() {
+    return getStoredTheme() || "system";
+}
+
+function resolvedTheme(theme) {
+    if (theme === "system") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return theme;
+}
+
+function setTheme(theme) {
+    const safeTheme = VALID_THEMES.has(theme) ? theme : "system";
+    document.documentElement.setAttribute("data-theme", safeTheme);
+    document.documentElement.setAttribute("data-bs-theme", resolvedTheme(safeTheme));
+}
+
+// Runs in <head> before the stylesheets so explicit appearance is applied to first paint.
 setTheme(getPreferredTheme());
 
-const showActiveTheme = (theme, focus = false) => {
+function showActiveTheme(theme, focus = false) {
+    const safeTheme = VALID_THEMES.has(theme) ? theme : "system";
     const themeSwitcher = document.querySelector("#bd-theme");
-
-    if (!themeSwitcher) {
-        return;
-    }
+    if (!themeSwitcher) return;
 
     const themeSwitcherText = document.querySelector("#bd-theme-text");
     const activeThemeIcon = document.querySelector(".theme-icon-active use");
-    const btnToActive = document.querySelector(`[data-bs-theme-value="${theme}"]`);
-    if (!btnToActive) {
-        return;
-    }
-    const btnIconUse = btnToActive ? btnToActive.querySelector("[data-theme-icon-use]") : null;
+    const btnToActive = document.querySelector(`[data-bs-theme-value="${safeTheme}"]`);
+    if (!btnToActive) return;
+
+    const btnIconUse = btnToActive.querySelector("[data-theme-icon-use]");
     const iconHref = btnIconUse ? btnIconUse.getAttribute("href") || btnIconUse.getAttribute("xlink:href") : null;
 
     document.querySelectorAll("[data-bs-theme-value]").forEach(element => {
@@ -124,42 +134,43 @@ const showActiveTheme = (theme, focus = false) => {
         activeThemeIcon.setAttribute("xlink:href", iconHref);
     }
 
-    const themeSwitcherLabel = `${themeSwitcherText.textContent} (${btnToActive.dataset.bsThemeValue})`;
-    themeSwitcher.setAttribute("aria-label", themeSwitcherLabel);
+    const labelText = themeSwitcherText ? themeSwitcherText.textContent : "Appearance";
+    themeSwitcher.setAttribute("aria-label", `${labelText} (${btnToActive.textContent.trim()})`);
 
-    if (focus) {
-        themeSwitcher.focus();
-    }
-};
+    if (focus) themeSwitcher.focus();
+}
 
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    const storedTheme = getStoredTheme();
-    if (storedTheme !== "light" && storedTheme !== "dark") {
-        setTheme(getPreferredTheme());
-    }
+const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+colorScheme.addEventListener("change", () => {
+    if (!getStoredTheme()) setTheme("system");
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+    // Upstream admin partials already own the semantic <main> landmark. Give the
+    // first one a stable Glaze skip target without rewriting every upstream partial.
+    const main = document.querySelector("main");
+    if (main && !document.getElementById("gv-main")) {
+        main.id = "gv-main";
+        main.setAttribute("tabindex", "-1");
+    }
 
-// onLoad events
-document.addEventListener("DOMContentLoaded", (/*event*/) => {
     showActiveTheme(getPreferredTheme());
 
-    document.querySelectorAll("[data-bs-theme-value]")
-        .forEach(toggle => {
-            toggle.addEventListener("click", () => {
-                const theme = toggle.getAttribute("data-bs-theme-value");
-                setStoredTheme(theme);
-                setTheme(theme);
-                showActiveTheme(theme, true);
-            });
+    document.querySelectorAll("[data-bs-theme-value]").forEach(toggle => {
+        toggle.addEventListener("click", () => {
+            const theme = toggle.getAttribute("data-bs-theme-value") || "system";
+            if (!VALID_THEMES.has(theme)) return;
+            setStoredTheme(theme);
+            setTheme(theme);
+            showActiveTheme(theme, true);
         });
+    });
 
-    // get current URL path and assign "active" class to the correct nav-item
     const pathname = window.location.pathname;
-    if (pathname === "") return;
-    const navItem = document.querySelectorAll(`.navbar-nav .nav-item a[href="${pathname}"]`);
-    if (navItem.length === 1) {
-        navItem[0].className = navItem[0].className + " active";
-        navItem[0].setAttribute("aria-current", "page");
+    if (!pathname) return;
+    const navItems = document.querySelectorAll(`.navbar-nav .nav-item a[href="${pathname}"]`);
+    if (navItems.length === 1) {
+        navItems[0].classList.add("active");
+        navItems[0].setAttribute("aria-current", "page");
     }
 });
