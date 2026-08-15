@@ -39,6 +39,9 @@ jobs:
           python3 -m py_compile web-client/tests/validate_web_shell.py
           node --check web-client/assets/theme-init.js
           node --check web-client/assets/app.js
+          node --check web-client/assets/runtime-config.js
+          node --check web-client/assets/session-state.js
+          node --check web-client/assets/crypto-boundary.js
 
-      - name: Validate Glaze UI, accessibility, and privacy contract
+      - name: Validate Glaze UI, accessibility, privacy, and client safety contracts
         run: python3 web-client/tests/validate_web_shell.py
