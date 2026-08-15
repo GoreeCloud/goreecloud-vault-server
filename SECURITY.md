@@ -8,13 +8,23 @@ GoreeVault is currently derived from Vaultwarden. We retain and respect the upst
 
 GoreeVault is pre-1.0 development software. A branch, source commit, passing CI run, or release-candidate image must not be treated as Stable production authorization by itself.
 
-Stable promotion requires the exact-artifact security, compatibility, migration/rollback, backup/restore, deployment, governance, real-client, and Glaze UI gates defined in `docs/PRODUCTION-READINESS.md`.
+Stable promotion requires the exact-artifact security, compatibility, migration/rollback, backup/restore, deployment, governance, real-client, multi-user, and Glaze UI gates defined in `docs/PRODUCTION-READINESS.md`.
 
 ## Reporting a GoreeVault vulnerability
 
-Do not publish exploit details, credentials, private vault data, tokens, database dumps, backups, session material, TOTP seeds, recovery codes, or other sensitive material in a public GitHub issue.
+Do not publish exploit details, credentials, private vault data, tokens, database dumps, backups, session material, TOTP seeds, recovery codes, or other sensitive material in a public GitHub issue, pull request, discussion, social-media post, or other public channel.
 
-Use GitHub's private vulnerability reporting feature for this repository when available. If private reporting is unavailable, open a minimal public issue stating only that you need a private security contact; do not include exploit details in that issue.
+Use GitHub's private vulnerability reporting feature for this repository when it is available.
+
+If GitHub private vulnerability reporting is unavailable, send the report privately to:
+
+**security@goreecloud.com**
+
+Use a clear subject such as `GoreeVault security report`. Do not send production vault exports, production databases, reusable credentials, or more private user data than is necessary to explain the issue.
+
+The GoreeCloud public responsible-security-reporting policy is also published at `https://www.goreecloud.com/security.html`.
+
+This repository has ordinary GitHub Issues disabled, so a public issue is **not** the security-reporting fallback.
 
 A useful private report includes:
 
@@ -58,9 +68,11 @@ See `docs/PRODUCTION-DEPLOYMENT.md` and `docs/PRODUCTION-READINESS.md`.
 
 ## Glaze UI security boundary
 
-GoreeVault-owned presentation follows `docs/GLAZE-UI.md`. Glaze is a presentation and interaction standard; it must not weaken authentication, authorization, cryptography, CSRF/cookie protections, network policy, or client/API compatibility.
+GoreeVault-owned presentation follows `docs/GLAZE-UI.md`. Glaze is a presentation and interaction standard; it must not weaken authentication, authorization, cryptography, CSRF/cookie protections, network policy, email action semantics, or client/API compatibility.
 
 GoreeVault-owned browser surfaces must remain self-contained and privacy-preserving: no remote fonts, scripts, stylesheets, analytics, advertising, behavioral tracking, telemetry SDKs, or externally hosted branding assets.
+
+GoreeVault-owned transactional email presentation must avoid remote tracking pixels, remote fonts/scripts, unnecessary upstream branding links, and remotely hosted brand images required for identity.
 
 The bundled upstream-compatible web vault is currently a transitional compatibility asset and does not establish product-wide GoreeVault Glaze ownership.
 
@@ -76,6 +88,8 @@ If a vulnerability is confirmed to exist unchanged in upstream Vaultwarden, we w
 
 GoreeVault must evaluate relevant upstream security fixes promptly. GoreeVault-specific changes must not silently block, weaken, or delay an upstream security fix.
 
+`docs/UPSTREAM.md` defines the maintained-fork review process and records point-in-time upstream audits.
+
 ## Out of scope
 
 The following are generally outside the GoreeVault security-reporting scope unless GoreeVault-specific behavior materially changes the impact:
@@ -86,4 +100,4 @@ The following are generally outside the GoreeVault security-reporting scope unle
 - missing best practices that do not directly create a security vulnerability;
 - denial-of-service testing, spam, phishing, or social engineering.
 
-Normal reliability, hardening, documentation, Glaze UI, and best-practice improvements remain welcome through ordinary issues or pull requests.
+Normal reliability, hardening, documentation, Glaze UI, and best-practice improvements remain welcome through reviewed GoreeVault pull requests and the appropriate GoreeCloud project workflow.
