@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate GoreeVault evidence tooling, client matrix, and Web contract."""
+"""Validate GoreeVault evidence tooling, client/RC records, and Web contract."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_FILES = (
     "docs/CLIENT-COMPATIBILITY.md",
+    "docs/RC-EVIDENCE.md",
     "docs/WEB-CLIENT-CONTRACT.md",
     "scripts/collect-target-evidence.py",
     "scripts/validate-stable-evidence.py",
@@ -102,8 +103,7 @@ def client_section(text: str, kind: str) -> str:
     return text[section_start:next_section]
 
 
-def validate_client_matrix() -> None:
-    stable = load_stable_validator()
+def validate_client_matrix(stable: ModuleType) -> None:
     required_kinds = set(stable.REQUIRED_CLIENT_KINDS)
     required_checks = set(stable.REQUIRED_CLIENT_CHECKS)
     text = read("docs/CLIENT-COMPATIBILITY.md")
@@ -135,6 +135,52 @@ def validate_client_matrix() -> None:
         "scripts/validate-stable-evidence.py" in text,
         "client compatibility matrix must direct final evidence through the Stable validator",
     )
+
+
+def validate_rc_evidence(stable: ModuleType) -> None:
+    text = read("docs/RC-EVIDENCE.md")
+    required_sections = (
+        "## Candidate identity",
+        "## Repository release controls",
+        "## Automated exact-head source gates",
+        "## Automated authentication and multi-user regression evidence",
+        "## Supply-chain evidence",
+        "## Backup, restore, and migration evidence",
+        "## Security disposition",
+        "## Real multi-user evidence",
+        "## Real client and WebAuthn evidence",
+        "## Target-environment rehearsal evidence",
+        "## Glaze UI evidence",
+        "## Open readiness blockers reconciliation",
+        "## RC decision",
+        "## Stable evidence assembly",
+        "## Stable promotion verification",
+        "## Final Stable decision",
+    )
+    missing_sections = [section for section in required_sections if section not in text]
+    require(not missing_sections, f"RC evidence record is missing release sections: {', '.join(missing_sections)}")
+
+    for kind in sorted(set(stable.REQUIRED_CLIENT_KINDS)):
+        require(
+            f"`kind: {kind}`" in text,
+            f"RC evidence record is missing required Stable client kind: {kind}",
+        )
+
+    required_tokens = (
+        "scripts/collect-target-evidence.py",
+        "scripts/validate-stable-evidence.py",
+        "docs/CLIENT-COMPATIBILITY.md",
+        "docs/WEB-CLIENT-CONTRACT.md",
+        "GoreeVault Evidence Tooling",
+        "GoreeVault Repository Readiness",
+        "GoreeVault Stable Evidence self-tests",
+        "GoreeVault Glaze UI server-owned surfaces",
+        "Primary production browser vault is GoreeCloud-owned: NO",
+        "Approval of a server RC does not imply product-wide Stable approval.",
+        "Stable workflow downloaded and validated the canonical evidence asset",
+    )
+    missing = [token for token in required_tokens if token not in text]
+    require(not missing, f"RC evidence record is missing current release-contract controls: {', '.join(missing)}")
 
 
 def validate_web_contract() -> None:
@@ -178,15 +224,17 @@ def validate_tests() -> None:
 def main() -> int:
     try:
         validate_files()
+        stable = load_stable_validator()
         validate_collector()
-        validate_client_matrix()
+        validate_client_matrix(stable)
+        validate_rc_evidence(stable)
         validate_web_contract()
         validate_tests()
     except (OSError, UnicodeError, ValidationError) as exc:
         print(f"Evidence tooling validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault evidence tooling, client matrix, and Web client contract validation passed.")
+    print("GoreeVault evidence tooling, client/RC records, and Web client contract validation passed.")
     return 0
 
 
