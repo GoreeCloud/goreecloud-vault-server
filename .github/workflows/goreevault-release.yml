@@ -210,6 +210,7 @@ jobs:
       - name: Build RC or promote exact tested RC manifest
         id: release_image
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.release_meta.outputs.version }}
           BUILD_VERSION: ${{ steps.release_meta.outputs.build_version }}
           SHORT_SHA: ${{ steps.release_meta.outputs.short_sha }}
@@ -264,6 +265,24 @@ jobs:
               echo "SHA digest: ${SHA_DIGEST}" >&2
               exit 1
             fi
+
+            EVIDENCE_DIR="${RUNNER_TEMP}/goreevault-stable-evidence"
+            EVIDENCE_FILE="${EVIDENCE_DIR}/goreevault-stable-evidence.json"
+            mkdir -p "${EVIDENCE_DIR}"
+
+            gh release download "${LATEST_RC}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern 'goreevault-stable-evidence.json' \
+              --dir "${EVIDENCE_DIR}"
+
+            test -s "${EVIDENCE_FILE}"
+            python3 scripts/validate-stable-evidence.py \
+              "${EVIDENCE_FILE}" \
+              --expected-source-sha "${GITHUB_SHA}" \
+              --expected-rc-tag "${LATEST_RC}" \
+              --expected-manifest-digest "${RC_DIGEST}"
+
+            echo "Validated Stable evidence for ${LATEST_RC} and ${RC_DIGEST}."
 
             STABLE_METADATA="${RUNNER_TEMP}/goreevault-stable-promotion-metadata.json"
             docker buildx imagetools create \
@@ -331,6 +350,6 @@ jobs:
             if [[ "${PRERELEASE}" == "true" ]]; then
               echo "RC release: \`latest\` was not changed."
             else
-              echo "Stable release: exact tested ${LATEST_RC} manifest promoted to \`${VERSION}\` and \`latest\` without rebuilding."
+              echo "Stable release: exact tested ${LATEST_RC} manifest promoted to \`${VERSION}\` and \`latest\` without rebuilding after Stable evidence validation."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
