@@ -1,0 +1,44 @@
+name: GoreeVault Web Shell
+
+on:
+  pull_request:
+    paths:
+      - 'web-client/**'
+      - '.github/workflows/goreevault-web-shell.yml'
+      - '.github/CODEOWNERS'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - 'web-client/**'
+      - '.github/workflows/goreevault-web-shell.yml'
+      - '.github/CODEOWNERS'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-web-shell-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Glaze UI browser shell
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate source syntax
+        run: |
+          python3 -m py_compile web-client/tests/validate_web_shell.py
+          node --check web-client/assets/theme-init.js
+          node --check web-client/assets/app.js
+
+      - name: Validate Glaze UI, accessibility, and privacy contract
+        run: python3 web-client/tests/validate_web_shell.py
