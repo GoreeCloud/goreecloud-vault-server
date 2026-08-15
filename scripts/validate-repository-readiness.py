@@ -73,6 +73,27 @@ def validate_codeowners() -> None:
     require(not missing, f"CODEOWNERS is missing GoreeCloud review ownership: {', '.join(missing)}")
 
 
+def validate_security_reporting() -> None:
+    text = read("SECURITY.md")
+    require("security@goreecloud.com" in text, "SECURITY.md must provide the private GoreeCloud security contact")
+    require(
+        "https://www.goreecloud.com/security.html" in text,
+        "SECURITY.md must reference the canonical public GoreeCloud security policy",
+    )
+    require(
+        "ordinary GitHub Issues disabled" in text,
+        "SECURITY.md must document that ordinary GitHub Issues are not a reporting fallback",
+    )
+    require(
+        "public issue is **not** the security-reporting fallback" in text,
+        "SECURITY.md must reject public issue disclosure as the fallback path",
+    )
+    require(
+        "private vulnerability reporting" in text.lower(),
+        "SECURITY.md must prefer GitHub private vulnerability reporting when available",
+    )
+
+
 def validate_goreecloud_gates() -> None:
     goreevault = read("GOREVAULT.md")
     readiness = read("docs/PRODUCTION-READINESS.md")
@@ -150,6 +171,7 @@ def main() -> int:
         validate_files()
         validate_readme()
         validate_codeowners()
+        validate_security_reporting()
         validate_goreecloud_gates()
         validate_stable_template()
         validate_mutable_production_examples()
