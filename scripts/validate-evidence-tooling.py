@@ -38,9 +38,13 @@ def validate_collector() -> None:
     text = read("scripts/collect-target-evidence.py")
     required_tokens = (
         'EXPECTED_ORIGIN = "https://vault.goreecloud.com"',
+        'default="goreevault-server"',
+        'default="goreevault-postgres"',
         'mode & 0o077',
         'GOREVAULT_IMAGE',
         'POSTGRES_IMAGE',
+        'container_is_running',
+        'container_is_healthy',
         'backend_loopback_only',
         'postgres_internal_only',
         'server_non_root',
@@ -56,6 +60,7 @@ def validate_collector() -> None:
         'rollback-reference',
         'docker", "inspect"',
         'curl',
+        'args.output.chmod(0o600)',
     )
     missing = [token for token in required_tokens if token not in text]
     require(not missing, f"target evidence collector is missing fail-closed controls: {', '.join(missing)}")
@@ -93,6 +98,7 @@ def validate_tests() -> None:
     text = read("tests/test_collect_target_evidence.py")
     required_tests = (
         "test_digest_pinning",
+        "test_container_state_requires_running_and_healthy",
         "test_backend_requires_loopback_publication",
         "test_postgres_must_not_publish_host_port",
         "test_runtime_hardening_checks",
