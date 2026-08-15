@@ -24,6 +24,7 @@ TOP_LEVEL_PERMISSIONS_RE = re.compile(
 
 
 def leading_spaces(line: str) -> int:
+    """Return a line's leading-space indentation depth."""
     return len(line) - len(line.lstrip(" "))
 
 
