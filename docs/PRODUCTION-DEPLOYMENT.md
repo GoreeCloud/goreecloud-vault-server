@@ -24,9 +24,11 @@ This runbook defines the minimum GoreeCloud production deployment contract for G
 - `deploy/compose.production.yaml` — production topology and runtime-hardening contract.
 - `deploy/.env.production.example` — non-secret production configuration template.
 - `scripts/validate-production-deployment.sh` — fail-closed structural validator.
+- `scripts/collect-target-evidence.py` — read-only target-environment Stable evidence collector used only after real rehearsal work is complete.
 - `docs/PRODUCTION-READINESS.md` — release and governance gates.
 - `docs/RC-EVIDENCE.md` — release-candidate evidence record.
 - `docs/CLIENT-COMPATIBILITY.md` — client compatibility evidence.
+- `docs/STABLE-EVIDENCE.md` — complete exact-RC Stable evidence contract and collector usage.
 
 The real production environment file belongs outside the repository and must be restricted to the operator account/root. Never commit passwords, SMTP credentials, TOTP seeds, recovery codes, private keys, database dumps, session material, or production `.env` files.
 
@@ -116,6 +118,35 @@ A backup that has never been restored is not accepted as recovery evidence.
 8. Record old/new digests, source SHA, PostgreSQL version/digest, UID/GID, time, operator, and result.
 
 Never substitute another image merely because it shares a semantic version or source commit.
+
+## Collect target-environment evidence
+
+After the real target-environment rehearsal has completed—including backup creation, isolated restore rehearsal, rollback recording, reverse-proxy HTTPS/WSS validation, monitoring verification, log review, and the approved NetBird/private administrative-path check—use `scripts/collect-target-evidence.py` to capture the non-secret machine-observed state.
+
+The collector is read-only. It validates the source contract, renders Compose, reads the restricted production environment file, inspects Docker metadata, and performs the canonical HTTPS health check. It does not deploy, restart, stop, remove, mutate, back up, restore, or reconfigure containers or infrastructure.
+
+Example:
+
+```bash
+python3 scripts/collect-target-evidence.py \
+  --env-file /etc/goreevault/production.env \
+  --expected-manifest-digest "sha256:<64-hex RC manifest digest>" \
+  --previous-known-good-image "ghcr.io/goreecloud/goreevault-server@sha256:<64-hex previous digest>" \
+  --backup-reference "<approved backup reference>" \
+  --rollback-reference "<approved rollback evidence reference>" \
+  --reverse-proxy-https-wss \
+  --backup-created \
+  --restore-rehearsed \
+  --rollback-recorded \
+  --monitoring-verified \
+  --logs-reviewed-for-sensitive-data \
+  --netbird-path-verified \
+  --output target-environment.json
+```
+
+Every manual flag is an operator attestation that the corresponding work actually occurred. Do not add a flag merely to make collection pass.
+
+Review the output before copying it into `goreevault-stable-evidence.json`. The collector emits only the `target_environment` value and cannot approve the real-client, WebAuthn, Glaze UI, governance, or reviewer sections.
 
 ## Rollback
 
