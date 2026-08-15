@@ -55,7 +55,10 @@ Stable must use the exact RC artifact that was tested. Record:
 - web-vault compatibility asset version/digest where applicable;
 - Rust toolchain and lockfile state;
 - release workflow run identifiers;
-- security scan results and exception disposition state.
+- security scan results and exception disposition state;
+- a validated `goreevault-stable-evidence.json` attached to the matching RC GitHub release.
+
+The canonical Stable evidence format and upload process are defined in `docs/STABLE-EVIDENCE.md`. The Stable release workflow must validate that file against the selected RC tag, source SHA, and OCI manifest digest before any Stable or `latest` tag is created.
 
 Do not rebuild a different image from the same source and treat it as equivalent evidence.
 
@@ -89,7 +92,7 @@ The real supported-client matrix must be exercised against the exact candidate. 
 - refresh-token rotation/replay behavior;
 - logout and device/session invalidation behavior.
 
-Synthetic API compatibility tests are strong release evidence but do not replace the real-client matrix.
+Synthetic API compatibility tests are strong release evidence but do not replace the real-client matrix. Completed real-client, WebAuthn, target-environment, and governance results must be recorded in the canonical Stable evidence asset defined by `docs/STABLE-EVIDENCE.md`.
 
 ## Glaze UI gates
 
@@ -105,6 +108,7 @@ Stable promotion is denied if any of the following is true:
 - a fixed HIGH/CRITICAL vulnerability remains unresolved;
 - a vulnerability exception is expired, broad, undocumented, or no longer justified;
 - migration, rollback, backup/restore, or real-client evidence is missing;
+- the matching RC release lacks a valid `goreevault-stable-evidence.json` or the evidence references a different source SHA/OCI manifest;
 - `main` or the release environment lacks the required governance controls;
 - the production backend can be reached directly from the public network;
 - image references are mutable;
