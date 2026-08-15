@@ -48,7 +48,8 @@ Before v0.2 can be treated as a supported release milestone:
 - run and record the real supported Bitwarden client matrix on exact candidate artifacts;
 - perform a real supported-browser/device WebAuthn/passkey flow;
 - complete target-environment deployment rehearsal using the production contract;
-- create/verify required GitHub governance controls from `docs/PRODUCTION-READINESS.md`.
+- create/verify required GitHub governance controls from `docs/PRODUCTION-READINESS.md`;
+- record those completed gates in the validated `goreevault-stable-evidence.json` attached to the exact matching RC release before Stable promotion.
 
 ## v0.3.0 — GoreeVault Web foundation
 
@@ -108,6 +109,7 @@ Stable promotion requires the exact candidate artifact to satisfy `docs/PRODUCTI
 - hardened production deployment validation;
 - protected repository/release governance;
 - target-environment operational evidence;
-- Glaze UI conformance for every GoreeVault-owned surface.
+- Glaze UI conformance for every GoreeVault-owned surface;
+- fail-closed validation of the RC-bound Stable evidence asset before the Stable and `latest` image tags are created.
 
 No semantic version or green build can bypass those gates.
