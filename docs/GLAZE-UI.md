@@ -18,7 +18,10 @@ These must conform to Glaze UI now:
 
 - server administration pages under `/admin`;
 - server-rendered error/404 presentation;
+- transactional HTML and plain-text email presentation controlled by the server;
 - GoreeVault-native presentation introduced in this repository in the future.
+
+Transactional email uses an email-safe Glaze interpretation rather than browser-only effects. It must preserve GoreeVault identity, readable hierarchy, restrained rounded/layered presentation where supported, system fonts, dark-mode hints where supported, local/no presentation tracking dependencies, and graceful degradation in older mail clients.
 
 ### Transitional compatibility surface
 
@@ -42,15 +45,18 @@ The current server-owned presentation layer remains deliberately small and audit
 - `src/static/scripts/admin.js` — local System/Light/Dark appearance state plus existing same-origin admin behavior.
 - `src/static/templates/404.hbs` — GoreeVault-owned error shell.
 - `src/static/scripts/404.css` — Glaze presentation for the error shell.
+- `src/static/templates/email/email_header.hbs` — shared GoreeVault HTML-email identity and email-safe Glaze shell.
+- `src/static/templates/email/email_footer.hbs` — shared GoreeVault HTML-email footer.
+- `src/static/templates/email/email_footer_text.hbs` — shared plain-text GoreeVault footer.
 - `scripts/validate-glaze-ui.py` — source-level conformance checks.
 
-Internal `vaultwarden` identifiers may remain where compatibility or upstream maintenance requires them. Rendered GoreeVault-owned UI must use GoreeVault product identity.
+Internal `vaultwarden` identifiers may remain where compatibility or upstream maintenance requires them. Rendered GoreeVault-owned presentation must use GoreeVault product identity.
 
 ## Governing visual language
 
 GoreeVault should be recognizable as GoreeCloud before a user studies the page. The Glaze signature includes:
 
-- System/Light/Dark presentation;
+- System/Light/Dark presentation where the platform supports it;
 - layered surfaces with selective translucency;
 - softened rounded geometry for navigation, cards, controls, forms, tables, and status elements;
 - restrained shadows for hierarchy;
@@ -59,13 +65,15 @@ GoreeVault should be recognizable as GoreeCloud before a user studies the page. 
 - responsive layouts for desktop, laptop, tablet, and mobile;
 - explicit textual status/error meaning rather than color-only meaning.
 
-Glass effects are hierarchy tools, not a requirement on every element. If translucency reduces readability, use a solid surface.
+Glass effects are hierarchy tools, not a requirement on every element. If translucency reduces readability, use a solid surface. Email presentation must prefer broadly supported, degradable HTML/CSS over browser-only effects.
 
 ## GoreeCloud identity
 
 GoreeVault-owned surfaces identify the product as **GoreeVault** or **GoreeVault Admin**. They must not render Vaultwarden product branding as the primary interface identity.
 
-The browser presentation must use local repository-controlled assets only. No remote logo, icon set, font, analytics package, design CDN, or third-party presentation service is required for GoreeVault-owned surfaces.
+Transactional emails must also identify the service as GoreeVault and must not use the upstream Vaultwarden logo or an upstream project link as GoreeVault's product identity.
+
+Browser presentation must use local repository-controlled assets only. Transactional email presentation must not require remote fonts, remote scripts, tracking pixels, remote branding images, analytics resources, or third-party design dependencies.
 
 ## Privacy metadata
 
@@ -77,9 +85,11 @@ Private/administrative GoreeVault pages declare:
 
 These controls are defense in depth and do not replace authentication, authorization, NetBird/network policy, reverse-proxy controls, or HTTPS.
 
+Transactional email does not have an equivalent browser indexing boundary; its privacy controls instead focus on avoiding remote tracking/presentation dependencies and minimizing sensitive information in message content and subject lines.
+
 ## Theme behavior
 
-The default appearance is **System**, following `prefers-color-scheme`. The appearance selector provides:
+The default browser appearance is **System**, following `prefers-color-scheme`. The appearance selector provides:
 
 1. System
 2. Light
@@ -89,9 +99,11 @@ Only explicit Light or Dark choices are persisted. Returning to System removes t
 
 The preference is stored only in browser `localStorage` under `goreecloud-goreevault-theme`. It is not sent to GoreeVault, stored in PostgreSQL, logged, used for analytics, or exposed to another service. Storage failure must not break the UI.
 
+Transactional HTML email may declare light/dark color-scheme hints and dark-mode CSS where supported, but must remain readable when a mail client ignores those capabilities.
+
 ## Accessibility and interaction contract
 
-GoreeVault-owned presentation must preserve:
+GoreeVault-owned browser presentation must preserve:
 
 - semantic header/navigation/main landmarks;
 - a keyboard-accessible skip link targeting a focusable main region;
@@ -107,6 +119,8 @@ GoreeVault-owned presentation must preserve:
 
 Motion is progressive enhancement. Hover motion is permitted only on hover-capable devices when reduced motion is not requested.
 
+Email presentation must use real text for product identity and critical instructions, preserve readable text when images are blocked, avoid color-only meaning, and avoid making a decorative image necessary to understand the message.
+
 ## Privacy and dependency boundary
 
 GoreeVault-owned browser presentation must not introduce:
@@ -119,7 +133,15 @@ GoreeVault-owned browser presentation must not introduce:
 - advertising resources;
 - externally hosted icons or branding assets.
 
-Normal user-activated external hyperlinks are not presentation dependencies, but GoreeVault-owned error/admin shells should avoid unnecessary upstream-brand links.
+GoreeVault-owned transactional email presentation must not introduce:
+
+- tracking pixels;
+- remote fonts or scripts;
+- remotely hosted brand/logo images required for identity;
+- analytics parameters solely for behavioral measurement;
+- unnecessary upstream-project links presented as GoreeVault support or identity.
+
+Normal user-activated external hyperlinks are not presentation dependencies, but GoreeVault-owned error/admin/email shells should avoid unnecessary upstream-brand links.
 
 ## Security boundary
 
@@ -133,6 +155,7 @@ Glaze changes presentation only. It must not weaken:
 - attachment authorization;
 - organization/collection authorization;
 - audit/security logging boundaries;
+- email token/action semantics;
 - reverse-proxy, NetBird, or production network policy.
 
 The administration interface remains disabled by default in the production deployment contract even though its presentation is Glaze-conformant.
@@ -146,26 +169,31 @@ python3 scripts/validate-glaze-ui.py
 python3 scripts/validate-repository-readiness.py
 ```
 
-The Glaze checker verifies the GoreeVault-owned shell for:
+The Glaze checker verifies GoreeVault-owned presentation for:
 
 - GoreeVault identity;
-- noindex/noarchive and same-origin referrer metadata;
+- noindex/noarchive and same-origin referrer metadata on owned browser shells;
 - local-only browser presentation dependencies;
 - skip-link/main-target semantics;
-- System/Light/Dark local appearance behavior;
+- System/Light/Dark local browser appearance behavior;
 - GoreeCloud-local theme storage key;
 - minimum target, focus, reduced-motion, increased-contrast, forced-colors, and backdrop-filter fallback rules;
-- removal of user-facing Vaultwarden branding from GoreeVault-owned admin/error shells.
+- removal of user-facing Vaultwarden branding from GoreeVault-owned admin/error shells;
+- GoreeVault identity in shared HTML/plain-text transactional email presentation;
+- removal of the upstream Vaultwarden logo and upstream project link from shared email presentation;
+- absence of remote/tracking presentation dependencies in the shared GoreeVault email shell.
 
 The repository-readiness checker additionally prevents Stable documentation from silently treating the transitional upstream web vault as fully Glaze-conformant.
 
-Automated source conformance does not replace real-browser visual/accessibility review.
+Automated source conformance does not replace real-browser or representative email-client visual/accessibility review.
 
 ## Release review boundary
 
 Before a Stable release is visually approved, every GoreeVault-controlled user-facing surface must satisfy the platform Glaze UI gate.
 
-Material GoreeVault-owned UI changes require authenticated browser review at representative desktop and mobile widths in System, Light, and Dark modes. Review must include keyboard-only navigation, reduced motion, increased contrast where available, forced colors where practical, authentication/admin errors, empty states, long values, tables/forms, and mobile navigation.
+Material GoreeVault-owned browser UI changes require authenticated review at representative desktop and mobile widths in System, Light, and Dark modes. Review must include keyboard-only navigation, reduced motion, increased contrast where available, forced colors where practical, authentication/admin errors, empty states, long values, tables/forms, and mobile navigation.
+
+Material transactional email changes require representative rendering review in at least the supported/expected desktop and mobile mail-client families used by GoreeCloud, with images blocked and dark mode considered where practical. Security-sensitive action links and token semantics must be verified independently of styling.
 
 The Stable evidence record must explicitly confirm product-wide Glaze UI conformance. An RC may continue to use the transitional upstream-compatible web vault for compatibility validation, but that does not authorize Stable product promotion under the current baseline.
 
