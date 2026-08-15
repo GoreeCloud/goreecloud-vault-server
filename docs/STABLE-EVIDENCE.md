@@ -13,18 +13,20 @@ For that reason:
 1. publish an RC only after automated RC gates pass;
 2. test the exact RC artifact;
 3. complete multi-user, real-client, WebAuthn, Glaze UI, target-environment, and governance validation;
-4. create `goreevault-stable-evidence.json` from `docs/stable-evidence.example.json`;
-5. validate it locally with `scripts/validate-stable-evidence.py`;
+4. prepare reviewed JSON section files from the canonical schema;
+5. assemble and validate the canonical `goreevault-stable-evidence.json` against the exact RC identifiers;
 6. attach the validated file to the matching RC GitHub release;
 7. create the Stable tag only after repository governance and release-environment approval are complete.
 
-The Stable release workflow downloads that exact asset from the selected RC release and rejects promotion when the file is missing, malformed, incomplete, references a different source SHA, references a different OCI manifest digest, or fails an applicable GoreeCloud production gate.
+The Stable release workflow downloads that exact asset from the selected RC release and rejects promotion when the file is missing, malformed, ambiguous, incomplete, contains unknown fields, references a different source SHA, references a different OCI manifest digest, or fails an applicable GoreeCloud production gate.
 
 ## Schema version 2
 
 Schema version 2 adds explicit **multi-user readiness** and **product-wide Glaze UI readiness** evidence. These are mandatory because GoreeVault is intended for non-administrative users and has controlled user-facing interfaces.
 
 The validator intentionally does not treat the current upstream-compatible web vault as product-wide Glaze compliance. Stable evidence must represent the GoreeVault-owned/approved production presentation state, not the transitional RC compatibility state.
+
+The schema is strict. Unknown fields and duplicate JSON keys are rejected rather than ignored. This prevents ambiguous shadowed values and reduces the risk of accidentally storing unrelated or sensitive information in the release evidence file.
 
 ## Required artifact evidence
 
@@ -201,9 +203,57 @@ Secret scanning, push protection, and private vulnerability reporting must be re
 
 Approval of the server RC section does not imply product-wide Stable approval. The final Stable workflow relies on the validated machine-readable evidence asset.
 
-## Local validation
+## Strict Stable evidence assembly
 
-Use the exact RC values:
+`scripts/assemble-stable-evidence.py` is the preferred final assembly path. It reduces hand-edit risk by combining separately reviewed JSON sections and invoking the same Stable validator before writing the canonical file.
+
+The assembler requires these section files:
+
+- `rc.json` — the `rc` object;
+- `multi-user.json` — the `multi_user` object;
+- `clients.json` — the six-client array;
+- `webauthn.json` — the `webauthn` object;
+- `glaze-ui.json` — the `glaze_ui` object;
+- `target-environment.json` — the `target_environment` object, normally produced/reviewed from the target collector after the real rehearsal;
+- `governance.json` — the `governance` object;
+- `approvals.json` — the reviewer-approval array.
+
+The section files must contain only their exact schema value, not a wrapper such as `{ "rc": ... }`. They are release evidence and must not contain passwords, tokens, cookies, decrypted vault values, private keys, TOTP seeds, recovery codes, database credentials, or unrelated private data.
+
+Example:
+
+```bash
+python3 scripts/assemble-stable-evidence.py \
+  --rc rc.json \
+  --multi-user multi-user.json \
+  --clients clients.json \
+  --webauthn webauthn.json \
+  --glaze-ui glaze-ui.json \
+  --target-environment target-environment.json \
+  --governance governance.json \
+  --approvals approvals.json \
+  --expected-source-sha "<40-character RC source SHA>" \
+  --expected-rc-tag "v0.3.0-rc.1" \
+  --expected-manifest-digest "sha256:<64-hex RC manifest digest>" \
+  --output goreevault-stable-evidence.json
+```
+
+The assembler:
+
+- parses every section using duplicate-key rejection;
+- assembles only the known schema-version-2 top-level fields;
+- does not offer a placeholder-acceptance mode;
+- validates the complete record against the exact expected source SHA, RC tag, and server manifest digest;
+- refuses an existing output unless `--force` is explicitly supplied;
+- refuses to write through a symbolic-link output path;
+- writes the validated file with mode `0600` and flushes it before reporting success;
+- does not create evidence, execute missing tests, or mark a release gate complete.
+
+`--force` only permits replacing an ordinary existing output file after the newly assembled record has passed validation. It does not relax schema or release checks.
+
+## Independent local validation
+
+After assembly, run the validator independently using the same exact RC values:
 
 ```bash
 python3 scripts/validate-stable-evidence.py \
@@ -213,7 +263,7 @@ python3 scripts/validate-stable-evidence.py \
   --expected-manifest-digest "sha256:<64-hex manifest digest>"
 ```
 
-The validator uses only the Python standard library and fails closed.
+The validator uses only the Python standard library and fails closed. It rejects placeholders, missing or unknown fields, duplicate JSON keys, malformed immutable references, incomplete client/multi-user/Glaze/target/governance evidence, and mismatched exact-RC identifiers.
 
 ## Upload to the matching RC release
 
