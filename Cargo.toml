@@ -79,7 +79,10 @@ num-derive = "0.5.1"
 bigdecimal = "0.4.10"
 
 # Web framework
-rocket = { version = "0.5.1", default-features = false, features = ["json", "tls"] }
+# GoreeVault production terminates HTTPS at the trusted reverse proxy; the
+# application listener itself stays HTTP-only. Keeping Rocket's embedded TLS
+# disabled removes an otherwise-unused legacy rustls 0.21 dependency branch.
+rocket = { version = "0.5.1", default-features = false, features = ["json"] }
 rocket_ws = { version = "0.1.1" }
 
 # WebSockets libraries
@@ -296,7 +299,6 @@ lto = "thin"
 codegen-units = 16
 
 # Used for profiling and debugging like valgrind or heaptrack
-# Inherits release to be sure all optimizations have been done
 [profile.dbg]
 inherits = "release"
 strip = "none"
@@ -364,7 +366,6 @@ todo = "warn"
 result_large_err = "allow"
 
 # Warn on these lint group (Some might be warn by default already though)
-# Will be denied during CI!
 complexity = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 perf = { level = "warn", priority = -1 }
