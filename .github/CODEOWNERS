@@ -3,8 +3,9 @@
 # GoreeVault is maintained by GoreeCloud. Upstream Vaultwarden maintainers are
 # not automatically responsible for reviewing GoreeVault-specific changes.
 
-# Repository automation, policy, release, and security workflows
+# Repository automation, policy, release, security, and public project identity
 /.github/** @GoreeCloud
+/README.md @GoreeCloud
 /SECURITY.md @GoreeCloud
 /CONTRIBUTING.md @GoreeCloud
 /GOREVAULT.md @GoreeCloud
@@ -14,7 +15,11 @@
 # Dependency and build inputs
 /Cargo.toml @GoreeCloud
 /Cargo.lock @GoreeCloud
+/rust-toolchain.toml @GoreeCloud
 /build.rs @GoreeCloud
+/Dockerfile @GoreeCloud
+/Dockerfile.j2 @GoreeCloud
+/DockerSettings.yaml @GoreeCloud
 /docker/** @GoreeCloud
 /deploy/** @GoreeCloud
 
@@ -25,6 +30,6 @@
 /migrations/** @GoreeCloud
 
 # Release-blocking compatibility, recovery, migration, deployment, security,
-# and Glaze UI conformance harnesses.
+# repository-readiness, and Glaze UI conformance harnesses.
 /tests/** @GoreeCloud
 /scripts/** @GoreeCloud
