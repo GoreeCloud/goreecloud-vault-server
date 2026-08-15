@@ -1,147 +1,146 @@
-![Vaultwarden Logo](./resources/vaultwarden-logo-auto.svg)
+# GoreeVault Server
 
-An alternative server implementation of the Bitwarden Client API, written in Rust and compatible with [official Bitwarden clients](https://bitwarden.com/download/) [[disclaimer](#disclaimer)], perfect for self-hosted deployment where running the official resource-heavy service might not be ideal.
-
----
-
-[![GitHub Release](https://img.shields.io/github/release/dani-garcia/vaultwarden.svg?style=for-the-badge&logo=vaultwarden&color=005AA4)](https://github.com/dani-garcia/vaultwarden/releases/latest)
-[![ghcr.io Pulls](https://img.shields.io/badge/dynamic/json?style=for-the-badge&logo=github&logoColor=fff&color=005AA4&url=https%3A%2F%2Fipitio.github.io%2Fbackage%2Fdani-garcia%2Fvaultwarden%2Fvaultwarden.json&query=%24.downloads&label=ghcr.io%20pulls&cacheSeconds=14400)](https://github.com/dani-garcia/vaultwarden/pkgs/container/vaultwarden)
-[![Docker Pulls](https://img.shields.io/docker/pulls/vaultwarden/server.svg?style=for-the-badge&logo=docker&logoColor=fff&color=005AA4&label=docker.io%20pulls)](https://hub.docker.com/r/vaultwarden/server)
-[![Quay.io](https://img.shields.io/badge/quay.io-download-005AA4?style=for-the-badge&logo=redhat&cacheSeconds=14400)](https://quay.io/repository/vaultwarden/server) <br>
-[![Contributors](https://img.shields.io/github/contributors-anon/dani-garcia/vaultwarden.svg?style=flat-square&logo=vaultwarden&color=005AA4)](https://github.com/dani-garcia/vaultwarden/graphs/contributors)
-[![Forks](https://img.shields.io/github/forks/dani-garcia/vaultwarden.svg?style=flat-square&logo=github&logoColor=fff&color=005AA4)](https://github.com/dani-garcia/vaultwarden/network/members)
-[![Stars](https://img.shields.io/github/stars/dani-garcia/vaultwarden.svg?style=flat-square&logo=github&logoColor=fff&color=005AA4)](https://github.com/dani-garcia/vaultwarden/stargazers)
-[![Issues Open](https://img.shields.io/github/issues/dani-garcia/vaultwarden.svg?style=flat-square&logo=github&logoColor=fff&color=005AA4&cacheSeconds=300)](https://github.com/dani-garcia/vaultwarden/issues)
-[![Issues Closed](https://img.shields.io/github/issues-closed/dani-garcia/vaultwarden.svg?style=flat-square&logo=github&logoColor=fff&color=005AA4&cacheSeconds=300)](https://github.com/dani-garcia/vaultwarden/issues?q=is%3Aissue+is%3Aclosed)
-[![AGPL-3.0 Licensed](https://img.shields.io/github/license/dani-garcia/vaultwarden.svg?style=flat-square&logo=vaultwarden&color=944000&cacheSeconds=14400)](https://github.com/dani-garcia/vaultwarden/blob/main/LICENSE.txt) <br>
-[![Dependency Status](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fdeps.rs%2Frepo%2Fgithub%2Fdani-garcia%2Fvaultwarden%2Fstatus.svg&query=%2F*%5Blocal-name()%3D'svg'%5D%2F*%5Blocal-name()%3D'g'%5D%5B2%5D%2F*%5Blocal-name()%3D'text'%5D%5B4%5D&style=flat-square&logo=rust&label=dependencies&color=005AA4)](https://deps.rs/repo/github/dani-garcia/vaultwarden)
-[![GHA Release](https://img.shields.io/github/actions/workflow/status/dani-garcia/vaultwarden/release.yml?style=flat-square&logo=github&logoColor=fff&label=Release%20Workflow)](https://github.com/dani-garcia/vaultwarden/actions/workflows/release.yml)
-[![GHA Build](https://img.shields.io/github/actions/workflow/status/dani-garcia/vaultwarden/build.yml?style=flat-square&logo=github&logoColor=fff&label=Build%20Workflow)](https://github.com/dani-garcia/vaultwarden/actions/workflows/build.yml) <br>
-[![Matrix Chat](https://img.shields.io/matrix/vaultwarden:matrix.org.svg?style=flat-square&logo=matrix&logoColor=fff&color=953B00&cacheSeconds=14400)](https://matrix.to/#/#vaultwarden:matrix.org)
-[![GitHub Discussions](https://img.shields.io/github/discussions/dani-garcia/vaultwarden?style=flat-square&logo=github&logoColor=fff&color=953B00&cacheSeconds=300)](https://github.com/dani-garcia/vaultwarden/discussions)
-[![Discourse Discussions](https://img.shields.io/discourse/topics?server=https%3A%2F%2Fvaultwarden.discourse.group%2F&style=flat-square&logo=discourse&color=953B00)](https://vaultwarden.discourse.group/)
+GoreeVault Server is GoreeCloud's self-hosted, zero-knowledge credential server. It is a GoreeCloud-maintained derivative of Vaultwarden that preserves Bitwarden-client compatibility while GoreeCloud builds an independently governed, recoverable, security-reviewed credential platform.
 
 > [!IMPORTANT]
-> **When using this server, please report any bugs or suggestions directly to us (see [Get in touch](#get-in-touch)), regardless of whatever clients you are using (mobile, desktop, browser...). DO NOT use the official Bitwarden support channels.**
+> GoreeVault is under active stabilization. The current source line is **not approved for GoreeCloud Stable production use**. Release Candidate and Stable promotion are controlled by the evidence gates in `docs/PRODUCTION-READINESS.md`.
 
-<br>
+## Product role
 
-## Features
+GoreeVault is designed to provide secure multi-user credential storage for individual GoreeCloud users while preserving private-data boundaries between accounts and the client-side encryption model inherited from the compatible Bitwarden/Vaultwarden ecosystem.
 
-A nearly complete implementation of the Bitwarden Client API is provided, including:
+The long-term GoreeVault product family is:
 
- * [Personal Vault](https://bitwarden.com/help/managing-items/)
- * [Send](https://bitwarden.com/help/about-send/)
- * [Attachments](https://bitwarden.com/help/attachments/)
- * [Website icons](https://bitwarden.com/help/website-icons/)
- * [Personal API Key](https://bitwarden.com/help/personal-api-key/)
- * [Organizations](https://bitwarden.com/help/getting-started-organizations/)
-   - [Collections](https://bitwarden.com/help/about-collections/),
-     [Password Sharing](https://bitwarden.com/help/sharing/),
-     [Member Roles](https://bitwarden.com/help/user-types-access-control/),
-     [Groups](https://bitwarden.com/help/about-groups/),
-     [Event Logs](https://bitwarden.com/help/event-logs/),
-     [Admin Password Reset](https://bitwarden.com/help/admin-reset/),
-     [Directory Connector](https://bitwarden.com/help/directory-sync/),
-     [Policies](https://bitwarden.com/help/policies/)
- * [Multi/Two Factor Authentication](https://bitwarden.com/help/bitwarden-field-guide-two-step-login/)
-   - [Authenticator](https://bitwarden.com/help/setup-two-step-login-authenticator/),
-     [Email](https://bitwarden.com/help/setup-two-step-login-email/),
-     [FIDO2 WebAuthn](https://bitwarden.com/help/setup-two-step-login-fido/),
-     [YubiKey](https://bitwarden.com/help/setup-two-step-login-yubikey/),
-     [Duo](https://bitwarden.com/help/setup-two-step-login-duo/)
- * [Emergency Access](https://bitwarden.com/help/emergency-access/)
- * [Vaultwarden Admin Backend](https://github.com/dani-garcia/vaultwarden/wiki/Enabling-admin-page)
- * [Modified Web Vault client](https://github.com/dani-garcia/bw_web_builds) (Bundled within our containers)
+- **GoreeVault Server** — this repository; API, persistence, authentication, authorization, recovery, and server-side operations;
+- **GoreeVault Web** — planned GoreeCloud-owned browser vault using Glaze UI;
+- **GoreeVault Browser** — planned Firefox and Chromium extensions;
+- **GoreeVault Desktop** — planned desktop client;
+- **GoreeVault Mobile** — planned Android-first mobile client with additional platform planning as appropriate.
 
-<br>
+GoreeVault does not invent new cryptographic primitives merely to create product differentiation. Compatibility-sensitive cryptography, KDF behavior, token behavior, WebAuthn/passkey handling, database migrations, and protocol semantics remain security-reviewed boundaries.
 
-## Usage
+## Current status
 
-> [!IMPORTANT]
-> The web-vault requires the use of HTTPS and a secure context for the [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API). <br>
-> That means it will only work if you [enable HTTPS](https://github.com/dani-garcia/vaultwarden/wiki/Enabling-HTTPS). <br>
-> We also suggest to use a [reverse proxy](https://github.com/dani-garcia/vaultwarden/wiki/Proxy-examples).
+The current stabilization chain has established automated evidence for:
 
-The recommended way to install and use Vaultwarden is via our container images which are published to [ghcr.io](https://github.com/dani-garcia/vaultwarden/pkgs/container/vaultwarden), [docker.io](https://hub.docker.com/r/vaultwarden/server) and [quay.io](https://quay.io/repository/vaultwarden/server).
-See [which container image to use](https://github.com/dani-garcia/vaultwarden/wiki/Which-container-image-to-use) for an explanation of the provided tags.
+- PostgreSQL startup and migrations;
+- closed-registration behavior;
+- isolated multi-user account behavior and organization/collection authorization boundaries;
+- login, sync, personal cipher CRUD, attachments, TOTP, and WebAuthn compatibility behavior;
+- single-use and concurrent refresh-token replay protection;
+- destructive PostgreSQL plus `/data` recovery rehearsal;
+- Vaultwarden-to-GoreeVault migration and rollback rehearsal;
+- source and production-image HIGH/CRITICAL vulnerability gates;
+- AMD64/ARM64 OCI release-image preflight;
+- digest-pinned hardened production Compose validation;
+- GoreeVault-owned Glaze UI source conformance;
+- fail-closed Stable-release evidence validation.
 
-There are also [community driven packages](https://github.com/dani-garcia/vaultwarden/wiki/Third-party-packages) which can be used, but those might be lagging behind the latest version or might deviate in the way Vaultwarden is configured, as described in our [Wiki](https://github.com/dani-garcia/vaultwarden/wiki).
+Stable remains blocked until every requirement in `docs/PRODUCTION-READINESS.md` is satisfied, including real supported-client testing, a real WebAuthn/passkey path, target-environment evidence, repository governance, multi-user readiness evidence, and product-wide Glaze UI compliance.
 
-Alternatively, you can also [build Vaultwarden](https://github.com/dani-garcia/vaultwarden/wiki/Building-binary) yourself.
+## Glaze UI
 
-While Vaultwarden is based upon the [Rocket web framework](https://rocket.rs) which has built-in support for TLS our recommendation would be that you setup a reverse proxy (see [proxy examples](https://github.com/dani-garcia/vaultwarden/wiki/Proxy-examples)).
+**Glaze UI is mandatory for every GoreeVault-controlled user-facing interface.**
 
-> [!TIP]
->**For more detailed examples on how to install, use and configure Vaultwarden you can check our [Wiki](https://github.com/dani-garcia/vaultwarden/wiki).**
+The server-owned Admin and error surfaces use the repository-local Glaze UI contract in `docs/GLAZE-UI.md`. The bundled upstream-compatible web vault is currently a transitional compatibility dependency and is not treated as a permanent production exception. GoreeVault will not claim product-wide Glaze UI compliance or Stable readiness while that upstream presentation remains the primary browser vault unless a separately approved GoreeCloud exception satisfies the full exception standard.
 
-### Docker/Podman CLI
+The planned GoreeVault Web client is the intended product-wide Glaze UI browser surface.
 
-Pull the container image and mount a volume from the host for persistent storage.<br>
-You can replace `docker` with `podman` if you prefer to use podman.
+## Multi-user and privacy model
 
-```shell
-docker pull vaultwarden/server:latest
-docker run --detach --name vaultwarden \
-  --env DOMAIN="https://vw.domain.tld" \
-  --volume /vw-data/:/data/ \
-  --restart unless-stopped \
-  --publish 127.0.0.1:8000:80 \
-  vaultwarden/server:latest
+GoreeVault is not a single-user application. Production readiness requires:
+
+- an individual account or identity for each user;
+- authorization boundaries between users;
+- isolation of private vault data;
+- controlled organization and collection sharing;
+- no shared administrator account as a substitute for user identity;
+- security controls that remain effective even when private networking is present.
+
+The server treats encrypted vault content as opaque client-controlled ciphertext where required by the compatible zero-knowledge model.
+
+## Security posture
+
+Security-sensitive work is intentionally conservative.
+
+- Do not invent or casually replace cryptographic primitives.
+- Do not use production vault exports, production databases, real credentials, or private user data in tests.
+- Do not directly expose the GoreeVault backend listener to the public internet.
+- Production HTTPS/WSS terminates at the trusted GoreeCloud reverse proxy.
+- Production image references must be immutable digests.
+- Public registration is closed by default.
+- `/admin` is disabled by default in the production deployment contract.
+- Secrets and reusable credentials must remain outside source control and ordinary documentation.
+
+See `SECURITY.md`, `docs/SECURITY-MODEL.md`, and `docs/PRODUCTION-DEPLOYMENT.md`.
+
+## Repository structure
+
+The repository is intentionally split by responsibility:
+
+```text
+.github/       GitHub Actions, CODEOWNERS, release and security automation
+deploy/        GoreeCloud production deployment contract and environment template
+docker/        upstream-compatible image build inputs and generated Dockerfiles
+docs/          GoreeVault architecture, readiness, Glaze UI, recovery and governance records
+migrations/    database migrations
+scripts/       validation, compatibility, release-readiness and operational checks
+src/           Rust server runtime plus GoreeVault-owned server presentation
+tests/         compatibility and release-blocking regression coverage
 ```
 
-This will preserve any persistent data under `/vw-data/`, you can adapt the path to whatever suits you.
+See `docs/REPOSITORY-STRUCTURE.md` before adding a new top-level component or moving a compatibility-sensitive file.
 
-### Docker Compose
+## Development validation
 
-To use Docker compose you need to create a `compose.yaml` which will hold the configuration to run the Vaultwarden container.
+Run the checks relevant to the change. Important GoreeVault-owned validators include:
 
-```yaml
-services:
-  vaultwarden:
-    image: vaultwarden/server:latest
-    container_name: vaultwarden
-    restart: unless-stopped
-    environment:
-      DOMAIN: "https://vw.domain.tld"
-    volumes:
-      - ./vw-data/:/data/
-    ports:
-      - 127.0.0.1:8000:80
+```bash
+python3 scripts/validate-repository-readiness.py
+python3 scripts/validate-glaze-ui.py
+bash scripts/validate-production-deployment.sh
+bash scripts/compat.sh
 ```
 
-<br>
+Stable evidence is validated with:
 
-## Get in touch
+```bash
+python3 scripts/validate-stable-evidence.py goreevault-stable-evidence.json \
+  --expected-source-sha '<40-character RC source SHA>' \
+  --expected-rc-tag 'vX.Y.Z-rc.N' \
+  --expected-manifest-digest 'sha256:<64-hex manifest digest>'
+```
 
-Have a question, suggestion or need help? Join our community on [Matrix](https://matrix.to/#/#vaultwarden:matrix.org), [GitHub Discussions](https://github.com/dani-garcia/vaultwarden/discussions) or [Discourse Forums](https://vaultwarden.discourse.group/).
+GitHub Actions runs the repository's release-blocking checks against exact pull-request revisions.
 
-Encountered a bug or crash? Please search our issue tracker and discussions to see if it's already been reported. If not, please [start a new discussion](https://github.com/dani-garcia/vaultwarden/discussions) or [create a new issue](https://github.com/dani-garcia/vaultwarden/issues/). Ensure you're using the latest version of Vaultwarden and there aren't any similar issues open or closed!
+## Deployment boundary
 
-<br>
+Do not deploy from a floating image tag or copy an upstream `latest` example into GoreeCloud production.
 
-## Contributors
+The reviewed GoreeVault production model is defined by:
 
-Thanks for your contribution to the project!
+- `deploy/compose.production.yaml`;
+- `deploy/.env.production.example`;
+- `docs/PRODUCTION-DEPLOYMENT.md`;
+- `scripts/validate-production-deployment.sh`.
 
-[![Contributors Count](https://img.shields.io/github/contributors-anon/dani-garcia/vaultwarden?style=for-the-badge&logo=vaultwarden&color=005AA4)](https://github.com/dani-garcia/vaultwarden/graphs/contributors)<br>
-[![Contributors Avatars](https://contributors-img.web.app/image?repo=dani-garcia/vaultwarden)](https://github.com/dani-garcia/vaultwarden/graphs/contributors)
+The production contract requires immutable GoreeVault and PostgreSQL image digests, loopback-only backend publication, an internal database network, a non-root and capability-free steady-state server, a read-only root filesystem, and trusted reverse-proxy HTTPS/WSS.
 
-<br>
+## Upstream provenance
 
-## Disclaimer
+GoreeVault begins from Vaultwarden and deliberately keeps portions of the upstream architecture and internal identity where changing them would increase security risk, compatibility risk, or upstream-maintenance cost.
 
-**This project is not associated with [Bitwarden](https://bitwarden.com/) or Bitwarden, Inc.**
+- Upstream project: **Vaultwarden**
+- Upstream repository: `dani-garcia/vaultwarden`
+- Initial GoreeVault baseline: `0cefa4cca7c9f2a5579dd290f78193b543818c51`
+- License: **AGPL-3.0-only**
 
-However, one of the active maintainers for Vaultwarden is employed by Bitwarden and is allowed to contribute to the project on their own time. These contributions are independent of Bitwarden and are reviewed by other maintainers.
+The original `LICENSE.txt`, copyright notices, attribution, and source-availability obligations remain part of this repository. See `GOREVAULT.md` and `docs/UPSTREAM.md` for the maintained-fork boundary.
 
-The maintainers work together to set the direction for the project, focusing on serving the self-hosting community, including individuals, families, and small organizations, while ensuring the project's sustainability.
+GoreeVault is not affiliated with or endorsed by Bitwarden, Inc. Bitwarden is a trademark of its respective owner.
 
-**Please note:** We cannot be held liable for any data loss that may occur while using Vaultwarden. This includes passwords, attachments, and other information handled by the application. We highly recommend performing regular backups of your files and database. However, should you experience data loss, we encourage you to contact us immediately.
+## Contributing and security reports
 
-<br>
+Read `CONTRIBUTING.md` before proposing changes. Compatibility, authorization, cryptography, persistence, release, deployment, and UI changes require evidence appropriate to their risk.
 
-## Bitwarden_RS
-
-This project was known as Bitwarden_RS and has been renamed to separate itself from the official Bitwarden server in the hopes of avoiding confusion and trademark/branding issues.<br>
-Please see [#1642 - v1.21.0 release and project rename to Vaultwarden](https://github.com/dani-garcia/vaultwarden/discussions/1642) for more explanation.
+Do not publish exploit details in a public issue. Follow `SECURITY.md` for vulnerability reporting.
