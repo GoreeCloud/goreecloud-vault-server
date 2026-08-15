@@ -49,6 +49,7 @@ def validate_html() -> None:
     csp = csp_match.group(1)
     require("unsafe-eval" not in csp, "CSP must not allow unsafe-eval")
     require("unsafe-inline" not in csp, "CSP must not allow unsafe-inline")
+    require("https://vault.goreecloud.com" in csp, "canonical GoreeVault Server origin must be explicit")
 
 
 def validate_css() -> None:
@@ -71,11 +72,24 @@ def validate_css() -> None:
 
 
 def validate_javascript() -> None:
-    theme = read("assets/theme-init.js")
-    app = read("assets/app.js")
-    combined = theme + "\n" + app
+    files = [
+        "assets/theme-init.js",
+        "assets/app.js",
+        "assets/runtime-config.js",
+        "assets/session-state.js",
+        "assets/crypto-boundary.js",
+    ]
+    combined = "\n".join(read(path) for path in files)
     require("goreevault-web-appearance" in combined, "appearance preference key is required")
     require("system" in combined and "light" in combined and "dark" in combined, "System/Light/Dark modes are required")
+    require("https://vault.goreecloud.com" in combined, "canonical production API origin is required")
+    require("credentialProcessingEnabled: false" in combined, "credential processing must remain fail-closed")
+    require("persistentDecryptedStateEnabled: false" in combined, "decrypted persistence must remain disabled")
+    require("offlinePrivateResponseCachingEnabled: false" in combined, "private response caching must remain disabled")
+    require("unavailable-pre-alpha" in combined, "cryptography adapter must remain explicitly unavailable")
+    require("clearSession" in combined and "switchAccount" in combined, "account/session clearing boundary is required")
+    require("sessionEpoch" in combined, "session invalidation epoch is required")
+
     forbidden = [
         "console.log(",
         "console.debug(",
@@ -85,9 +99,14 @@ def validate_javascript() -> None:
         "gtag(",
         "segment.com",
         "mixpanel",
+        "localstorage.setitem('token",
+        'localstorage.setitem("token',
+        "localstorage.setitem('password",
+        'localstorage.setitem("password',
     ]
-    found = [token for token in forbidden if token in combined.lower()]
-    require(not found, f"forbidden browser telemetry/debug surface found: {found}")
+    lowered = combined.lower()
+    found = [token for token in forbidden if token in lowered]
+    require(not found, f"forbidden browser telemetry/debug/secret persistence surface found: {found}")
 
 
 def validate_security_docs() -> None:
@@ -98,6 +117,8 @@ def validate_security_docs() -> None:
     require("Do not invent cryptographic primitives" in security, "security boundary must prohibit invented cryptography")
     require("must not be used with real vault credentials" in security, "pre-alpha real-credential prohibition is required")
     require("plaintext vault" in security, "plaintext storage prohibition must be documented")
+    require("account/session state explicitly scoped" in security, "account-scoped session requirement must be documented")
+    require("Clear decrypted state and key material" in security, "sensitive-state clearing requirement must be documented")
 
 
 def validate_svg() -> None:
@@ -114,6 +135,9 @@ def main() -> int:
             "assets/glaze.css",
             "assets/theme-init.js",
             "assets/app.js",
+            "assets/runtime-config.js",
+            "assets/session-state.js",
+            "assets/crypto-boundary.js",
             "assets/goreevault-mark.svg",
             "docs/SECURITY-BOUNDARY.md",
         ]:
@@ -127,7 +151,7 @@ def main() -> int:
         print(f"GoreeVault Web shell validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault Web Glaze UI shell validation passed.")
+    print("GoreeVault Web Glaze UI shell and client safety-boundary validation passed.")
     return 0
 
 
