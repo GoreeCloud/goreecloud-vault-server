@@ -12,9 +12,11 @@ Established:
 - upstream tracking strategy;
 - development-only deployment baseline.
 
-## v0.2.0 — Compatibility, recovery, and hardening
+## v0.2.0 — Server compatibility, recovery, and hardening
 
-### Automated API and authentication gates
+v0.2 is the GoreeVault Server Release Candidate milestone. It proves the maintained server, compatibility, recovery, deployment, and release foundations. It does **not** by itself authorize product-wide Stable use because the primary browser vault remains an upstream compatibility dependency rather than a GoreeVault-owned Glaze UI surface.
+
+### Automated API, multi-user, and authentication gates
 
 Established or under exact-head validation:
 
@@ -22,11 +24,12 @@ Established or under exact-head validation:
 - database-backed health checks;
 - prelogin and closed-registration policy;
 - isolated account creation/login;
+- unrelated-user private-data isolation;
+- organization/member and collection authorization transitions;
 - single-use refresh-token rotation and replay rejection;
 - atomic concurrent refresh-token consumption with exactly one winner;
 - vault sync;
 - personal cipher create/read/update/delete;
-- organization/member and collection access-control behavior;
 - attachment lifecycle;
 - TOTP authentication/recovery coverage;
 - WebAuthn challenge/rejection compatibility coverage.
@@ -39,21 +42,28 @@ Established on the certified baseline and required on every release candidate:
 - exact Vaultwarden baseline to GoreeVault migration rehearsal;
 - rollback rehearsal to the pre-migration state;
 - non-publishing AMD64/ARM64 release-image build;
-- source and built-image HIGH/CRITICAL security gates.
+- source and built-image HIGH/CRITICAL security gates;
+- hardened production Compose validation;
+- repository-readiness and GoreeVault-owned Glaze UI conformance checks;
+- fail-closed exact-RC Stable evidence contract.
 
-### Remaining v0.2 release evidence
+### Remaining v0.2 RC evidence
 
-Before v0.2 can be treated as a supported release milestone:
+Before v0.2 can be treated as a supported server Release Candidate milestone:
 
 - run and record the real supported Bitwarden client matrix on exact candidate artifacts;
 - perform a real supported-browser/device WebAuthn/passkey flow;
 - complete target-environment deployment rehearsal using the production contract;
 - create/verify required GitHub governance controls from `docs/PRODUCTION-READINESS.md`;
-- record those completed gates in the validated `goreevault-stable-evidence.json` attached to the exact matching RC release before Stable promotion.
+- record completed RC-bound evidence for later Stable promotion.
+
+Passing these items proves the server candidate. It does not override the product-wide Glaze UI gate.
 
 ## v0.3.0 — GoreeVault Web foundation
 
 GoreeVault Web becomes the GoreeCloud-owned browser vault experience rather than a branded wrapper around the upstream-compatible web vault.
+
+This milestone is required for the current product-wide Stable path because GoreeCloud requires Glaze UI on every controlled user-facing interface.
 
 Required foundation:
 
@@ -61,18 +71,22 @@ Required foundation:
 - **Glaze UI Design Language** as the complete GoreeVault Web presentation and interaction system;
 - local-only browser presentation dependencies under GoreeCloud Privacy by Default;
 - accessible System/Light/Dark behavior, responsive layouts, keyboard/focus behavior, contrast and forced-colors support;
+- individual multi-user account behavior and safe user/session boundaries;
 - GoreeVault client SDK boundary;
 - client-side vault encryption/decryption architecture using mature compatible cryptographic primitives;
 - secure session locking and memory/key-lifecycle policy;
 - import/export strategy;
-- compatibility test coverage against the GoreeVault server.
+- compatibility test coverage against the GoreeVault server;
+- migration/fallback path from the bundled upstream web-vault dependency;
+- browser accessibility and Glaze UI acceptance evidence.
 
-The existing bundled upstream web vault remains a transitional compatibility asset until GoreeVault Web reaches the required compatibility and security gates. Product-wide Glaze UI conformance is not claimed before that transition.
+The existing bundled upstream web vault remains a temporary compatibility asset until GoreeVault Web reaches the required compatibility and security gates. It is not a permanent production styling exception.
 
 ## v0.4.0 — GoreeVault Browser foundation
 
 - Firefox and Chromium extension;
 - Glaze UI adapted to browser-extension platform conventions;
+- individual-user authentication/session lifecycle;
 - URI matching and autofill;
 - password/passphrase generator;
 - capture/update credentials;
@@ -84,6 +98,7 @@ The existing bundled upstream web vault remains a transitional compatibility ass
 
 - GoreeCloud-native desktop client;
 - Glaze UI adapted to desktop accessibility and windowing conventions;
+- individual-user authentication/session lifecycle;
 - secure local encrypted state and lock lifecycle;
 - browser/desktop handoff strategy where appropriate;
 - update/distribution and code-signing plan.
@@ -92,6 +107,7 @@ The existing bundled upstream web vault remains a transitional compatibility ass
 
 - Android-first GoreeVault mobile client, with iOS planning as applicable;
 - Glaze UI adapted to native mobile conventions;
+- individual-user authentication/session lifecycle;
 - biometric/device-keystore integration using platform security APIs;
 - autofill/credential-provider integration;
 - secure background/lock behavior;
@@ -101,6 +117,7 @@ The existing bundled upstream web vault remains a transitional compatibility ass
 
 Stable promotion requires the exact candidate artifact to satisfy `docs/PRODUCTION-READINESS.md`, including:
 
+- proven multi-user identity, authorization, and private-data boundaries;
 - compatibility and real-client evidence;
 - security gates and reviewed exception state;
 - migration and rollback;
@@ -109,7 +126,9 @@ Stable promotion requires the exact candidate artifact to satisfy `docs/PRODUCTI
 - hardened production deployment validation;
 - protected repository/release governance;
 - target-environment operational evidence;
-- Glaze UI conformance for every GoreeVault-owned surface;
+- product-wide Glaze UI conformance for every GoreeVault-controlled user-facing surface;
 - fail-closed validation of the RC-bound Stable evidence asset before the Stable and `latest` image tags are created.
 
-No semantic version or green build can bypass those gates.
+Under the current approved path, GoreeVault Web must reach its security, compatibility, accessibility, and Glaze UI gates before v1.0 Stable promotion. A future formally approved material exception could alter that dependency only if it satisfies the GoreeCloud exception standard; no such exception is currently approved.
+
+No semantic version or green build can bypass these gates.
