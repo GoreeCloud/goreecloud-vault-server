@@ -15,8 +15,10 @@ REQUIRED_FILES = (
     "docs/CLIENT-COMPATIBILITY.md",
     "docs/RC-EVIDENCE.md",
     "docs/WEB-CLIENT-CONTRACT.md",
+    "scripts/assemble-stable-evidence.py",
     "scripts/collect-target-evidence.py",
     "scripts/validate-stable-evidence.py",
+    "tests/test_assemble_stable_evidence.py",
     "tests/test_collect_target_evidence.py",
 )
 
@@ -85,6 +87,35 @@ def validate_collector() -> None:
     require(
         '"target_environment"' not in text,
         "collector must emit the target-environment section itself, not a misleading full Stable evidence record",
+    )
+
+
+def validate_assembler() -> None:
+    text = read("scripts/assemble-stable-evidence.py")
+    required_tokens = (
+        '"rc", "rc"',
+        '"multi_user", "multi-user"',
+        '"clients", "clients"',
+        '"webauthn", "webauthn"',
+        '"glaze_ui", "glaze-ui"',
+        '"target_environment", "target-environment"',
+        '"governance", "governance"',
+        '"approvals", "approvals"',
+        'expected_source_sha=expected_source_sha',
+        'expected_rc_tag=expected_rc_tag',
+        'expected_manifest_digest=expected_manifest_digest',
+        'allow_placeholders=False',
+        'refuse to overwrite without --force',
+        'refuse to write Stable evidence through a symbolic link',
+        'os.O_EXCL',
+        '0o600',
+        'os.fsync',
+    )
+    missing = [token for token in required_tokens if token not in text]
+    require(not missing, f"Stable evidence assembler is missing fail-closed controls: {', '.join(missing)}")
+    require(
+        "does not create evidence or mark work complete" in text,
+        "Stable evidence assembler must state that it cannot manufacture release evidence",
     )
 
 
@@ -204,8 +235,8 @@ def validate_web_contract() -> None:
 
 
 def validate_tests() -> None:
-    text = read("tests/test_collect_target_evidence.py")
-    required_tests = (
+    collector_tests = read("tests/test_collect_target_evidence.py")
+    required_collector_tests = (
         "test_digest_pinning",
         "test_container_state_requires_running_and_healthy",
         "test_backend_requires_loopback_publication",
@@ -217,8 +248,20 @@ def validate_tests() -> None:
         "test_collect_rejects_missing_operator_attestation",
         "test_collect_rejects_wrong_rc_manifest",
     )
-    missing = [name for name in required_tests if name not in text]
+    missing = [name for name in required_collector_tests if name not in collector_tests]
     require(not missing, f"target evidence collector tests are incomplete: {', '.join(missing)}")
+
+    assembler_tests = read("tests/test_assemble_stable_evidence.py")
+    required_assembler_tests = (
+        "test_assemble_validates_exact_candidate",
+        "test_assemble_rejects_wrong_expected_source",
+        "test_assemble_rejects_unknown_section_field",
+        "test_read_section_rejects_duplicate_json_keys",
+        "test_write_is_mode_0600_and_refuses_implicit_overwrite",
+        "test_write_refuses_symbolic_link",
+    )
+    missing = [name for name in required_assembler_tests if name not in assembler_tests]
+    require(not missing, f"Stable evidence assembler tests are incomplete: {', '.join(missing)}")
 
 
 def main() -> int:
@@ -226,6 +269,7 @@ def main() -> int:
         validate_files()
         stable = load_stable_validator()
         validate_collector()
+        validate_assembler()
         validate_client_matrix(stable)
         validate_rc_evidence(stable)
         validate_web_contract()
