@@ -1,12 +1,26 @@
 {
-  "schema_version": 1,
-  "collected_at": "2026-08-15T03:45:00-05:00",
+  "schema_version": 2,
+  "collected_at": "2026-08-15T04:10:00-05:00",
   "rc": {
-    "tag": "v0.2.0-rc.1",
+    "tag": "v0.3.0-rc.1",
     "source_sha": "1111111111111111111111111111111111111111",
     "manifest_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
     "postgres_image": "postgres@sha256:3333333333333333333333333333333333333333333333333333333333333333",
-    "web_vault_asset": "REPLACE_ME_exact_web_vault_version_and_digest"
+    "browser_vault_asset": "REPLACE_ME_exact_goreevault_web_version_and_digest"
+  },
+  "multi_user": {
+    "result": "pass",
+    "tested_at": "2026-08-15T03:20:00-05:00",
+    "individual_accounts": true,
+    "private_vault_isolation": true,
+    "unrelated_user_access_denied": true,
+    "organization_membership_boundaries": true,
+    "collection_authorization": true,
+    "permission_change_enforced": true,
+    "member_removal_enforced": true,
+    "session_device_invalidation": true,
+    "no_shared_admin_required": true,
+    "evidence_reference": "REPLACE_ME_multi_user_test_record"
   },
   "clients": [
     {
@@ -127,6 +141,21 @@
     "tested_at": "2026-08-15T03:35:00-05:00",
     "registration": true,
     "authentication": true
+  },
+  "glaze_ui": {
+    "result": "pass",
+    "reviewed_at": "2026-08-15T03:38:00-05:00",
+    "product_wide_conformance": true,
+    "primary_browser_vault_goreecloud_owned": true,
+    "controlled_surfaces_glaze": true,
+    "system_light_dark": true,
+    "keyboard_accessibility": true,
+    "reduced_motion": true,
+    "increased_contrast": true,
+    "forced_colors": true,
+    "local_only_presentation_dependencies": true,
+    "no_analytics_tracking": true,
+    "evidence_reference": "REPLACE_ME_glaze_browser_accessibility_review"
   },
   "target_environment": {
     "result": "pass",
