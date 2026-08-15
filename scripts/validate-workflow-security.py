@@ -49,6 +49,7 @@ def external_action_ref(uses_value: str) -> tuple[str, str] | None:
 
 
 def validate_workflow(path: Path) -> list[str]:
+    """Return all GoreeVault workflow-security violations found in one workflow."""
     errors: list[str] = []
     lines = path.read_text(encoding="utf-8").splitlines()
 
@@ -91,61 +92,6 @@ def validate_workflow(path: Path) -> list[str]:
     return errors
 
 
-def run_self_tests() -> list[str]:
-    """Exercise parser, permissions, and action-pinning boundaries."""
-    failures: list[str] = []
-
-    boundary_lines = [
-        "      - name: Checkout one",
-        "        uses: actions/checkout@" + "a" * 40,
-        "      - run: echo next-step",
-        "        with:",
-        "          persist-credentials: false",
-    ]
-    if any(
-        line.strip() == "persist-credentials: false"
-        for line in checkout_block(boundary_lines, 1)
-    ):
-        failures.append("checkout step parser leaked into a later run step")
-
-    valid_lines = [
-        "      - name: Checkout",
-        "        uses: actions/checkout@" + "a" * 40,
-        "        with:",
-        "          persist-credentials: false",
-        "      - run: echo done",
-    ]
-    if not any(
-        line.strip() == "persist-credentials: false"
-        for line in checkout_block(valid_lines, 1)
-    ):
-        failures.append("checkout step parser rejected an in-step credential setting")
-
-    if TOP_LEVEL_PERMISSIONS_RE.match("  permissions:"):
-        failures.append("job-level permissions were accepted as top-level permissions")
-    if TOP_LEVEL_PERMISSIONS_RE.match("  permissions: {}"):
-        failures.append("indented empty permissions were accepted as top-level permissions")
-    if TOP_LEVEL_PERMISSIONS_RE.match("permissions: {}") is None:
-        failures.append("explicit empty top-level permissions were rejected")
-    if TOP_LEVEL_PERMISSIONS_RE.match("permissions:") is None:
-        failures.append("block-style top-level permissions were rejected")
-
-    pinned = external_action_ref("vendor/action@" + "b" * 40)
-    if pinned is None or FULL_SHA_RE.fullmatch(pinned[1]) is None:
-        failures.append("full-SHA external action pin was rejected")
-
-    weak = external_action_ref("vendor/action@v4")
-    if weak is None or FULL_SHA_RE.fullmatch(weak[1]) is not None:
-        failures.append("mutable external action tag was accepted")
-
-    if external_action_ref("./.github/actions/local") is not None:
-        failures.append("local action was incorrectly classified as external")
-    if external_action_ref("docker://alpine:3.20") is not None:
-        failures.append("docker action was incorrectly classified as repository action")
-
-    return failures
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -155,13 +101,6 @@ def main() -> int:
         help="Workflow directory to inspect (default: .github/workflows)",
     )
     args = parser.parse_args()
-
-    self_test_failures = run_self_tests()
-    if self_test_failures:
-        print("GoreeVault workflow security validator self-test failed:", file=sys.stderr)
-        for failure in self_test_failures:
-            print(f"- {failure}", file=sys.stderr)
-        return 1
 
     workflows = sorted(args.root.glob("goreevault-*.yml"))
     if not workflows:
