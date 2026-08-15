@@ -31,6 +31,41 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Enforce proxy-terminated TLS dependency boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+
+          cargo = tomllib.loads(Path('Cargo.toml').read_text())
+          rocket = cargo.get('dependencies', {}).get('rocket')
+          if not isinstance(rocket, dict):
+              raise SystemExit('Rocket dependency must remain an explicit dependency table')
+          if rocket.get('default-features', True) is not False:
+              raise SystemExit('Rocket default features must remain disabled')
+          if 'tls' in set(rocket.get('features', [])):
+              raise SystemExit('Rocket embedded TLS is forbidden in GoreeVault production builds')
+          PY
+
+          cargo tree --locked --no-default-features --features postgresql --prefix none > /tmp/goreevault-dependency-tree.txt
+
+          for package in \
+            'rustls v0.21.12' \
+            'rustls-webpki v0.101.7' \
+            'tokio-rustls v0.24.1' \
+            'rustls-pemfile v1.0.4' \
+            'sct v0.7.1'; do
+            if grep -Fxq "${package}" /tmp/goreevault-dependency-tree.txt; then
+              echo "::error title=Legacy embedded-TLS dependency reintroduced::${package} is present in the PostgreSQL dependency graph."
+              exit 1
+            fi
+          done
+
+          echo 'Proxy-terminated TLS dependency boundary passed.'
+
       - name: Scan GoreeVault repository
         id: trivy_repo
         continue-on-error: true
