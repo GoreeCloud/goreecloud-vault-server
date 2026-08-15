@@ -78,6 +78,10 @@ def validate_javascript() -> None:
         "assets/runtime-config.js",
         "assets/session-state.js",
         "assets/crypto-boundary.js",
+        "assets/api-errors.js",
+        "assets/api-client.js",
+        "assets/auth-protocol.js",
+        "assets/auth-state.js",
     ]
     combined = "\n".join(read(path) for path in files)
     require("goreevault-web-appearance" in combined, "appearance preference key is required")
@@ -89,6 +93,20 @@ def validate_javascript() -> None:
     require("unavailable-pre-alpha" in combined, "cryptography adapter must remain explicitly unavailable")
     require("clearSession" in combined and "switchAccount" in combined, "account/session clearing boundary is required")
     require("sessionEpoch" in combined, "session invalidation epoch is required")
+
+    require("/api/accounts/prelogin" in combined, "compatible prelogin endpoint boundary is required")
+    require("kdfIterations" in combined and "kdfMemory" in combined and "kdfParallelism" in combined,
+            "prelogin KDF metadata must be modeled explicitly")
+    require("persistentTokenStorageEnabled: false" in combined, "persistent token storage must remain disabled")
+    require("refreshRotationRequired: true" in combined, "refresh-token rotation requirement must remain explicit")
+    require("replayRejectionRequired: true" in combined, "refresh-token replay rejection requirement must remain explicit")
+    require("credentials: 'same-origin'" in combined, "API requests must not broaden credential scope")
+    require("cache: 'no-store'" in combined, "API requests must not use general browser caching")
+    require("redirect: 'error'" in combined, "API requests must reject redirects")
+    require("AbortController" in combined, "abortable API request handling is required")
+    require("requestEpoch" in combined and "Stale prelogin response rejected" in combined,
+            "authentication requests must reject stale account-scoped responses")
+    require("GoreeVaultApiError" in combined, "normalized API error type is required")
 
     forbidden = [
         "console.log(",
@@ -103,6 +121,10 @@ def validate_javascript() -> None:
         'localstorage.setitem("token',
         "localstorage.setitem('password",
         'localstorage.setitem("password',
+        "sessionstorage.setitem('token",
+        'sessionstorage.setitem("token',
+        "sessionstorage.setitem('password",
+        'sessionstorage.setitem("password',
     ]
     lowered = combined.lower()
     found = [token for token in forbidden if token in lowered]
@@ -119,6 +141,8 @@ def validate_security_docs() -> None:
     require("plaintext vault" in security, "plaintext storage prohibition must be documented")
     require("account/session state explicitly scoped" in security, "account-scoped session requirement must be documented")
     require("Clear decrypted state and key material" in security, "sensitive-state clearing requirement must be documented")
+    require("Prelogin" in security and "KDF metadata" in security, "prelogin-only protocol scope must be documented")
+    require("password entry remains disabled" in security, "password-processing prohibition must remain explicit")
 
 
 def validate_svg() -> None:
@@ -138,6 +162,10 @@ def main() -> int:
             "assets/runtime-config.js",
             "assets/session-state.js",
             "assets/crypto-boundary.js",
+            "assets/api-errors.js",
+            "assets/api-client.js",
+            "assets/auth-protocol.js",
+            "assets/auth-state.js",
             "assets/goreevault-mark.svg",
             "docs/SECURITY-BOUNDARY.md",
         ]:
@@ -151,7 +179,7 @@ def main() -> int:
         print(f"GoreeVault Web shell validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault Web Glaze UI shell and client safety-boundary validation passed.")
+    print("GoreeVault Web Glaze UI shell, client safety, and authentication protocol-boundary validation passed.")
     return 0
 
 
