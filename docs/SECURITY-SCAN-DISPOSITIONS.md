@@ -2,7 +2,7 @@
 
 GoreeVault blocks unsuppressed, fixed HIGH and CRITICAL vulnerabilities in both the repository/dependency scan and the built PostgreSQL production-image scan. Scanner or vulnerability-database execution failures fail closed.
 
-This document records every temporary Trivy finding disposition in `.trivyignore.yaml`. An entry is valid only while its evidence remains true and until its `expired_at` date. Expiration requires re-review; it must not be extended automatically.
+This document records every temporary Trivy finding disposition in `.trivyignore.yaml` and resolved findings that materially shaped the production security model. An active exception is valid only while its evidence remains true and until its `expired_at` date. Expiration requires re-review; it must not be extended automatically.
 
 ## Why Vaultwarden package-version findings require code review
 
@@ -44,13 +44,15 @@ Reopen this disposition immediately if `ManagerHeaders` or collection manageabil
 
 ## GHSA-82j2-j2ch-gfr8 — rustls-webpki CRL panic
 
-**Disposition:** vulnerable dependency version is present transitively, but the advisory's trigger path is not enabled; temporary scanner exception through 2026-09-30.
+**Disposition:** resolved; no active Trivy exception.
 
-`rustls-webpki 0.101.7` remains in the dependency graph through Rocket 0.5.1's rustls 0.21 TLS path. The advisory requires an application to explicitly enable certificate-revocation-list checking through `RevocationOptions` and process attacker-influenced CRLs.
+The original diagnostic found `rustls-webpki 0.101.7` through Rocket 0.5.1's optional embedded-TLS feature. GoreeVault production does not require Rocket to terminate public TLS: HTTPS/WSS terminate at the trusted reverse proxy and the application listener is HTTP-only on a private or loopback path.
 
-Rocket 0.5.1's TLS listener constructs its standard rustls server/client-certificate verifiers without configuring `RevocationOptions` or CRLs. GoreeVault's planned production topology also terminates public TLS at the trusted reverse proxy and exposes only HTTP on loopback to that proxy.
+GoreeVault therefore disabled Rocket's `tls` feature instead of retaining a reachability-based vulnerability exception. The lockfile was regenerated under CI and its approved SHA-256 was verified before commit. The resulting PostgreSQL dependency graph contains the modern rustls branch and no longer contains the legacy Rocket TLS packages that introduced `rustls-webpki 0.101.7`.
 
-This disposition does **not** declare the old dependency desirable. Prefer eliminating the old rustls branch through a compatible Rocket/rustls upgrade when upstream supports it. Reopen immediately if Rocket TLS configuration changes, CRL handling is introduced, or the dependency path changes.
+The permanent security workflow rejects reintroduction of Rocket embedded TLS and the legacy dependency family. Reopen this disposition if the application is ever expected to terminate TLS directly, if the Rocket dependency declaration changes, or if an upstream merge attempts to restore the old TLS branch.
+
+This remediation does **not** weaken the external transport requirement. Every client connection must still use HTTPS/WSS. Direct public access to the HTTP application listener is forbidden.
 
 ## Built-image diagnostic result
 
@@ -58,12 +60,13 @@ The split diagnostic rehearsal built the real PostgreSQL production image and se
 
 The corrected GoreeVault security workflow therefore:
 
-1. runs Trivy with vulnerability exit code `0`, so a non-success action outcome represents scanner/runtime failure rather than policy findings;
-2. limits SARIF to HIGH/CRITICAL severity;
-3. applies the reviewed `.trivyignore.yaml` file;
-4. uploads and annotates SARIF;
-5. fails closed when the scanner outcome is not successful or expected SARIF is missing; and
-6. independently fails when filtered SARIF contains any unsuppressed fixed HIGH/CRITICAL result.
+1. enforces the production TLS dependency boundary before vulnerability scanning;
+2. runs Trivy with vulnerability exit code `0`, so a non-success action outcome represents scanner/runtime failure rather than policy findings;
+3. limits SARIF to HIGH/CRITICAL severity;
+4. applies the reviewed `.trivyignore.yaml` file;
+5. uploads and annotates SARIF;
+6. fails closed when the scanner outcome is not successful or expected SARIF is missing; and
+7. independently fails when filtered SARIF contains any unsuppressed fixed HIGH/CRITICAL result.
 
 This preserves fail-closed scanner behavior while making the release policy deterministic and auditable.
 
