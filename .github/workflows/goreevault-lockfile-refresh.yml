@@ -1,0 +1,76 @@
+name: GoreeVault Lockfile Refresh
+
+on:
+  push:
+    branches:
+      - agent/production-tls-hardening
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-lockfile-refresh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    name: Regenerate and verify Cargo.lock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install PostgreSQL build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpq-dev pkg-config
+
+      - name: Regenerate lockfile
+        run: cargo generate-lockfile
+
+      - name: Verify legacy Rocket TLS dependency branch is absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo tree --locked --no-default-features --features postgresql --prefix none > /tmp/goreevault-tree.txt
+
+          for package in \
+            'rustls v0.21.12' \
+            'rustls-webpki v0.101.7' \
+            'tokio-rustls v0.24.1' \
+            'rustls-pemfile v1.0.4' \
+            'sct v0.7.1'; do
+            if grep -Fxq "${package}" /tmp/goreevault-tree.txt; then
+              echo "::error title=Legacy Rocket TLS dependency remains::${package} is still in the active PostgreSQL dependency graph."
+              exit 1
+            fi
+          done
+
+          if grep -A4 -F 'name = "rustls-webpki"' Cargo.lock | grep -Fq 'version = "0.101.7"'; then
+            echo '::error title=Legacy rustls-webpki remains in lockfile::rustls-webpki 0.101.7 is still locked.'
+            exit 1
+          fi
+
+          echo 'Legacy Rocket TLS dependency branch is absent from the active graph and regenerated lockfile.'
+
+      - name: Compile PostgreSQL target with regenerated lockfile
+        run: cargo check --locked --no-default-features --features postgresql
+
+      - name: Compile PostgreSQL test targets
+        run: cargo check --locked --tests --no-default-features --features postgresql
+
+      - name: Show lockfile delta
+        run: git diff -- Cargo.lock
+
+      - name: Upload regenerated Cargo.lock
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: goreevault-cargo-lock-${{ github.sha }}
+          path: Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
