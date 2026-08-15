@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Source-level GoreeVault Glaze UI conformance checks.
 
-This checker intentionally validates only GoreeVault-owned presentation surfaces.
-The bundled Bitwarden-compatible web vault remains a transitional compatibility
-asset until GoreeVault Web owns that presentation layer.
+This checker validates GoreeVault-owned browser and transactional-email
+presentation surfaces. The bundled Bitwarden-compatible web vault remains a
+transitional compatibility asset until GoreeVault Web owns that presentation
+layer.
 """
 
 from __future__ import annotations
@@ -19,6 +20,9 @@ ADMIN_JS = ROOT / "src/static/scripts/admin.js"
 ADMIN_CSS = ROOT / "src/static/scripts/admin.css"
 ERROR_TEMPLATE = ROOT / "src/static/templates/404.hbs"
 ERROR_CSS = ROOT / "src/static/scripts/404.css"
+EMAIL_HEADER = ROOT / "src/static/templates/email/email_header.hbs"
+EMAIL_FOOTER = ROOT / "src/static/templates/email/email_footer.hbs"
+EMAIL_FOOTER_TEXT = ROOT / "src/static/templates/email/email_footer_text.hbs"
 GLAZE_DOC = ROOT / "docs/GLAZE-UI.md"
 READINESS_DOC = ROOT / "docs/PRODUCTION-READINESS.md"
 
@@ -29,6 +33,9 @@ FILES = [
     ADMIN_CSS,
     ERROR_TEMPLATE,
     ERROR_CSS,
+    EMAIL_HEADER,
+    EMAIL_FOOTER,
+    EMAIL_FOOTER_TEXT,
     GLAZE_DOC,
     READINESS_DOC,
 ]
@@ -74,6 +81,20 @@ def validate_local_browser_dependencies(template: str, css: str, label: str) -> 
             raise AssertionError(f"{label}: {description} is forbidden by GoreeCloud Privacy by Default")
 
 
+def validate_email_dependencies(email_html: str) -> None:
+    remote_script = re.compile(r"<script\b", re.I)
+    tracking_image = re.compile(r"<img\b[^>]*\bsrc=[\"']https?://", re.I)
+    remote_font = re.compile(r"(?:@import|url\()[^\n]*https?://", re.I)
+
+    for pattern, description in (
+        (remote_script, "script dependency"),
+        (tracking_image, "remote image/tracking dependency"),
+        (remote_font, "remote CSS/font dependency"),
+    ):
+        if pattern.search(email_html):
+            raise AssertionError(f"GoreeVault email: {description} is forbidden by GoreeCloud Privacy by Default")
+
+
 def main() -> None:
     for path in FILES:
         if not path.is_file():
@@ -85,6 +106,9 @@ def main() -> None:
     admin_css = read(ADMIN_CSS)
     error_template = read(ERROR_TEMPLATE)
     error_css = read(ERROR_CSS)
+    email_header = read(EMAIL_HEADER)
+    email_footer = read(EMAIL_FOOTER)
+    email_footer_text = read(EMAIL_FOOTER_TEXT)
     glaze_doc = read(GLAZE_DOC)
     readiness = read(READINESS_DOC)
 
@@ -126,6 +150,25 @@ def main() -> None:
         reject(owned_text, "vaultwarden-favicon.png", label)
         reject(owned_text, "github.com/dani-garcia/vaultwarden", label)
 
+    # GoreeVault-owned transactional email must use GoreeVault identity without
+    # requiring upstream branding or remote presentation/tracking resources.
+    require(email_header, "<title>GoreeVault</title>", "email document identity")
+    require(email_header, ">GoreeVault</div>", "email visible GoreeVault identity")
+    require(email_header, "GoreeCloud secure vault", "email GoreeCloud relationship")
+    require(email_header, 'content="light dark"', "email color-scheme hint")
+    require(email_footer, "GoreeVault", "email footer identity")
+    require(email_footer, "GoreeCloud self-hosted credential platform", "email footer role")
+    require(email_footer_text, "GoreeVault · GoreeCloud", "plain-text email identity")
+    for email_text, label in (
+        (email_header, "email header"),
+        (email_footer, "email footer"),
+        (email_footer_text, "plain-text email footer"),
+    ):
+        reject(email_text, "Vaultwarden", label)
+        reject(email_text, "github.com/dani-garcia/vaultwarden", label)
+    reject(email_header, "logo-gray.png", "email upstream logo asset")
+    validate_email_dependencies(email_header + email_footer)
+
     # Browser-local, privacy-preserving appearance contract.
     require(admin_js, 'THEME_STORAGE_KEY = "goreecloud-goreevault-theme"', "GoreeCloud theme storage key")
     require(admin_js, 'new Set(["system", "light", "dark"])', "allowed appearance modes")
@@ -151,6 +194,7 @@ def main() -> None:
     # Governance docs must state the stricter transitional ownership boundary,
     # reject a silent production exception, and preserve the Stable blocker.
     require(glaze_doc, "GoreeVault-owned surfaces", "Glaze ownership boundary")
+    require(glaze_doc, "transactional HTML and plain-text email", "transactional email ownership boundary")
     require(glaze_doc, "Transitional compatibility surface", "web-vault transitional boundary")
     require(glaze_doc, "temporary development divergence", "temporary web-vault divergence")
     require(
