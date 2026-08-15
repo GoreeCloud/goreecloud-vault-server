@@ -42,6 +42,31 @@ REQUIRED_CLIENT_CHECKS = {
     "logout_session_invalidation",
 }
 
+REQUIRED_MULTI_USER_FLAGS = {
+    "individual_accounts",
+    "private_vault_isolation",
+    "unrelated_user_access_denied",
+    "organization_membership_boundaries",
+    "collection_authorization",
+    "permission_change_enforced",
+    "member_removal_enforced",
+    "session_device_invalidation",
+    "no_shared_admin_required",
+}
+
+REQUIRED_GLAZE_FLAGS = {
+    "product_wide_conformance",
+    "primary_browser_vault_goreecloud_owned",
+    "controlled_surfaces_glaze",
+    "system_light_dark",
+    "keyboard_accessibility",
+    "reduced_motion",
+    "increased_contrast",
+    "forced_colors",
+    "local_only_presentation_dependencies",
+    "no_analytics_tracking",
+}
+
 REQUIRED_TARGET_FLAGS = {
     "backend_loopback_only",
     "reverse_proxy_https_wss",
@@ -133,7 +158,7 @@ def validate_evidence(
     if not allow_placeholders:
         reject_placeholders(data)
 
-    require(data.get("schema_version") == 1, "schema_version must equal 1")
+    require(data.get("schema_version") == 2, "schema_version must equal 2")
     parse_timestamp(data.get("collected_at"), "collected_at")
 
     rc = data.get("rc")
@@ -143,9 +168,9 @@ def validate_evidence(
     source_sha = require_nonempty_string(rc.get("source_sha"), "rc.source_sha")
     manifest_digest = require_nonempty_string(rc.get("manifest_digest"), "rc.manifest_digest")
     postgres_image = require_nonempty_string(rc.get("postgres_image"), "rc.postgres_image")
-    require_nonempty_string(rc.get("web_vault_asset"), "rc.web_vault_asset")
+    require_nonempty_string(rc.get("browser_vault_asset"), "rc.browser_vault_asset")
 
-    require(RC_TAG_RE.fullmatch(rc_tag) is not None, "rc.tag must be a semantic RC tag such as v0.2.0-rc.1")
+    require(RC_TAG_RE.fullmatch(rc_tag) is not None, "rc.tag must be a semantic RC tag such as v0.3.0-rc.1")
     require(SHA_RE.fullmatch(source_sha) is not None, "rc.source_sha must be a lowercase 40-character commit SHA")
     require(
         DIGEST_RE.fullmatch(manifest_digest) is not None,
@@ -165,6 +190,13 @@ def validate_evidence(
             manifest_digest == expected_manifest_digest,
             "rc.manifest_digest does not match the exact RC OCI manifest selected for Stable promotion",
         )
+
+    multi_user = data.get("multi_user")
+    require(isinstance(multi_user, dict), "multi_user must be an object")
+    require(multi_user.get("result") == "pass", "multi_user.result must equal 'pass'")
+    parse_timestamp(multi_user.get("tested_at"), "multi_user.tested_at")
+    require_true_map(multi_user, REQUIRED_MULTI_USER_FLAGS, "multi_user")
+    require_nonempty_string(multi_user.get("evidence_reference"), "multi_user.evidence_reference")
 
     clients = data.get("clients")
     require(isinstance(clients, list) and clients, "clients must be a non-empty array")
@@ -197,6 +229,13 @@ def validate_evidence(
     parse_timestamp(webauthn.get("tested_at"), "webauthn.tested_at")
     require(webauthn.get("registration") is True, "webauthn.registration must be true")
     require(webauthn.get("authentication") is True, "webauthn.authentication must be true")
+
+    glaze = data.get("glaze_ui")
+    require(isinstance(glaze, dict), "glaze_ui must be an object")
+    require(glaze.get("result") == "pass", "glaze_ui.result must equal 'pass'")
+    parse_timestamp(glaze.get("reviewed_at"), "glaze_ui.reviewed_at")
+    require_true_map(glaze, REQUIRED_GLAZE_FLAGS, "glaze_ui")
+    require_nonempty_string(glaze.get("evidence_reference"), "glaze_ui.evidence_reference")
 
     target = data.get("target_environment")
     require(isinstance(target, dict), "target_environment must be an object")
