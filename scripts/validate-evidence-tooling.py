@@ -104,6 +104,9 @@ def validate_tests() -> None:
         "test_runtime_hardening_checks",
         "test_env_file_rejects_group_or_world_access",
         "test_references_reject_placeholders_and_multiline_values",
+        "test_collect_builds_exact_non_secret_target_environment_section",
+        "test_collect_rejects_missing_operator_attestation",
+        "test_collect_rejects_wrong_rc_manifest",
     )
     missing = [name for name in required_tests if name not in text]
     require(not missing, f"target evidence collector tests are incomplete: {', '.join(missing)}")
