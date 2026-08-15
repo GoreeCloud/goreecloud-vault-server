@@ -1,0 +1,194 @@
+name: GoreeVault Security Scan
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'agent/**'
+  schedule:
+    - cron: '37 10 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy:
+    name: Trivy source and image scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Scan GoreeVault repository
+        id: trivy_repo
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: docker.io/aquasec/trivy-db:2,public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+          TRIVY_JAVA_DB_REPOSITORY: docker.io/aquasec/trivy-java-db:1,public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
+        with:
+          scan-type: repo
+          scan-ref: .
+          scanners: vuln
+          trivyignores: .trivyignore.yaml
+          ignore-unfixed: true
+          format: sarif
+          output: goreevault-trivy-repository.sarif
+          severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
+          exit-code: '0'
+
+      - name: Upload repository Trivy results
+        if: >-
+          ${{ always() && hashFiles('goreevault-trivy-repository.sarif') != '' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        with:
+          sarif_file: goreevault-trivy-repository.sarif
+          category: goreevault-trivy-repository
+
+      - name: Report repository Trivy findings
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=goreevault-trivy-repository.sarif
+
+          if [[ ! -s "${file}" ]]; then
+            echo '::error title=Trivy repository scan::Expected HIGH/CRITICAL repository SARIF output was not produced.'
+            exit 0
+          fi
+
+          count="$(jq '[.runs[]?.results[]?] | length' "${file}")"
+          {
+            echo '### Trivy repository scan'
+            echo "- Unsuppressed fixed HIGH/CRITICAL results: ${count}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          jq -r '.runs[]?.results[]? | [(.ruleId // "UNKNOWN"), (.message.text // "Blocking vulnerability")] | @tsv' "${file}" |
+            while IFS=$'\t' read -r rule message; do
+              message="${message//'%'/'%25'}"
+              message="${message//$'\r'/'%0D'}"
+              message="${message//$'\n'/'%0A'}"
+              echo "::error title=Trivy repository: ${rule}::${message}"
+            done
+
+      - name: Build GoreeVault PostgreSQL image for security scan
+        run: |
+          docker build \
+            --file docker/Dockerfile.debian \
+            --build-arg DB=postgresql \
+            --tag "goreevault-security:${GITHUB_SHA}" \
+            .
+
+      - name: Scan built GoreeVault image
+        id: trivy_image
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: docker.io/aquasec/trivy-db:2,public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+          TRIVY_JAVA_DB_REPOSITORY: docker.io/aquasec/trivy-java-db:1,public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
+        with:
+          scan-type: image
+          image-ref: goreevault-security:${{ github.sha }}
+          scanners: vuln
+          trivyignores: .trivyignore.yaml
+          skip-setup-trivy: true
+          ignore-unfixed: true
+          vuln-type: os,library
+          format: sarif
+          output: goreevault-trivy-image.sarif
+          severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
+          exit-code: '0'
+
+      - name: Upload image Trivy results
+        if: >-
+          ${{ always() && hashFiles('goreevault-trivy-image.sarif') != '' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        with:
+          sarif_file: goreevault-trivy-image.sarif
+          category: goreevault-trivy-image
+
+      - name: Report image Trivy findings
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=goreevault-trivy-image.sarif
+
+          if [[ ! -s "${file}" ]]; then
+            echo '::error title=Trivy image scan::Expected HIGH/CRITICAL image SARIF output was not produced.'
+            exit 0
+          fi
+
+          count="$(jq '[.runs[]?.results[]?] | length' "${file}")"
+          {
+            echo '### Trivy built-image scan'
+            echo "- Unsuppressed fixed HIGH/CRITICAL results: ${count}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          jq -r '.runs[]?.results[]? | [(.ruleId // "UNKNOWN"), (.message.text // "Blocking vulnerability")] | @tsv' "${file}" |
+            while IFS=$'\t' read -r rule message; do
+              message="${message//'%'/'%25'}"
+              message="${message//$'\r'/'%0D'}"
+              message="${message//$'\n'/'%0A'}"
+              echo "::error title=Trivy image: ${rule}::${message}"
+            done
+
+      - name: Enforce HIGH and CRITICAL vulnerability gates
+        if: always()
+        shell: bash
+        env:
+          REPOSITORY_SCAN_OUTCOME: ${{ steps.trivy_repo.outcome }}
+          IMAGE_SCAN_OUTCOME: ${{ steps.trivy_image.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+
+          enforce_scan() {
+            local surface="$1"
+            local outcome="$2"
+            local file="$3"
+
+            if [[ "${outcome}" != "success" ]]; then
+              echo "::error title=Trivy ${surface} scanner::Scanner/database execution outcome was ${outcome}; failing closed."
+              failed=1
+              return
+            fi
+
+            if [[ ! -s "${file}" ]]; then
+              echo "::error title=Trivy ${surface} scanner::Expected SARIF output ${file} was not produced; failing closed."
+              failed=1
+              return
+            fi
+
+            local count
+            count="$(jq '[.runs[]?.results[]?] | length' "${file}")"
+            if (( count != 0 )); then
+              echo "::error title=Trivy ${surface} gate::${count} unsuppressed fixed HIGH/CRITICAL vulnerability result(s) remain."
+              failed=1
+            fi
+          }
+
+          enforce_scan repository "${REPOSITORY_SCAN_OUTCOME}" goreevault-trivy-repository.sarif
+          enforce_scan image "${IMAGE_SCAN_OUTCOME}" goreevault-trivy-image.sarif
+
+          if (( failed != 0 )); then
+            exit 1
+          fi
+
+          echo 'Repository and built-image Trivy gates passed with zero unsuppressed fixed HIGH/CRITICAL findings.'

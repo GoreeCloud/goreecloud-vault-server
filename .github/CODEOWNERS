@@ -6,6 +6,8 @@
 # Repository automation, policy, and release/security workflows
 /.github/** @GoreeCloud
 /SECURITY.md @GoreeCloud
+/.trivyignore.yaml @GoreeCloud
+/docs/SECURITY-SCAN-DISPOSITIONS.md @GoreeCloud
 
 # Dependency and build inputs
 /Cargo.toml @GoreeCloud
