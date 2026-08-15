@@ -21,7 +21,13 @@ collector = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(collector)
 
 
-def server_fixture(*, host_ip: str = "127.0.0.1", user: str = "10001:10001") -> dict:
+def server_fixture(
+    *,
+    host_ip: str = "127.0.0.1",
+    user: str = "10001:10001",
+    running: bool = True,
+    healthy: bool = True,
+) -> dict:
     return {
         "Config": {
             "User": user,
@@ -33,6 +39,10 @@ def server_fixture(*, host_ip: str = "127.0.0.1", user: str = "10001:10001") -> 
             "CapDrop": ["ALL"],
             "SecurityOpt": ["no-new-privileges:true"],
         },
+        "State": {
+            "Running": running,
+            "Health": {"Status": "healthy" if healthy else "unhealthy"},
+        },
         "NetworkSettings": {
             "Ports": {
                 "80/tcp": [{"HostIp": host_ip, "HostPort": "8080"}],
@@ -41,10 +51,14 @@ def server_fixture(*, host_ip: str = "127.0.0.1", user: str = "10001:10001") -> 
     }
 
 
-def postgres_fixture(*, published: bool = False) -> dict:
+def postgres_fixture(*, published: bool = False, running: bool = True, healthy: bool = True) -> dict:
     return {
         "Config": {
             "Image": "docker.io/library/postgres@sha256:" + "3" * 64,
+        },
+        "State": {
+            "Running": running,
+            "Health": {"Status": "healthy" if healthy else "unhealthy"},
         },
         "NetworkSettings": {
             "Ports": {
@@ -56,13 +70,19 @@ def postgres_fixture(*, published: bool = False) -> dict:
 
 class TargetEvidenceCollectorTests(unittest.TestCase):
     def test_digest_pinning(self) -> None:
-        self.assertTrue(
-            collector.image_is_digest_pinned(
-                "ghcr.io/goreecloud/goreevault-server@sha256:" + "a" * 64
-            )
-        )
+        image = "ghcr.io/goreecloud/goreevault-server@sha256:" + "a" * 64
+        self.assertTrue(collector.image_is_digest_pinned(image))
+        self.assertEqual(collector.image_digest(image), "sha256:" + "a" * 64)
         self.assertFalse(collector.image_is_digest_pinned("ghcr.io/goreecloud/goreevault-server:latest"))
         self.assertFalse(collector.image_is_digest_pinned("ghcr.io/goreecloud/goreevault-server:v0.3.0"))
+        self.assertEqual(collector.image_digest("ghcr.io/goreecloud/goreevault-server:latest"), "")
+
+    def test_container_state_requires_running_and_healthy(self) -> None:
+        server = server_fixture()
+        self.assertTrue(collector.container_is_running(server))
+        self.assertTrue(collector.container_is_healthy(server))
+        self.assertFalse(collector.container_is_running(server_fixture(running=False)))
+        self.assertFalse(collector.container_is_healthy(server_fixture(healthy=False)))
 
     def test_backend_requires_loopback_publication(self) -> None:
         self.assertTrue(collector.backend_is_loopback_only(server_fixture()))
@@ -84,8 +104,9 @@ class TargetEvidenceCollectorTests(unittest.TestCase):
         self.assertTrue(collector.registration_is_closed(server))
         self.assertTrue(collector.admin_is_disabled(server))
 
-        root_server = server_fixture(user="0:0")
-        self.assertFalse(collector.server_is_non_root(root_server))
+        self.assertFalse(collector.server_is_non_root(server_fixture(user="0:0")))
+        self.assertFalse(collector.server_is_non_root(server_fixture(user="vaultwarden")))
+        self.assertFalse(collector.server_is_non_root(server_fixture(user="10001:0")))
 
     def test_env_file_rejects_group_or_world_access(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
