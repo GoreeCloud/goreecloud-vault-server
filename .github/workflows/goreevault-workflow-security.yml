@@ -1,0 +1,39 @@
+name: GoreeVault Workflow Security
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/goreevault-*.yml'
+      - 'scripts/validate-workflow-security.py'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - '.github/workflows/goreevault-*.yml'
+      - 'scripts/validate-workflow-security.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-workflow-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate workflow credential and permission boundaries
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Python syntax
+        run: python3 -m py_compile scripts/validate-workflow-security.py
+
+      - name: Enforce GoreeVault workflow security invariants
+        run: python3 scripts/validate-workflow-security.py
