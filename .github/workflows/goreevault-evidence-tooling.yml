@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   evidence-tooling:
-    name: Validate target evidence and Web client contract
+    name: Validate evidence contracts and tooling
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -36,7 +36,7 @@ jobs:
       - name: Run target evidence collector unit tests
         run: python3 tests/test_collect_target_evidence.py
 
-      - name: Validate evidence tooling and GoreeVault Web contract
+      - name: Validate target, client, RC, and Web evidence contracts
         run: python3 scripts/validate-evidence-tooling.py
 
       - name: Verify collector fails closed without required inputs
