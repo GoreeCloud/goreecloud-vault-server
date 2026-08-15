@@ -27,6 +27,13 @@ REQUIRED_FILES = {
     "scripts/validate-stable-evidence.py",
 }
 
+FORBIDDEN_INHERITED_REPOSITORY_UX = {
+    ".github/FUNDING.yml": "upstream maintainer funding links must not be presented as GoreeVault funding",
+    ".github/security-contact.gif": "the inherited upstream security-contact asset must not override GoreeVault reporting",
+    ".github/ISSUE_TEMPLATE/bug_report.yml": "the inherited Vaultwarden bug template is incompatible with GoreeVault issue policy",
+    ".github/ISSUE_TEMPLATE/config.yml": "the inherited Vaultwarden support-routing links are not GoreeVault support paths",
+}
+
 
 class ReadinessError(ValueError):
     pass
@@ -44,6 +51,9 @@ def read(path: str) -> str:
 def validate_files() -> None:
     missing = sorted(path for path in REQUIRED_FILES if not (ROOT / path).is_file())
     require(not missing, f"missing required GoreeVault repository files: {', '.join(missing)}")
+
+    for path, reason in sorted(FORBIDDEN_INHERITED_REPOSITORY_UX.items()):
+        require(not (ROOT / path).exists(), f"forbidden inherited repository UX exists at {path}: {reason}")
 
 
 def validate_readme() -> None:
