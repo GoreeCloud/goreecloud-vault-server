@@ -45,6 +45,8 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      # This checkout is read-only by design; repository readiness never needs
+      # a reusable Git credential after source retrieval.
       - name: Checkout exact pull-request source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -60,5 +62,7 @@ jobs:
       - name: Run repository-readiness policy tests
         run: python3 -m unittest -v tests/test_validate_repository_readiness.py
 
+      # Unit tests exercise negative and boundary cases; this final step checks
+      # the actual repository tree so Stable gates cannot be satisfied by fixtures.
       - name: Validate repository readiness
         run: python3 scripts/validate-repository-readiness.py
