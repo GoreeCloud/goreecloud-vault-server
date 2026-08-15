@@ -2,13 +2,15 @@
 
 ## Purpose and authority
 
-GoreeVault uses **Glaze UI** as the GoreeCloud visual and interaction language for every presentation surface owned by GoreeVault. This repository-local contract applies the shared GoreeCloud Glaze UI Design Language, Application Branding and User Interface Design Standard, Privacy by Default, and Code Structure and Documentation Standard without weakening GoreeVault's security or compatibility boundaries.
+GoreeVault uses **Glaze UI** as the GoreeCloud visual and interaction language for every presentation surface controlled by GoreeVault. This repository-local contract applies the shared GoreeCloud Glaze UI Design Language, Application Branding and User Interface Design Standard, Privacy by Default, Code Structure and Documentation Standard, and mandatory software baseline without weakening GoreeVault's security or compatibility boundaries.
 
 Security, accessibility, privacy, and operational comprehension take precedence over decoration.
 
+Glaze UI compliance is a production-readiness gate, not an optional branding task.
+
 ## UI ownership boundary
 
-GoreeVault currently has two presentation categories:
+GoreeVault currently has two presentation categories.
 
 ### GoreeVault-owned surfaces
 
@@ -18,11 +20,18 @@ These must conform to Glaze UI now:
 - server-rendered error/404 presentation;
 - GoreeVault-native presentation introduced in this repository in the future.
 
-### Compatibility-owned surface
+### Transitional compatibility surface
 
-The bundled Bitwarden-compatible web vault is currently an upstream compatibility asset. It remains intentionally protocol/client compatible and is not yet a GoreeVault-native presentation layer.
+The bundled Bitwarden-compatible web vault is currently an upstream compatibility dependency. It exists to preserve supported-client interoperability while GoreeVault establishes the native client path.
 
-GoreeVault must not describe the entire product as fully Glaze-conformant while that upstream web-vault surface remains in use. The complete product-wide Glaze claim becomes valid only when GoreeVault Web replaces or fully owns that presentation layer without breaking the approved compatibility contract.
+This is a **temporary development divergence**, not an approved permanent production exception. The existence of usable upstream styling, schedule pressure, or unfinished redesign work does not satisfy the GoreeCloud exception standard.
+
+Under the current GoreeCloud baseline, Stable product readiness is blocked while the upstream-compatible web vault remains the primary browser vault unless one of the following becomes true:
+
+1. GoreeVault Web replaces it and fully owns the browser presentation under Glaze UI; or
+2. a separately approved material exception documents the exact Glaze requirement that cannot be met, the technical/legal/interoperability constraint, user-visible impact, compensating controls, approval, review/expiration condition, and removal condition.
+
+No production Glaze UI exception is approved by this repository today.
 
 ## Source structure
 
@@ -41,7 +50,7 @@ Internal `vaultwarden` identifiers may remain where compatibility or upstream ma
 
 GoreeVault should be recognizable as GoreeCloud before a user studies the page. The Glaze signature includes:
 
-- dark-first, high-quality System/Light/Dark presentation;
+- System/Light/Dark presentation;
 - layered surfaces with selective translucency;
 - softened rounded geometry for navigation, cards, controls, forms, tables, and status elements;
 - restrained shadows for hierarchy;
@@ -134,9 +143,10 @@ Repository validation includes:
 
 ```bash
 python3 scripts/validate-glaze-ui.py
+python3 scripts/validate-repository-readiness.py
 ```
 
-The checker verifies the GoreeVault-owned shell for:
+The Glaze checker verifies the GoreeVault-owned shell for:
 
 - GoreeVault identity;
 - noindex/noarchive and same-origin referrer metadata;
@@ -147,10 +157,16 @@ The checker verifies the GoreeVault-owned shell for:
 - minimum target, focus, reduced-motion, increased-contrast, forced-colors, and backdrop-filter fallback rules;
 - removal of user-facing Vaultwarden branding from GoreeVault-owned admin/error shells.
 
+The repository-readiness checker additionally prevents Stable documentation from silently treating the transitional upstream web vault as fully Glaze-conformant.
+
 Automated source conformance does not replace real-browser visual/accessibility review.
 
 ## Release review boundary
 
-Before a Stable release is visually approved, material GoreeVault-owned UI changes require authenticated browser review at representative desktop and mobile widths in System, Light, and Dark modes. Review must include keyboard-only navigation, reduced motion, increased contrast where available, forced colors where practical, authentication/admin errors, empty states, long values, tables/forms, and mobile navigation.
+Before a Stable release is visually approved, every GoreeVault-controlled user-facing surface must satisfy the platform Glaze UI gate.
+
+Material GoreeVault-owned UI changes require authenticated browser review at representative desktop and mobile widths in System, Light, and Dark modes. Review must include keyboard-only navigation, reduced motion, increased contrast where available, forced colors where practical, authentication/admin errors, empty states, long values, tables/forms, and mobile navigation.
+
+The Stable evidence record must explicitly confirm product-wide Glaze UI conformance. An RC may continue to use the transitional upstream-compatible web vault for compatibility validation, but that does not authorize Stable product promotion under the current baseline.
 
 The native GoreeVault Web, Browser, Desktop, and Mobile clients must adopt the same shared Glaze design language when they become GoreeVault-owned products, while using platform-appropriate native accessibility and interaction conventions.
