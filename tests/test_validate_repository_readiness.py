@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for GoreeVault repository-readiness policy validation."""
+"""Unit tests for GoreeVault repository-readiness policy validation.
+
+The tests redirect the validator's repository root into isolated temporary
+fixtures so fail-closed policy behavior is exercised without modifying real
+project files.
+"""
 
 from __future__ import annotations
 
