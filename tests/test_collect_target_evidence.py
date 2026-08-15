@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Unit tests for scripts/collect-target-evidence.py.
 
-These tests exercise the collector's fail-closed pure checks without requiring a
-Docker daemon, production environment, network access, or real credentials.
+These tests exercise the collector's fail-closed checks without requiring a
+Docker daemon, target environment, network access, or real credentials.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +21,14 @@ SPEC = importlib.util.spec_from_file_location("collect_target_evidence", MODULE_
 assert SPEC is not None and SPEC.loader is not None
 collector = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(collector)
+
+
+GOREVAULT_DIGEST = "sha256:" + "2" * 64
+POSTGRES_DIGEST = "sha256:" + "3" * 64
+PREVIOUS_DIGEST = "sha256:" + "4" * 64
+GOREVAULT_IMAGE = "ghcr.io/goreecloud/goreevault-server@" + GOREVAULT_DIGEST
+POSTGRES_IMAGE = "docker.io/library/postgres@" + POSTGRES_DIGEST
+PREVIOUS_IMAGE = "ghcr.io/goreecloud/goreevault-server@" + PREVIOUS_DIGEST
 
 
 def server_fixture(
@@ -31,7 +41,7 @@ def server_fixture(
     return {
         "Config": {
             "User": user,
-            "Image": "ghcr.io/goreecloud/goreevault-server@sha256:" + "2" * 64,
+            "Image": GOREVAULT_IMAGE,
             "Env": ["SIGNUPS_ALLOWED=false", "ADMIN_TOKEN="],
         },
         "HostConfig": {
@@ -54,7 +64,7 @@ def server_fixture(
 def postgres_fixture(*, published: bool = False, running: bool = True, healthy: bool = True) -> dict:
     return {
         "Config": {
-            "Image": "docker.io/library/postgres@sha256:" + "3" * 64,
+            "Image": POSTGRES_IMAGE,
         },
         "State": {
             "Running": running,
@@ -68,11 +78,48 @@ def postgres_fixture(*, published: bool = False, running: bool = True, healthy: 
     }
 
 
+def args_fixture(env_file: Path, **overrides) -> SimpleNamespace:
+    values = {
+        "env_file": env_file,
+        "repository_root": ROOT,
+        "compose_file": Path("deploy/compose.production.yaml"),
+        "goreevault_container": "goreevault-server",
+        "postgres_container": "goreevault-postgres",
+        "origin": collector.EXPECTED_ORIGIN,
+        "expected_manifest_digest": GOREVAULT_DIGEST,
+        "previous_known_good_image": PREVIOUS_IMAGE,
+        "backup_reference": "backup-job-20260815",
+        "rollback_reference": "rollback-rehearsal-20260815",
+        "timezone": "America/Chicago",
+        "http_timeout": 10,
+        "output": None,
+        "reverse_proxy_https_wss": True,
+        "backup_created": True,
+        "restore_rehearsed": True,
+        "rollback_recorded": True,
+        "monitoring_verified": True,
+        "logs_reviewed_for_sensitive_data": True,
+        "netbird_path_verified": True,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+def write_env(directory: str, *, goreevault_image: str = GOREVAULT_IMAGE) -> Path:
+    path = Path(directory) / "production.env"
+    path.write_text(
+        f"GOREVAULT_IMAGE={goreevault_image}\n"
+        f"POSTGRES_IMAGE={POSTGRES_IMAGE}\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o600)
+    return path
+
+
 class TargetEvidenceCollectorTests(unittest.TestCase):
     def test_digest_pinning(self) -> None:
-        image = "ghcr.io/goreecloud/goreevault-server@sha256:" + "a" * 64
-        self.assertTrue(collector.image_is_digest_pinned(image))
-        self.assertEqual(collector.image_digest(image), "sha256:" + "a" * 64)
+        self.assertTrue(collector.image_is_digest_pinned(GOREVAULT_IMAGE))
+        self.assertEqual(collector.image_digest(GOREVAULT_IMAGE), GOREVAULT_DIGEST)
         self.assertFalse(collector.image_is_digest_pinned("ghcr.io/goreecloud/goreevault-server:latest"))
         self.assertFalse(collector.image_is_digest_pinned("ghcr.io/goreecloud/goreevault-server:v0.3.0"))
         self.assertEqual(collector.image_digest("ghcr.io/goreecloud/goreevault-server:latest"), "")
@@ -110,14 +157,9 @@ class TargetEvidenceCollectorTests(unittest.TestCase):
 
     def test_env_file_rejects_group_or_world_access(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "production.env"
-            path.write_text(
-                "GOREVAULT_IMAGE=ghcr.io/goreecloud/goreevault-server@sha256:" + "2" * 64 + "\n",
-                encoding="utf-8",
-            )
-            path.chmod(0o600)
+            path = write_env(directory)
             values = collector.parse_env_file(path)
-            self.assertIn("GOREVAULT_IMAGE", values)
+            self.assertEqual(values["GOREVAULT_IMAGE"], GOREVAULT_IMAGE)
 
             path.chmod(0o644)
             with self.assertRaises(collector.EvidenceError):
@@ -129,6 +171,55 @@ class TargetEvidenceCollectorTests(unittest.TestCase):
             collector.validate_reference("backup", "REPLACE_ME")
         with self.assertRaises(collector.EvidenceError):
             collector.validate_reference("backup", "first\nsecond")
+
+    def test_collect_builds_exact_non_secret_target_environment_section(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = write_env(directory)
+            args = args_fixture(env_file)
+            with (
+                patch.object(collector, "verify_contract") as verify_contract,
+                patch.object(collector, "verify_compose_renders") as verify_compose,
+                patch.object(collector, "verify_https_origin") as verify_https,
+                patch.object(
+                    collector,
+                    "inspect_container",
+                    side_effect=[server_fixture(), postgres_fixture()],
+                ) as inspect_container,
+            ):
+                evidence = collector.collect(args)
+
+            verify_contract.assert_called_once()
+            verify_compose.assert_called_once()
+            verify_https.assert_called_once_with(collector.EXPECTED_ORIGIN, 10)
+            self.assertEqual(
+                [call.args[0] for call in inspect_container.call_args_list],
+                ["goreevault-server", "goreevault-postgres"],
+            )
+            self.assertEqual(evidence["result"], "pass")
+            self.assertEqual(evidence["origin"], collector.EXPECTED_ORIGIN)
+            self.assertEqual(evidence["goreevault_image"], GOREVAULT_IMAGE)
+            self.assertEqual(evidence["previous_known_good_image"], PREVIOUS_IMAGE)
+            self.assertEqual(evidence["backup_reference"], "backup-job-20260815")
+            self.assertEqual(evidence["rollback_reference"], "rollback-rehearsal-20260815")
+            self.assertTrue(evidence["backend_loopback_only"])
+            self.assertTrue(evidence["restore_rehearsed"])
+            self.assertNotIn("POSTGRES_PASSWORD", evidence)
+            self.assertNotIn("environment", evidence)
+
+    def test_collect_rejects_missing_operator_attestation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = write_env(directory)
+            args = args_fixture(env_file, monitoring_verified=False)
+            with self.assertRaises(collector.EvidenceError):
+                collector.collect(args)
+
+    def test_collect_rejects_wrong_rc_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            wrong_image = "ghcr.io/goreecloud/goreevault-server@sha256:" + "5" * 64
+            env_file = write_env(directory, goreevault_image=wrong_image)
+            args = args_fixture(env_file)
+            with self.assertRaises(collector.EvidenceError):
+                collector.collect(args)
 
 
 if __name__ == "__main__":
