@@ -30,7 +30,7 @@ jobs:
       - name: Validate canonical evidence example
         env:
           SOURCE_SHA: '1111111111111111111111111111111111111111'
-          RC_TAG: 'v0.2.0-rc.1'
+          RC_TAG: 'v0.3.0-rc.1'
           MANIFEST_DIGEST: 'sha256:2222222222222222222222222222222222222222222222222222222222222222'
         run: |
           set -euo pipefail
@@ -52,7 +52,7 @@ jobs:
       - name: Prove mismatched artifact evidence is rejected
         env:
           SOURCE_SHA: '1111111111111111111111111111111111111111'
-          RC_TAG: 'v0.2.0-rc.1'
+          RC_TAG: 'v0.3.0-rc.1'
           WRONG_DIGEST: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         run: |
           set -euo pipefail
@@ -69,11 +69,35 @@ jobs:
       - name: Prove incomplete client evidence is rejected
         run: |
           set -euo pipefail
-          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-evidence.json"
+          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-client-evidence.json"
           jq 'del(.clients[] | select(.kind == "android"))' \
             docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
 
           if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
             echo "Stable evidence validator accepted an incomplete client matrix." >&2
+            exit 1
+          fi
+
+      - name: Prove incomplete multi-user evidence is rejected
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-multi-user-evidence.json"
+          jq '.multi_user.private_vault_isolation = false' \
+            docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted failed multi-user isolation." >&2
+            exit 1
+          fi
+
+      - name: Prove incomplete Glaze UI evidence is rejected
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-glaze-evidence.json"
+          jq '.glaze_ui.primary_browser_vault_goreecloud_owned = false' \
+            docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a non-GoreeCloud-owned primary browser vault." >&2
             exit 1
           fi
