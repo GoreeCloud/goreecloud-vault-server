@@ -25,14 +25,28 @@ GoreeVault v0.1.0 is intentionally conservative. It changes ownership and produc
 - Never add server-side plaintext inspection of vault contents.
 - Never commit production secrets or `.env` files.
 - Keep admin access private where operationally possible.
-- Use HTTPS for every client connection.
+- Use HTTPS/WSS for every client connection.
 - Treat backups as sensitive security material.
 - Restore testing is part of backup correctness.
 - Dependency and upstream changes require review before production promotion.
 
+## Transport security boundary
+
+Production client traffic terminates HTTPS/WSS at the trusted GoreeCloud reverse proxy. The GoreeVault Rocket listener is intentionally HTTP-only behind that boundary and must never be directly exposed to untrusted networks.
+
+Allowed proxy-to-application transport is limited to a trusted local/private path, such as host loopback or an isolated container/VM network. The current Compose baseline publishes the server only on `127.0.0.1:8080`, while an attached trusted reverse proxy may instead use a private service network.
+
+Rocket embedded TLS is disabled in the production dependency graph. This is a deliberate attack-surface reduction, not permission to serve plaintext traffic to clients. CI rejects re-enabling Rocket's `tls` feature or reintroducing the legacy TLS dependency branch that was removed during production hardening.
+
+A deployment is not production-eligible if the backend HTTP listener is bound to a public interface, forwarded directly through NAT/firewall rules, or otherwise reachable by untrusted clients without the trusted TLS proxy.
+
+## Administrative boundary
+
+Application access and infrastructure administration are separate trust planes. Administrative access should use GoreeCloud-controlled private paths, such as NetBird policy, wherever operationally possible. The public vault endpoint must not become a general-purpose management path to the host, database, container engine, or backup system.
+
 ## v0.1.0 cryptographic scope
 
-No cryptographic primitives are replaced in v0.1.0. This includes encryption, key derivation, Argon2 processing, JWT/token signing, WebAuthn behavior and client-side vault cryptography assumptions.
+No vault cryptographic primitives are replaced in v0.1.0. This includes encryption, key derivation, Argon2 processing, JWT/token signing, WebAuthn behavior and client-side vault cryptography assumptions. Removing Rocket's optional server-side TLS feature changes only the server transport termination boundary; it does not alter Bitwarden-compatible vault cryptography.
 
 ## Development environment rule
 
