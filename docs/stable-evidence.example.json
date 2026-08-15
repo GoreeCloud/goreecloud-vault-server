@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "collected_at": "2026-08-15T03:45:00-05:00",
+  "rc": {
+    "tag": "v0.2.0-rc.1",
+    "source_sha": "1111111111111111111111111111111111111111",
+    "manifest_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "postgres_image": "postgres@sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "web_vault_asset": "REPLACE_ME_exact_web_vault_version_and_digest"
+  },
+  "clients": [
+    {
+      "kind": "web",
+      "name": "REPLACE_ME_web_client_name",
+      "platform": "REPLACE_ME_platform_and_os",
+      "version": "REPLACE_ME_exact_version",
+      "tested_at": "2026-08-15T03:30:00-05:00",
+      "result": "pass",
+      "checks": {
+        "sign_in_unlock": true,
+        "full_sync": true,
+        "create_update_delete": true,
+        "attachments": true,
+        "organization_collections": true,
+        "totp": true,
+        "refresh_rotation_replay": true,
+        "logout_session_invalidation": true
+      }
+    },
+    {
+      "kind": "chromium_extension",
+      "name": "REPLACE_ME_chromium_extension_client_name",
+      "platform": "REPLACE_ME_platform_and_os",
+      "version": "REPLACE_ME_exact_version",
+      "tested_at": "2026-08-15T03:30:00-05:00",
+      "result": "pass",
+      "checks": {
+        "sign_in_unlock": true,
+        "full_sync": true,
+        "create_update_delete": true,
+        "attachments": true,
+        "organization_collections": true,
+        "totp": true,
+        "refresh_rotation_replay": true,
+        "logout_session_invalidation": true
+      }
+    },
+    {
+      "kind": "firefox_extension",
+      "name": "REPLACE_ME_firefox_extension_client_name",
+      "platform": "REPLACE_ME_platform_and_os",
+      "version": "REPLACE_ME_exact_version",
+      "tested_at": "2026-08-15T03:30:00-05:00",
+      "result": "pass",
+      "checks": {
+        "sign_in_unlock": true,
+        "full_sync": true,
+        "create_update_delete": true,
+        "attachments": true,
+        "organization_collections": true,
+        "totp": true,
+        "refresh_rotation_replay": true,
+        "logout_session_invalidation": true
+      }
+    },
+    {
+      "kind": "desktop",
+      "name": "REPLACE_ME_desktop_client_name",
+      "platform": "REPLACE_ME_platform_and_os",
+      "version": "REPLACE_ME_exact_version",
+      "tested_at": "2026-08-15T03:30:00-05:00",
+      "result": "pass",
+      "checks": {
+        "sign_in_unlock": true,
+        "full_sync": true,
+        "create_update_delete": true,
+        "attachments": true,
+        "organization_collections": true,
+        "totp": true,
+        "refresh_rotation_replay": true,
+        "logout_session_invalidation": true
+      }
+    },
+    {
+      "kind": "android",
+      "name": "REPLACE_ME_android_client_name",
+      "platform": "REPLACE_ME_platform_and_os",
+      "version": "REPLACE_ME_exact_version",
+      "tested_at": "2026-08-15T03:30:00-05:00",
+      "result": "pass",
+      "checks": {
+        "sign_in_unlock": true,
+        "full_sync": true,
+        "create_update_delete": true,
+        "attachments": true,
+        "organization_collections": true,
+        "totp": true,
+        "refresh_rotation_replay": true,
+        "logout_session_invalidation": true
+      }
+    },
+    {
+      "kind": "cli",
+      "name": "REPLACE_ME_cli_client_name",
+      "platform": "REPLACE_ME_platform_and_os",
+      "version": "REPLACE_ME_exact_version",
+      "tested_at": "2026-08-15T03:30:00-05:00",
+      "result": "pass",
+      "checks": {
+        "sign_in_unlock": true,
+        "full_sync": true,
+        "create_update_delete": true,
+        "attachments": true,
+        "organization_collections": true,
+        "totp": true,
+        "refresh_rotation_replay": true,
+        "logout_session_invalidation": true
+      }
+    }
+  ],
+  "webauthn": {
+    "result": "pass",
+    "browser": "REPLACE_ME_browser",
+    "browser_version": "REPLACE_ME_exact_version",
+    "platform": "REPLACE_ME_device_and_os",
+    "authenticator": "REPLACE_ME_authenticator",
+    "tested_at": "2026-08-15T03:35:00-05:00",
+    "registration": true,
+    "authentication": true
+  },
+  "target_environment": {
+    "result": "pass",
+    "origin": "https://vault.goreecloud.com",
+    "tested_at": "2026-08-15T03:40:00-05:00",
+    "backend_loopback_only": true,
+    "reverse_proxy_https_wss": true,
+    "postgres_internal_only": true,
+    "server_non_root": true,
+    "read_only_root_filesystem": true,
+    "capabilities_dropped": true,
+    "no_new_privileges": true,
+    "registration_closed": true,
+    "admin_disabled": true,
+    "backup_created": true,
+    "restore_rehearsed": true,
+    "rollback_recorded": true,
+    "immutable_digests": true,
+    "monitoring_verified": true,
+    "logs_reviewed_for_sensitive_data": true,
+    "netbird_path_verified": true,
+    "goreevault_image": "ghcr.io/goreecloud/goreevault-server@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "previous_known_good_image": "REPLACE_ME_previous_image@sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "backup_reference": "REPLACE_ME_backup_snapshot_or_job_reference",
+    "rollback_reference": "REPLACE_ME_rollback_runbook_or_evidence_reference"
+  },
+  "governance": {
+    "verified_at": "2026-08-15T03:42:00-05:00",
+    "main_protected": true,
+    "required_checks_enforced": true,
+    "codeowners_review_enforced": true,
+    "release_environment_protected": true,
+    "release_reviewer_required": true,
+    "release_self_review_prevented": true,
+    "actions_default_read_only": true,
+    "dependabot_alerts_enabled": true,
+    "secret_scanning": "pass",
+    "push_protection": "pass",
+    "private_vulnerability_reporting": "pass"
+  },
+  "approvals": [
+    {
+      "reviewer": "REPLACE_ME_reviewer_identity",
+      "reviewed_at": "2026-08-15T03:44:00-05:00",
+      "result": "approved"
+    }
+  ]
+}
