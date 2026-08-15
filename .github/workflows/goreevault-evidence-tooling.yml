@@ -34,13 +34,17 @@ jobs:
             scripts/validate-evidence-tooling.py \
             scripts/validate-stable-evidence.py \
             tests/test_assemble_stable_evidence.py \
-            tests/test_collect_target_evidence.py
+            tests/test_collect_target_evidence.py \
+            tests/test_validate_stable_evidence.py
 
       - name: Run target evidence collector unit tests
         run: python3 tests/test_collect_target_evidence.py
 
       - name: Run Stable evidence assembler unit tests
         run: python3 tests/test_assemble_stable_evidence.py
+
+      - name: Run Stable evidence validator unit tests
+        run: python3 tests/test_validate_stable_evidence.py
 
       - name: Validate target, client, RC, Web, and assembly contracts
         run: python3 scripts/validate-evidence-tooling.py
