@@ -20,12 +20,13 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 from zoneinfo import ZoneInfo
 
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 IMAGE_DIGEST_RE = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
+NUMERIC_USER_RE = re.compile(r"^(?P<uid>[0-9]+):(?P<gid>[0-9]+)$")
 EXPECTED_ORIGIN = "https://vault.goreecloud.com"
 REQUIRED_MANUAL_FLAGS = (
     "reverse_proxy_https_wss",
@@ -42,7 +43,7 @@ class EvidenceError(RuntimeError):
     """Raised when target-environment evidence cannot be proven safely."""
 
 
-def fail(message: str) -> "NoReturn":
+def fail(message: str) -> NoReturn:
     raise EvidenceError(message)
 
 
@@ -116,6 +117,21 @@ def image_is_digest_pinned(image: str) -> bool:
     return bool(IMAGE_DIGEST_RE.fullmatch(image))
 
 
+def image_digest(image: str) -> str:
+    if not image_is_digest_pinned(image):
+        return ""
+    return image.rsplit("@", 1)[1]
+
+
+def container_is_running(inspect: dict[str, Any]) -> bool:
+    return inspect.get("State", {}).get("Running") is True
+
+
+def container_is_healthy(inspect: dict[str, Any]) -> bool:
+    health = inspect.get("State", {}).get("Health") or {}
+    return str(health.get("Status") or "").lower() == "healthy"
+
+
 def backend_is_loopback_only(inspect: dict[str, Any]) -> bool:
     ports = inspect.get("NetworkSettings", {}).get("Ports") or {}
     published: list[dict[str, Any]] = []
@@ -132,14 +148,10 @@ def postgres_is_internal_only(inspect: dict[str, Any]) -> bool:
 
 def server_is_non_root(inspect: dict[str, Any]) -> bool:
     user = str(inspect.get("Config", {}).get("User") or "").strip()
-    if not user:
+    match = NUMERIC_USER_RE.fullmatch(user)
+    if match is None:
         return False
-    primary = user.split(":", 1)[0].strip()
-    if primary.lower() == "root":
-        return False
-    if primary.isdigit():
-        return int(primary) > 0
-    return primary not in {"0", ""}
+    return int(match.group("uid")) > 0 and int(match.group("gid")) > 0
 
 
 def root_filesystem_is_read_only(inspect: dict[str, Any]) -> bool:
@@ -190,9 +202,7 @@ def verify_contract(repository_root: Path) -> None:
     validator = repository_root / "scripts" / "validate-production-deployment.sh"
     if not validator.is_file():
         fail(f"production deployment validator not found: {validator}")
-    result = run(["bash", str(validator)], capture=True)
-    if result.returncode != 0:
-        fail("production deployment source contract validation failed")
+    run(["bash", str(validator)], capture=True)
 
 
 def verify_compose_renders(repository_root: Path, env_file: Path, compose_file: Path) -> None:
@@ -240,7 +250,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-file", required=True, type=Path)
     parser.add_argument("--repository-root", default=Path.cwd(), type=Path)
     parser.add_argument("--compose-file", default=Path("deploy/compose.production.yaml"), type=Path)
-    parser.add_argument("--goreevault-container", default="goreevault")
+    parser.add_argument("--goreevault-container", default="goreevault-server")
     parser.add_argument("--postgres-container", default="goreevault-postgres")
     parser.add_argument("--origin", default=EXPECTED_ORIGIN)
     parser.add_argument("--expected-manifest-digest", required=True)
@@ -283,7 +293,7 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
     configured_postgres_image = production_env.get("POSTGRES_IMAGE", "").strip()
     if not image_is_digest_pinned(configured_goreevault_image):
         fail("GOREVAULT_IMAGE in the production environment file is not digest-pinned")
-    if not configured_goreevault_image.endswith(f"@{args.expected_manifest_digest}"):
+    if image_digest(configured_goreevault_image) != args.expected_manifest_digest:
         fail("GOREVAULT_IMAGE does not match the expected RC manifest digest")
     if not image_is_digest_pinned(configured_postgres_image):
         fail("POSTGRES_IMAGE in the production environment file is not digest-pinned")
@@ -296,14 +306,18 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
 
     live_goreevault_image = str(server.get("Config", {}).get("Image") or "")
     live_postgres_image = str(postgres.get("Config", {}).get("Image") or "")
-    if live_goreevault_image != configured_goreevault_image:
-        fail("live GoreeVault container image does not match GOREVAULT_IMAGE")
-    if live_postgres_image != configured_postgres_image:
-        fail("live PostgreSQL container image does not match POSTGRES_IMAGE")
+    if image_digest(live_goreevault_image) != image_digest(configured_goreevault_image):
+        fail("live GoreeVault container digest does not match GOREVAULT_IMAGE")
+    if image_digest(live_postgres_image) != image_digest(configured_postgres_image):
+        fail("live PostgreSQL container digest does not match POSTGRES_IMAGE")
 
     verify_https_origin(args.origin, args.http_timeout)
 
     observed = {
+        "server_running": container_is_running(server),
+        "server_healthy": container_is_healthy(server),
+        "postgres_running": container_is_running(postgres),
+        "postgres_healthy": container_is_healthy(postgres),
         "backend_loopback_only": backend_is_loopback_only(server),
         "postgres_internal_only": postgres_is_internal_only(postgres),
         "server_non_root": server_is_non_root(server),
@@ -315,7 +329,7 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
         "immutable_digests": (
             image_is_digest_pinned(live_goreevault_image)
             and image_is_digest_pinned(live_postgres_image)
-            and live_goreevault_image.endswith(f"@{args.expected_manifest_digest}")
+            and image_digest(live_goreevault_image) == args.expected_manifest_digest
         ),
     }
     failed_observations = [name for name, value in observed.items() if not value]
@@ -348,7 +362,7 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
         "monitoring_verified": True,
         "logs_reviewed_for_sensitive_data": True,
         "netbird_path_verified": True,
-        "goreevault_image": live_goreevault_image,
+        "goreevault_image": configured_goreevault_image,
         "previous_known_good_image": previous_image,
         "backup_reference": backup_reference,
         "rollback_reference": rollback_reference,
@@ -366,6 +380,7 @@ def main() -> int:
     encoded = json.dumps(evidence, indent=2, sort_keys=False) + "\n"
     if args.output:
         args.output.write_text(encoded, encoding="utf-8")
+        args.output.chmod(0o600)
         print(f"wrote target-environment evidence to {args.output}")
     else:
         sys.stdout.write(encoded)
