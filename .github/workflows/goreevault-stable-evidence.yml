@@ -66,6 +66,48 @@ jobs:
             exit 1
           fi
 
+      - name: Prove malformed immutable artifact references are rejected
+        run: |
+          set -euo pipefail
+
+          BAD_POSTGRES="${RUNNER_TEMP}/bad-postgres.json"
+          jq '.rc.postgres_image = "postgres:latest"' \
+            docs/stable-evidence.example.json > "${BAD_POSTGRES}"
+          if python3 scripts/validate-stable-evidence.py "${BAD_POSTGRES}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a mutable PostgreSQL image reference." >&2
+            exit 1
+          fi
+
+          BAD_BROWSER="${RUNNER_TEMP}/bad-browser-asset.json"
+          jq '.rc.browser_vault_asset = "goreevault-web-v0.3.0"' \
+            docs/stable-evidence.example.json > "${BAD_BROWSER}"
+          if python3 scripts/validate-stable-evidence.py "${BAD_BROWSER}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a browser asset without an immutable SHA-256 identity." >&2
+            exit 1
+          fi
+
+          BAD_PREVIOUS="${RUNNER_TEMP}/bad-previous-image.json"
+          jq '.target_environment.previous_known_good_image = "goreevault-server@sha256:short"' \
+            docs/stable-evidence.example.json > "${BAD_PREVIOUS}"
+          if python3 scripts/validate-stable-evidence.py "${BAD_PREVIOUS}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a malformed previous-known-good image reference." >&2
+            exit 1
+          fi
+
+      - name: Prove artifact identities cannot be silently reused
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/reused-artifact-digests.json"
+          jq '
+            .rc.browser_vault_asset = ("goreevault-web@" + .rc.manifest_digest) |
+            .target_environment.previous_known_good_image = ("goreevault-server@" + .rc.manifest_digest)
+          ' docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted distinct artifacts reusing the server manifest digest." >&2
+            exit 1
+          fi
+
       - name: Prove incomplete client evidence is rejected
         run: |
           set -euo pipefail
