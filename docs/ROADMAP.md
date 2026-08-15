@@ -45,7 +45,8 @@ Established on the certified baseline and required on every release candidate:
 - source and built-image HIGH/CRITICAL security gates;
 - hardened production Compose validation;
 - repository-readiness and GoreeVault-owned Glaze UI conformance checks;
-- fail-closed exact-RC Stable evidence contract.
+- fail-closed exact-RC Stable evidence contract;
+- read-only, secret-minimizing target-environment evidence collector with unit tests and explicit operator attestations for controls that cannot be proven from container metadata alone.
 
 ### Remaining v0.2 RC evidence
 
@@ -53,7 +54,7 @@ Before v0.2 can be treated as a supported server Release Candidate milestone:
 
 - run and record the real supported Bitwarden client matrix on exact candidate artifacts;
 - perform a real supported-browser/device WebAuthn/passkey flow;
-- complete target-environment deployment rehearsal using the production contract;
+- complete target-environment deployment rehearsal using the production contract and retain the generated target-environment evidence section;
 - create/verify required GitHub governance controls from `docs/PRODUCTION-READINESS.md`;
 - record completed RC-bound evidence for later Stable promotion.
 
@@ -65,7 +66,25 @@ GoreeVault Web becomes the GoreeCloud-owned browser vault experience rather than
 
 This milestone is required for the current product-wide Stable path because GoreeCloud requires Glaze UI on every controlled user-facing interface.
 
-Required foundation:
+### Foundation contract established
+
+`docs/WEB-CLIENT-CONTRACT.md` now defines the implementation boundary before a dedicated client repository is created. The contract establishes:
+
+- Role and Purpose for the browser client;
+- separation between GoreeVault Web and GoreeVault Server responsibilities;
+- client-side zero-knowledge and cryptographic boundaries;
+- multi-user account/session isolation requirements;
+- browser storage and key-lifecycle rules;
+- required compatible browser workflows before cutover;
+- full Glaze UI and accessibility requirements;
+- restrictive CSP and local-only presentation dependency direction;
+- no analytics/behavioral tracking by default;
+- immutable release, dependency, SBOM, migration, and rollback requirements;
+- an explicit rule that creating a shell or repository does not close the Stable blocker by itself.
+
+The dedicated GoreeVault Web repository/application remains to be created and implemented.
+
+### Required implementation foundation
 
 - dedicated GoreeCloud-native UI repository/application boundary;
 - **Glaze UI Design Language** as the complete GoreeVault Web presentation and interaction system;
