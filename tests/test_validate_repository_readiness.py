@@ -53,6 +53,16 @@ class RepositoryReadinessTests(unittest.TestCase):
         self.write(".github/CODEOWNERS", "\n".join(required) + "\n")
         VALIDATOR.validate_codeowners()
 
+    def test_readme_rejects_upstream_identity(self) -> None:
+        self.write("README.md", "# Vaultwarden\nVaultwarden Logo\n")
+        with self.assertRaisesRegex(VALIDATOR.ReadinessError, "GoreeVault Server identity"):
+            VALIDATOR.validate_readme()
+
+    def test_security_reporting_requires_private_goreecloud_path(self) -> None:
+        self.write("SECURITY.md", "Please open a public issue.\n")
+        with self.assertRaisesRegex(VALIDATOR.ReadinessError, "private GoreeCloud security contact"):
+            VALIDATOR.validate_security_reporting()
+
     def test_mutable_latest_production_image_is_rejected(self) -> None:
         self.write("README.md", "docker run ghcr.io/goreecloud/goreevault-server:latest\n")
         self.write("docs/PRODUCTION-DEPLOYMENT.md", "immutable deployment only\n")
