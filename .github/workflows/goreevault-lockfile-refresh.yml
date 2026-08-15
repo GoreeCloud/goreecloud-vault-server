@@ -1,117 +1,17 @@
-name: GoreeVault Lockfile Refresh
+name: GoreeVault Lockfile Refresh (disabled)
 
 on:
-  push:
-    branches:
-      - agent/production-tls-hardening
+  workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: goreevault-lockfile-refresh-${{ github.ref }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  refresh:
-    name: Regenerate, verify, and commit Cargo.lock
-    if: github.actor != 'github-actions[bot]'
+  disabled:
+    name: Temporary workflow retired
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
     steps:
-      - name: Checkout GoreeVault
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: true
-
-      - name: Verify intended hardening source state
-        shell: bash
+      - name: Retired
         run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          cargo = Path('Cargo.toml').read_text()
-          expected = 'rocket = { version = "0.5.1", default-features = false, features = ["json"] }'
-          if expected not in cargo:
-              raise SystemExit('Expected Rocket json-only dependency declaration is absent')
-          if 'features = ["json", "tls"]' in cargo or 'features = ["tls", "json"]' in cargo:
-              raise SystemExit('Rocket embedded TLS was re-enabled')
-          PY
-
-      - name: Install PostgreSQL build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libpq-dev pkg-config
-
-      - name: Regenerate lockfile
-        run: cargo generate-lockfile
-
-      - name: Verify regenerated lockfile matches approved artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected='6f2019fe0692ff7daf2d1f0aae0a3ef8772babe3bd120191576f84b4e51895eb'
-          actual="$(sha256sum Cargo.lock | awk '{print $1}')"
-          if [[ "${actual}" != "${expected}" ]]; then
-            echo "::error title=Unexpected Cargo.lock digest::Expected ${expected}, got ${actual}. Refusing to commit."
-            exit 1
-          fi
-          echo "Verified Cargo.lock SHA-256: ${actual}"
-
-      - name: Verify legacy Rocket TLS dependency branch is absent
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo tree --locked --no-default-features --features postgresql --prefix none > /tmp/goreevault-tree.txt
-
-          for package in \
-            'rustls v0.21.12' \
-            'rustls-webpki v0.101.7' \
-            'tokio-rustls v0.24.1' \
-            'rustls-pemfile v1.0.4' \
-            'sct v0.7.1'; do
-            if grep -Fxq "${package}" /tmp/goreevault-tree.txt; then
-              echo "::error title=Legacy Rocket TLS dependency remains::${package} is still in the active PostgreSQL dependency graph."
-              exit 1
-            fi
-          done
-
-          if grep -A4 -F 'name = "rustls-webpki"' Cargo.lock | grep -Fq 'version = "0.101.7"'; then
-            echo '::error title=Legacy rustls-webpki remains in lockfile::rustls-webpki 0.101.7 is still locked.'
-            exit 1
-          fi
-
-      - name: Compile PostgreSQL target
-        run: cargo check --locked --no-default-features --features postgresql
-
-      - name: Compile PostgreSQL test targets
-        run: cargo check --locked --tests --no-default-features --features postgresql
-
-      - name: Verify only Cargo.lock changed
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t changed < <(git status --short | awk '{print $2}')
-          if (( ${#changed[@]} != 1 )) || [[ "${changed[0]}" != 'Cargo.lock' ]]; then
-            printf 'Unexpected working-tree change: %s\n' "${changed[@]}" >&2
-            exit 1
-          fi
-
-      - name: Commit exact verified Cargo.lock
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- Cargo.lock
-
-          mapfile -t staged < <(git diff --cached --name-only)
-          if (( ${#staged[@]} != 1 )) || [[ "${staged[0]}" != 'Cargo.lock' ]]; then
-            printf 'Unexpected staged path: %s\n' "${staged[@]}" >&2
-            exit 1
-          fi
-
-          git commit -m 'Regenerate lockfile after disabling embedded Rocket TLS'
-          git push origin HEAD:agent/production-tls-hardening
+          echo 'This temporary workflow is retired. Cargo.lock is committed and verified.'
+          echo 'Do not use this workflow to update dependencies.'
