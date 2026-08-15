@@ -19,6 +19,7 @@ from typing import Any
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+IMMUTABLE_REF_RE = re.compile(r"^[^\s@]+@sha256:[0-9a-f]{64}$")
 RC_TAG_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$")
 PLACEHOLDER_TOKEN = "REPLACE_ME"
 
@@ -131,6 +132,19 @@ def require_nonempty_string(value: Any, field: str) -> str:
     return value.strip()
 
 
+def require_immutable_reference(value: Any, field: str) -> str:
+    text = require_nonempty_string(value, field)
+    require(
+        IMMUTABLE_REF_RE.fullmatch(text) is not None,
+        f"{field} must be an immutable name@sha256:<64 lowercase hex> reference",
+    )
+    return text
+
+
+def immutable_reference_digest(reference: str) -> str:
+    return reference.rsplit("@", 1)[1]
+
+
 def require_true_map(mapping: Any, keys: set[str], field: str) -> None:
     require(isinstance(mapping, dict), f"{field} must be an object")
     for key in sorted(keys):
@@ -167,8 +181,8 @@ def validate_evidence(
     rc_tag = require_nonempty_string(rc.get("tag"), "rc.tag")
     source_sha = require_nonempty_string(rc.get("source_sha"), "rc.source_sha")
     manifest_digest = require_nonempty_string(rc.get("manifest_digest"), "rc.manifest_digest")
-    postgres_image = require_nonempty_string(rc.get("postgres_image"), "rc.postgres_image")
-    require_nonempty_string(rc.get("browser_vault_asset"), "rc.browser_vault_asset")
+    postgres_image = require_immutable_reference(rc.get("postgres_image"), "rc.postgres_image")
+    browser_vault_asset = require_immutable_reference(rc.get("browser_vault_asset"), "rc.browser_vault_asset")
 
     require(RC_TAG_RE.fullmatch(rc_tag) is not None, "rc.tag must be a semantic RC tag such as v0.3.0-rc.1")
     require(SHA_RE.fullmatch(source_sha) is not None, "rc.source_sha must be a lowercase 40-character commit SHA")
@@ -177,8 +191,12 @@ def validate_evidence(
         "rc.manifest_digest must be a sha256 OCI manifest digest",
     )
     require(
-        "@sha256:" in postgres_image,
-        "rc.postgres_image must be an immutable image reference containing @sha256:",
+        immutable_reference_digest(postgres_image) != manifest_digest,
+        "rc.postgres_image must identify the PostgreSQL artifact rather than reuse the GoreeVault manifest digest",
+    )
+    require(
+        immutable_reference_digest(browser_vault_asset) != manifest_digest,
+        "rc.browser_vault_asset must have its own immutable asset digest rather than reuse the server manifest digest",
     )
 
     if expected_source_sha is not None:
@@ -246,16 +264,22 @@ def validate_evidence(
     )
     parse_timestamp(target.get("tested_at"), "target_environment.tested_at")
     require_true_map(target, REQUIRED_TARGET_FLAGS, "target_environment")
-    goreevault_image = require_nonempty_string(target.get("goreevault_image"), "target_environment.goreevault_image")
+    goreevault_image = require_immutable_reference(
+        target.get("goreevault_image"),
+        "target_environment.goreevault_image",
+    )
     require(
-        goreevault_image.endswith(manifest_digest),
+        immutable_reference_digest(goreevault_image) == manifest_digest,
         "target_environment.goreevault_image must reference the exact RC manifest digest",
     )
-    previous_image = require_nonempty_string(
+    previous_image = require_immutable_reference(
         target.get("previous_known_good_image"),
         "target_environment.previous_known_good_image",
     )
-    require("@sha256:" in previous_image, "previous_known_good_image must be digest pinned")
+    require(
+        immutable_reference_digest(previous_image) != manifest_digest,
+        "previous_known_good_image must identify a distinct previously accepted artifact",
+    )
     require_nonempty_string(target.get("backup_reference"), "target_environment.backup_reference")
     require_nonempty_string(target.get("rollback_reference"), "target_environment.rollback_reference")
 
