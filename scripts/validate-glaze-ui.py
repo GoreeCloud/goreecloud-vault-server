@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 ADMIN_BASE = ROOT / "src/static/templates/admin/base.hbs"
+ADMIN_LOGIN = ROOT / "src/static/templates/admin/login.hbs"
 ADMIN_JS = ROOT / "src/static/scripts/admin.js"
 ADMIN_CSS = ROOT / "src/static/scripts/admin.css"
 ERROR_TEMPLATE = ROOT / "src/static/templates/404.hbs"
@@ -21,7 +22,16 @@ ERROR_CSS = ROOT / "src/static/scripts/404.css"
 GLAZE_DOC = ROOT / "docs/GLAZE-UI.md"
 READINESS_DOC = ROOT / "docs/PRODUCTION-READINESS.md"
 
-FILES = [ADMIN_BASE, ADMIN_JS, ADMIN_CSS, ERROR_TEMPLATE, ERROR_CSS, GLAZE_DOC, READINESS_DOC]
+FILES = [
+    ADMIN_BASE,
+    ADMIN_LOGIN,
+    ADMIN_JS,
+    ADMIN_CSS,
+    ERROR_TEMPLATE,
+    ERROR_CSS,
+    GLAZE_DOC,
+    READINESS_DOC,
+]
 
 
 def read(path: Path) -> str:
@@ -42,8 +52,14 @@ def reject(text: str, needle: str, label: str) -> None:
 
 def validate_local_browser_dependencies(template: str, css: str, label: str) -> None:
     remote_script = re.compile(r"<script\b[^>]*\bsrc=[\"']https?://", re.I)
-    remote_style = re.compile(r"<link\b[^>]*\brel=[\"'][^\"']*stylesheet[^\"']*[\"'][^>]*\bhref=[\"']https?://", re.I)
-    remote_style_reversed = re.compile(r"<link\b[^>]*\bhref=[\"']https?://[^\"']+[\"'][^>]*\brel=[\"'][^\"']*stylesheet", re.I)
+    remote_style = re.compile(
+        r"<link\b[^>]*\brel=[\"'][^\"']*stylesheet[^\"']*[\"'][^>]*\bhref=[\"']https?://",
+        re.I,
+    )
+    remote_style_reversed = re.compile(
+        r"<link\b[^>]*\bhref=[\"']https?://[^\"']+[\"'][^>]*\brel=[\"'][^\"']*stylesheet",
+        re.I,
+    )
     css_import = re.compile(r"@import\s+(?:url\()?\s*[\"']?https?://", re.I)
     css_url = re.compile(r"url\(\s*[\"']?https?://", re.I)
 
@@ -64,6 +80,7 @@ def main() -> None:
             raise AssertionError(f"missing required file: {path.relative_to(ROOT)}")
 
     admin_base = read(ADMIN_BASE)
+    admin_login = read(ADMIN_LOGIN)
     admin_js = read(ADMIN_JS)
     admin_css = read(ADMIN_CSS)
     error_template = read(ERROR_TEMPLATE)
@@ -80,6 +97,16 @@ def main() -> None:
     require(admin_base, 'data-bs-theme-value="light"', "admin Light appearance")
     require(admin_base, 'data-bs-theme-value="dark"', "admin Dark appearance")
 
+    # The private Admin sign-in path must not regress to placeholder-only input.
+    require(admin_login, "Sign in to GoreeVault Admin", "admin sign-in identity")
+    require(admin_login, 'for="gv-admin-token"', "admin token visible label")
+    require(admin_login, 'id="gv-admin-token"', "admin token label target")
+    require(admin_login, 'autocomplete="current-password"', "admin token autocomplete semantics")
+    require(admin_login, "required", "admin token required state")
+    require(admin_login, 'aria-describedby="gv-admin-token-help"', "admin token help association")
+    require(admin_login, 'role="alert"', "admin sign-in error semantics")
+    require(admin_login, 'aria-live="polite"', "admin sign-in live error semantics")
+
     require(error_template, "GoreeVault", "404 GoreeVault identity")
     require(error_template, 'content="noindex,nofollow,noarchive"', "404 robots policy")
     require(error_template, 'content="same-origin"', "404 referrer policy")
@@ -88,7 +115,11 @@ def main() -> None:
     require(error_template, 'href="#gv-main"', "404 skip link")
 
     # Product-facing legacy branding must not survive on GoreeVault-owned shells.
-    for owned_text, label in ((admin_base, "admin shell"), (error_template, "404 shell")):
+    for owned_text, label in (
+        (admin_base, "admin shell"),
+        (admin_login, "admin sign-in"),
+        (error_template, "404 shell"),
+    ):
         reject(owned_text, "Vaultwarden Admin", label)
         reject(owned_text, ">Vaultwarden<", label)
         reject(owned_text, "vaultwarden-icon.png", label)
@@ -114,15 +145,23 @@ def main() -> None:
 
     # GoreeCloud presentation assets must be local. User-activated links are not
     # dependencies; this checks scripts/styles/CSS imports/assets only.
-    validate_local_browser_dependencies(admin_base, admin_css, "GoreeVault Admin")
+    validate_local_browser_dependencies(admin_base + admin_login, admin_css, "GoreeVault Admin")
     validate_local_browser_dependencies(error_template, error_css, "GoreeVault 404")
 
     # Governance docs must state the compatibility ownership boundary and the
     # fact that source-level UI checks are not production approval.
     require(glaze_doc, "GoreeVault-owned surfaces", "Glaze ownership boundary")
     require(glaze_doc, "Compatibility-owned surface", "web-vault compatibility boundary")
-    require(glaze_doc, "must not describe the entire product as fully Glaze-conformant", "Glaze claim boundary")
-    require(readiness, "A green source build is necessary but is not production authorization", "release evidence boundary")
+    require(
+        glaze_doc,
+        "must not describe the entire product as fully Glaze-conformant",
+        "Glaze claim boundary",
+    )
+    require(
+        readiness,
+        "A green source build is necessary but is not production authorization",
+        "release evidence boundary",
+    )
     require(readiness, "Known repository-state blocker", "manual governance blockers")
 
     print("GoreeVault Glaze UI source conformance validated.")
