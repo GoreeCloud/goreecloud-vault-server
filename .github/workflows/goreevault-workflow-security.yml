@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/goreevault-*.yml'
       - 'scripts/validate-workflow-security.py'
+      - 'tests/test_validate_workflow_security.py'
   push:
     branches:
       - main
@@ -12,6 +13,7 @@ on:
     paths:
       - '.github/workflows/goreevault-*.yml'
       - 'scripts/validate-workflow-security.py'
+      - 'tests/test_validate_workflow_security.py'
 
 permissions:
   contents: read
@@ -22,7 +24,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate workflow credential and permission boundaries
+    name: Validate workflow supply-chain and permission boundaries
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -33,7 +35,13 @@ jobs:
           persist-credentials: false
 
       - name: Validate Python syntax
-        run: python3 -m py_compile scripts/validate-workflow-security.py
+        run: |
+          python3 -m py_compile \
+            scripts/validate-workflow-security.py \
+            tests/test_validate_workflow_security.py
+
+      - name: Run workflow security unit tests
+        run: python3 tests/test_validate_workflow_security.py
 
       - name: Enforce GoreeVault workflow security invariants
         run: python3 scripts/validate-workflow-security.py
