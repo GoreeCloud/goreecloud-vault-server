@@ -148,14 +148,20 @@ def main() -> None:
     validate_local_browser_dependencies(admin_base + admin_login, admin_css, "GoreeVault Admin")
     validate_local_browser_dependencies(error_template, error_css, "GoreeVault 404")
 
-    # Governance docs must state the compatibility ownership boundary and the
-    # fact that source-level UI checks are not production approval.
+    # Governance docs must state the stricter transitional ownership boundary,
+    # reject a silent production exception, and preserve the Stable blocker.
     require(glaze_doc, "GoreeVault-owned surfaces", "Glaze ownership boundary")
-    require(glaze_doc, "Compatibility-owned surface", "web-vault compatibility boundary")
+    require(glaze_doc, "Transitional compatibility surface", "web-vault transitional boundary")
+    require(glaze_doc, "temporary development divergence", "temporary web-vault divergence")
     require(
         glaze_doc,
-        "must not describe the entire product as fully Glaze-conformant",
-        "Glaze claim boundary",
+        "No production Glaze UI exception is approved",
+        "Glaze production-exception boundary",
+    )
+    require(
+        glaze_doc,
+        "Stable product readiness is blocked",
+        "product-wide Glaze Stable blocker",
     )
     require(
         readiness,
@@ -163,6 +169,7 @@ def main() -> None:
         "release evidence boundary",
     )
     require(readiness, "Known repository-state blocker", "manual governance blockers")
+    require(readiness, "Stable is therefore blocked", "product-wide Glaze release blocker")
 
     print("GoreeVault Glaze UI source conformance validated.")
 
