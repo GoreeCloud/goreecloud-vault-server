@@ -1,0 +1,79 @@
+name: GoreeVault Stable Evidence
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/goreevault-release.yml'
+      - '.github/workflows/goreevault-stable-evidence.yml'
+      - 'docs/STABLE-EVIDENCE.md'
+      - 'docs/stable-evidence.example.json'
+      - 'scripts/validate-stable-evidence.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate fail-closed Stable evidence gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Python syntax
+        run: python3 -m py_compile scripts/validate-stable-evidence.py
+
+      - name: Validate canonical evidence example
+        env:
+          SOURCE_SHA: '1111111111111111111111111111111111111111'
+          RC_TAG: 'v0.2.0-rc.1'
+          MANIFEST_DIGEST: 'sha256:2222222222222222222222222222222222222222222222222222222222222222'
+        run: |
+          set -euo pipefail
+          python3 scripts/validate-stable-evidence.py \
+            docs/stable-evidence.example.json \
+            --expected-source-sha "${SOURCE_SHA}" \
+            --expected-rc-tag "${RC_TAG}" \
+            --expected-manifest-digest "${MANIFEST_DIGEST}" \
+            --allow-placeholders
+
+      - name: Prove template placeholders fail closed for Stable use
+        run: |
+          set -euo pipefail
+          if python3 scripts/validate-stable-evidence.py docs/stable-evidence.example.json; then
+            echo "Stable evidence validator accepted unresolved template placeholders." >&2
+            exit 1
+          fi
+
+      - name: Prove mismatched artifact evidence is rejected
+        env:
+          SOURCE_SHA: '1111111111111111111111111111111111111111'
+          RC_TAG: 'v0.2.0-rc.1'
+          WRONG_DIGEST: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        run: |
+          set -euo pipefail
+          if python3 scripts/validate-stable-evidence.py \
+            docs/stable-evidence.example.json \
+            --expected-source-sha "${SOURCE_SHA}" \
+            --expected-rc-tag "${RC_TAG}" \
+            --expected-manifest-digest "${WRONG_DIGEST}" \
+            --allow-placeholders; then
+            echo "Stable evidence validator accepted a mismatched manifest digest." >&2
+            exit 1
+          fi
+
+      - name: Prove incomplete client evidence is rejected
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-evidence.json"
+          jq 'del(.clients[] | select(.kind == "android"))' \
+            docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted an incomplete client matrix." >&2
+            exit 1
+          fi
