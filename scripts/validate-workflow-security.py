@@ -13,8 +13,9 @@ import re
 import sys
 from pathlib import Path
 
-CHECKOUT_RE = re.compile(r"^\s*uses:\s*actions/checkout@([0-9a-f]{40})\s*(?:#.*)?$")
-CHECKOUT_ANY_RE = re.compile(r"^\s*uses:\s*actions/checkout@([^\s#]+)")
+FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+USES_RE = re.compile(r"^\s*uses:\s*([^\s#]+)\s*(?:#.*)?$")
+CHECKOUT_RE = re.compile(r"^actions/checkout@([0-9a-f]{40})$")
 TOP_LEVEL_PERMISSIONS_RE = re.compile(
     r"^permissions:\s*(?:\{\}|read-all|write-all)?\s*(?:#.*)?$"
 )
@@ -37,6 +38,16 @@ def checkout_block(lines: list[str], index: int) -> list[str]:
     return block
 
 
+def external_action_ref(uses_value: str) -> tuple[str, str] | None:
+    """Return (action, ref) for repository actions; ignore local and docker actions."""
+    if uses_value.startswith("./") or uses_value.startswith("docker://"):
+        return None
+    if "@" not in uses_value:
+        return (uses_value, "")
+    action, ref = uses_value.rsplit("@", 1)
+    return action, ref
+
+
 def validate_workflow(path: Path) -> list[str]:
     errors: list[str] = []
     lines = path.read_text(encoding="utf-8").splitlines()
@@ -46,23 +57,33 @@ def validate_workflow(path: Path) -> list[str]:
 
     checkout_count = 0
     for index, line in enumerate(lines):
-        match_any = CHECKOUT_ANY_RE.match(line)
-        if not match_any:
+        match = USES_RE.match(line)
+        if not match:
             continue
 
-        checkout_count += 1
-        if CHECKOUT_RE.match(line) is None:
-            errors.append(
-                f"line {index + 1}: actions/checkout must be pinned to a full 40-character commit SHA"
-            )
+        uses_value = match.group(1)
+        external = external_action_ref(uses_value)
+        if external is not None:
+            action, ref = external
+            if FULL_SHA_RE.fullmatch(ref) is None:
+                errors.append(
+                    f"line {index + 1}: external action {action} must be pinned to a full 40-character commit SHA"
+                )
 
-        block = checkout_block(lines, index)
-        if not any(
-            candidate.strip() == "persist-credentials: false" for candidate in block
-        ):
-            errors.append(
-                f"line {index + 1}: checkout must set persist-credentials: false"
-            )
+        checkout_match = CHECKOUT_RE.fullmatch(uses_value)
+        if uses_value.startswith("actions/checkout@"):
+            checkout_count += 1
+            if checkout_match is None:
+                # The generic external-action check already reports the weak ref.
+                continue
+
+            block = checkout_block(lines, index)
+            if not any(
+                candidate.strip() == "persist-credentials: false" for candidate in block
+            ):
+                errors.append(
+                    f"line {index + 1}: checkout must set persist-credentials: false"
+                )
 
     if checkout_count == 0:
         errors.append("workflow has no actions/checkout step to validate")
@@ -71,7 +92,7 @@ def validate_workflow(path: Path) -> list[str]:
 
 
 def run_self_tests() -> list[str]:
-    """Exercise parser and permissions boundaries that could create false passes."""
+    """Exercise parser, permissions, and action-pinning boundaries."""
     failures: list[str] = []
 
     boundary_lines = [
@@ -108,6 +129,19 @@ def run_self_tests() -> list[str]:
         failures.append("explicit empty top-level permissions were rejected")
     if TOP_LEVEL_PERMISSIONS_RE.match("permissions:") is None:
         failures.append("block-style top-level permissions were rejected")
+
+    pinned = external_action_ref("vendor/action@" + "b" * 40)
+    if pinned is None or FULL_SHA_RE.fullmatch(pinned[1]) is None:
+        failures.append("full-SHA external action pin was rejected")
+
+    weak = external_action_ref("vendor/action@v4")
+    if weak is None or FULL_SHA_RE.fullmatch(weak[1]) is not None:
+        failures.append("mutable external action tag was accepted")
+
+    if external_action_ref("./.github/actions/local") is not None:
+        failures.append("local action was incorrectly classified as external")
+    if external_action_ref("docker://alpine:3.20") is not None:
+        failures.append("docker action was incorrectly classified as repository action")
 
     return failures
 
@@ -146,7 +180,7 @@ def main() -> int:
         return 1
 
     print(f"Validated {len(workflows)} GoreeVault-owned workflows.")
-    print("Checkout actions are SHA-pinned, credentials are not persisted, and permissions are explicit.")
+    print("External actions are SHA-pinned, checkout credentials are not persisted, and permissions are explicit.")
     return 0
 
 
