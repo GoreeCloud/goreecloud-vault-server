@@ -1317,8 +1317,11 @@ pub async fn refresh_tokens(
         err!("Invalid refresh token")
     };
 
-    // Save to update `updated_at`.
-    device.save(true, conn).await?;
+    // SSO refresh semantics are unchanged. Password refresh updates the
+    // device timestamp as part of its atomic refresh-secret consumption below.
+    if matches!(&refresh_claims.sub, AuthMethod::Sso) {
+        device.save(true, conn).await?;
+    }
 
     let Some(user) = User::find_by_uuid(&device.user_uuid, conn).await else {
         err!("Impossible to find user")
@@ -1334,11 +1337,12 @@ pub async fn refresh_tokens(
         AuthMethod::Sso => err!("SSO is now disabled, Login again using email and master password"),
         AuthMethod::Password if CONFIG.sso_enabled() && CONFIG.sso_only() => err!("SSO is now required, Login again"),
         AuthMethod::Password => {
-            // Password refresh tokens are single-use. Rotate the server-side
-            // device secret before minting the next refresh JWT so replaying
-            // the prior JWT cannot find a matching device token.
-            device.refresh_token = Device::generate_refresh_token();
-            device.save(false, conn).await?;
+            // Consume the password refresh secret atomically. If another
+            // request already rotated this device from the same JWT, this
+            // conditional update affects zero rows and the replay loses.
+            if !device.rotate_refresh_token_if_matches(&refresh_claims.device_token, conn).await? {
+                err!("Invalid refresh token")
+            }
             AuthTokens::new(&device, &user, refresh_claims.sub, client_id)
         }
         _ => err!("Invalid auth method, cannot refresh token"),

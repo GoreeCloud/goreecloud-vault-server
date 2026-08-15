@@ -9,8 +9,10 @@ server stores/synchronizes ciphertext without decrypting it.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -348,6 +350,51 @@ def refresh_replay_rejected(old_refresh_token: str) -> None:
     print("PASS  rotated refresh-token replay rejected")
 
 
+def concurrent_refresh_single_winner() -> None:
+    _access, original_refresh = login()
+    workers = 16
+    barrier = threading.Barrier(workers)
+
+    def attempt_refresh(_: int) -> Response:
+        barrier.wait(timeout=10)
+        return request(
+            "POST",
+            "/identity/connect/token",
+            form={
+                "grant_type": "refresh_token",
+                "client_id": "web",
+                "refresh_token": original_refresh,
+            },
+        )
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        responses = list(pool.map(attempt_refresh, range(workers)))
+
+    successes = [resp for resp in responses if 200 <= resp.status < 300]
+    failures = [resp for resp in responses if not (200 <= resp.status < 300)]
+    require(len(successes) == 1, f"concurrent refresh expected one winner, got {len(successes)}")
+    require(len(failures) == workers - 1, f"concurrent refresh expected {workers - 1} losers, got {len(failures)}")
+
+    for resp in failures:
+        require(resp.status == 400, f"concurrent refresh loser returned HTTP {resp.status}: {resp.text()}")
+        body = resp.json()
+        require(
+            isinstance(body, dict) and body.get("error") == "invalid_grant",
+            f"concurrent refresh loser was not invalid_grant: {resp.text()}",
+        )
+
+    winner_body = successes[0].json()
+    require(isinstance(winner_body, dict), "concurrent refresh winner did not return an object")
+    winner_refresh = winner_body.get("refresh_token")
+    require(isinstance(winner_refresh, str) and winner_refresh, "concurrent refresh winner omitted refresh_token")
+    require(winner_refresh != original_refresh, "concurrent refresh winner did not rotate refresh token")
+
+    _winner_access, successor_refresh = refresh_login(winner_refresh)
+    require(successor_refresh != winner_refresh, "winner refresh token was not consumable exactly once")
+    refresh_replay_rejected(original_refresh)
+    print("PASS  concurrent refresh-token consume has exactly one winner")
+
+
 def sync(token: str) -> dict[str, Any]:
     resp = request("GET", "/api/sync", token=token)
     require_success(resp, "sync")
@@ -588,6 +635,7 @@ def full_test() -> None:
     print("PASS  clean-account initial sync")
     access, _new_refresh = refresh_login(refresh)
     refresh_replay_rejected(refresh)
+    concurrent_refresh_single_winner()
 
     register_account(
         OUTSIDER_EMAIL,
