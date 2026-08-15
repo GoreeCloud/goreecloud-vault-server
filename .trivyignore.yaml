@@ -18,10 +18,3 @@ vulnerabilities:
       Trivy identifies the inherited Cargo package metadata as vaultwarden 1.0.0,
       but GoreeVault ManagerHeaders authorizes collection management with
       is_coll_manageable_by_user rather than collection visibility alone.
-  - id: GHSA-82j2-j2ch-gfr8
-    expired_at: 2026-09-30
-    statement: >-
-      rustls-webpki 0.101.7 remains transitively through Rocket 0.5.1 TLS, but
-      this advisory requires explicit CRL checking through RevocationOptions.
-      Rocket 0.5.1's TLS listener does not configure CRLs or RevocationOptions,
-      and GoreeVault production terminates public TLS at the trusted proxy.
