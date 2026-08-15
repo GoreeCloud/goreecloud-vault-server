@@ -29,6 +29,10 @@
 /src/** @GoreeCloud
 /migrations/** @GoreeCloud
 
+# Temporary GoreeVault Web incubation application boundary. This directory must
+# move to the dedicated GoreeVault Web repository before Stable promotion.
+/web-client/** @GoreeCloud
+
 # Release-blocking compatibility, recovery, migration, deployment, security,
 # repository-readiness, and Glaze UI conformance harnesses.
 /tests/** @GoreeCloud
