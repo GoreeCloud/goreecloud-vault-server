@@ -198,6 +198,7 @@ def validate_rc_evidence(stable: ModuleType) -> None:
         )
 
     required_tokens = (
+        "scripts/assemble-stable-evidence.py",
         "scripts/collect-target-evidence.py",
         "scripts/validate-stable-evidence.py",
         "docs/CLIENT-COMPATIBILITY.md",
