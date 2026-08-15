@@ -3,8 +3,8 @@
 
 This validator intentionally uses only the Python standard library so it can run
 in GitHub Actions and on an administrator workstation without extra packages.
-It is fail-closed: missing, malformed, stale, placeholder, or incomplete
-evidence rejects Stable promotion.
+It is fail-closed: missing, malformed, ambiguous, placeholder, unknown, or
+incomplete evidence rejects Stable promotion.
 """
 
 from __future__ import annotations
@@ -106,6 +106,44 @@ CONDITIONAL_GOVERNANCE_CONTROLS = {
 
 ALLOWED_CONDITIONAL_STATES = {"pass", "not_supported"}
 
+ROOT_KEYS = {
+    "schema_version",
+    "collected_at",
+    "rc",
+    "multi_user",
+    "clients",
+    "webauthn",
+    "glaze_ui",
+    "target_environment",
+    "governance",
+    "approvals",
+}
+RC_KEYS = {"tag", "source_sha", "manifest_digest", "postgres_image", "browser_vault_asset"}
+MULTI_USER_KEYS = {"result", "tested_at", "evidence_reference"} | REQUIRED_MULTI_USER_FLAGS
+CLIENT_KEYS = {"kind", "name", "platform", "version", "tested_at", "result", "checks"}
+WEBAUTHN_KEYS = {
+    "result",
+    "browser",
+    "browser_version",
+    "platform",
+    "authenticator",
+    "tested_at",
+    "registration",
+    "authentication",
+}
+GLAZE_KEYS = {"result", "reviewed_at", "evidence_reference"} | REQUIRED_GLAZE_FLAGS
+TARGET_KEYS = {
+    "result",
+    "origin",
+    "tested_at",
+    "goreevault_image",
+    "previous_known_good_image",
+    "backup_reference",
+    "rollback_reference",
+} | REQUIRED_TARGET_FLAGS
+GOVERNANCE_KEYS = {"verified_at"} | REQUIRED_GOVERNANCE_FLAGS | CONDITIONAL_GOVERNANCE_CONTROLS
+APPROVAL_KEYS = {"reviewer", "reviewed_at", "result"}
+
 
 class EvidenceError(ValueError):
     pass
@@ -114,6 +152,29 @@ class EvidenceError(ValueError):
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise EvidenceError(message)
+
+
+def strict_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object while rejecting duplicate keys."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise EvidenceError(f"duplicate JSON key is not allowed: {key}")
+        result[key] = value
+    return result
+
+
+def load_json_strict(raw: str) -> Any:
+    return json.loads(raw, object_pairs_hook=strict_object_pairs)
+
+
+def require_exact_keys(mapping: Any, expected: set[str], field: str) -> None:
+    require(isinstance(mapping, dict), f"{field} must be an object")
+    actual = set(mapping)
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
+    require(not missing, f"{field} is missing required fields: {', '.join(missing)}")
+    require(not extra, f"{field} contains unknown fields: {', '.join(extra)}")
 
 
 def reject_placeholders(value: Any, field: str = "root") -> None:
@@ -145,8 +206,7 @@ def immutable_reference_digest(reference: str) -> str:
     return reference.rsplit("@", 1)[1]
 
 
-def require_true_map(mapping: Any, keys: set[str], field: str) -> None:
-    require(isinstance(mapping, dict), f"{field} must be an object")
+def require_true_fields(mapping: dict[str, Any], keys: set[str], field: str) -> None:
     for key in sorted(keys):
         require(mapping.get(key) is True, f"{field}.{key} must be true")
 
@@ -168,7 +228,7 @@ def validate_evidence(
     expected_manifest_digest: str | None,
     allow_placeholders: bool,
 ) -> None:
-    require(isinstance(data, dict), "evidence root must be a JSON object")
+    require_exact_keys(data, ROOT_KEYS, "root")
     if not allow_placeholders:
         reject_placeholders(data)
 
@@ -176,7 +236,8 @@ def validate_evidence(
     parse_timestamp(data.get("collected_at"), "collected_at")
 
     rc = data.get("rc")
-    require(isinstance(rc, dict), "rc must be an object")
+    require_exact_keys(rc, RC_KEYS, "rc")
+    assert isinstance(rc, dict)
 
     rc_tag = require_nonempty_string(rc.get("tag"), "rc.tag")
     source_sha = require_nonempty_string(rc.get("source_sha"), "rc.source_sha")
@@ -210,10 +271,11 @@ def validate_evidence(
         )
 
     multi_user = data.get("multi_user")
-    require(isinstance(multi_user, dict), "multi_user must be an object")
+    require_exact_keys(multi_user, MULTI_USER_KEYS, "multi_user")
+    assert isinstance(multi_user, dict)
     require(multi_user.get("result") == "pass", "multi_user.result must equal 'pass'")
     parse_timestamp(multi_user.get("tested_at"), "multi_user.tested_at")
-    require_true_map(multi_user, REQUIRED_MULTI_USER_FLAGS, "multi_user")
+    require_true_fields(multi_user, REQUIRED_MULTI_USER_FLAGS, "multi_user")
     require_nonempty_string(multi_user.get("evidence_reference"), "multi_user.evidence_reference")
 
     clients = data.get("clients")
@@ -222,7 +284,8 @@ def validate_evidence(
 
     for index, client in enumerate(clients):
         field = f"clients[{index}]"
-        require(isinstance(client, dict), f"{field} must be an object")
+        require_exact_keys(client, CLIENT_KEYS, field)
+        assert isinstance(client, dict)
         kind = require_nonempty_string(client.get("kind"), f"{field}.kind")
         require(kind in REQUIRED_CLIENT_KINDS, f"{field}.kind is unsupported: {kind}")
         require(kind not in seen, f"duplicate client evidence for kind: {kind}")
@@ -232,13 +295,17 @@ def validate_evidence(
         require_nonempty_string(client.get("version"), f"{field}.version")
         parse_timestamp(client.get("tested_at"), f"{field}.tested_at")
         require(client.get("result") == "pass", f"{field}.result must equal 'pass'")
-        require_true_map(client.get("checks"), REQUIRED_CLIENT_CHECKS, f"{field}.checks")
+        checks = client.get("checks")
+        require_exact_keys(checks, REQUIRED_CLIENT_CHECKS, f"{field}.checks")
+        assert isinstance(checks, dict)
+        require_true_fields(checks, REQUIRED_CLIENT_CHECKS, f"{field}.checks")
 
     missing_clients = sorted(REQUIRED_CLIENT_KINDS - seen)
     require(not missing_clients, f"missing required real-client evidence: {', '.join(missing_clients)}")
 
     webauthn = data.get("webauthn")
-    require(isinstance(webauthn, dict), "webauthn must be an object")
+    require_exact_keys(webauthn, WEBAUTHN_KEYS, "webauthn")
+    assert isinstance(webauthn, dict)
     require(webauthn.get("result") == "pass", "webauthn.result must equal 'pass'")
     require_nonempty_string(webauthn.get("browser"), "webauthn.browser")
     require_nonempty_string(webauthn.get("browser_version"), "webauthn.browser_version")
@@ -249,21 +316,23 @@ def validate_evidence(
     require(webauthn.get("authentication") is True, "webauthn.authentication must be true")
 
     glaze = data.get("glaze_ui")
-    require(isinstance(glaze, dict), "glaze_ui must be an object")
+    require_exact_keys(glaze, GLAZE_KEYS, "glaze_ui")
+    assert isinstance(glaze, dict)
     require(glaze.get("result") == "pass", "glaze_ui.result must equal 'pass'")
     parse_timestamp(glaze.get("reviewed_at"), "glaze_ui.reviewed_at")
-    require_true_map(glaze, REQUIRED_GLAZE_FLAGS, "glaze_ui")
+    require_true_fields(glaze, REQUIRED_GLAZE_FLAGS, "glaze_ui")
     require_nonempty_string(glaze.get("evidence_reference"), "glaze_ui.evidence_reference")
 
     target = data.get("target_environment")
-    require(isinstance(target, dict), "target_environment must be an object")
+    require_exact_keys(target, TARGET_KEYS, "target_environment")
+    assert isinstance(target, dict)
     require(target.get("result") == "pass", "target_environment.result must equal 'pass'")
     require(
         target.get("origin") == "https://vault.goreecloud.com",
         "target_environment.origin must equal https://vault.goreecloud.com",
     )
     parse_timestamp(target.get("tested_at"), "target_environment.tested_at")
-    require_true_map(target, REQUIRED_TARGET_FLAGS, "target_environment")
+    require_true_fields(target, REQUIRED_TARGET_FLAGS, "target_environment")
     goreevault_image = require_immutable_reference(
         target.get("goreevault_image"),
         "target_environment.goreevault_image",
@@ -284,9 +353,10 @@ def validate_evidence(
     require_nonempty_string(target.get("rollback_reference"), "target_environment.rollback_reference")
 
     governance = data.get("governance")
-    require(isinstance(governance, dict), "governance must be an object")
+    require_exact_keys(governance, GOVERNANCE_KEYS, "governance")
+    assert isinstance(governance, dict)
     parse_timestamp(governance.get("verified_at"), "governance.verified_at")
-    require_true_map(governance, REQUIRED_GOVERNANCE_FLAGS, "governance")
+    require_true_fields(governance, REQUIRED_GOVERNANCE_FLAGS, "governance")
     for key in sorted(CONDITIONAL_GOVERNANCE_CONTROLS):
         state = governance.get(key)
         require(
@@ -298,7 +368,8 @@ def validate_evidence(
     require(isinstance(approvals, list) and approvals, "approvals must contain at least one reviewer record")
     for index, approval in enumerate(approvals):
         field = f"approvals[{index}]"
-        require(isinstance(approval, dict), f"{field} must be an object")
+        require_exact_keys(approval, APPROVAL_KEYS, field)
+        assert isinstance(approval, dict)
         require_nonempty_string(approval.get("reviewer"), f"{field}.reviewer")
         parse_timestamp(approval.get("reviewed_at"), f"{field}.reviewed_at")
         require(approval.get("result") == "approved", f"{field}.result must equal 'approved'")
@@ -319,7 +390,7 @@ def main() -> int:
 
     try:
         raw = args.evidence.read_text(encoding="utf-8")
-        data = json.loads(raw)
+        data = load_json_strict(raw)
         validate_evidence(
             data,
             expected_source_sha=args.expected_source_sha,
