@@ -15,7 +15,9 @@ from pathlib import Path
 
 CHECKOUT_RE = re.compile(r"^\s*uses:\s*actions/checkout@([0-9a-f]{40})\s*(?:#.*)?$")
 CHECKOUT_ANY_RE = re.compile(r"^\s*uses:\s*actions/checkout@([^\s#]+)")
-TOP_LEVEL_PERMISSIONS_RE = re.compile(r"^permissions:\s*(?:#.*)?$")
+TOP_LEVEL_PERMISSIONS_RE = re.compile(
+    r"^permissions:\s*(?:\{\}|read-all|write-all)?\s*(?:#.*)?$"
+)
 
 
 def leading_spaces(line: str) -> int:
@@ -69,7 +71,7 @@ def validate_workflow(path: Path) -> list[str]:
 
 
 def run_self_tests() -> list[str]:
-    """Exercise parser boundaries that could otherwise create false passes."""
+    """Exercise parser and permissions boundaries that could create false passes."""
     failures: list[str] = []
 
     boundary_lines = [
@@ -100,6 +102,12 @@ def run_self_tests() -> list[str]:
 
     if TOP_LEVEL_PERMISSIONS_RE.match("  permissions:"):
         failures.append("job-level permissions were accepted as top-level permissions")
+    if TOP_LEVEL_PERMISSIONS_RE.match("  permissions: {}"):
+        failures.append("indented empty permissions were accepted as top-level permissions")
+    if TOP_LEVEL_PERMISSIONS_RE.match("permissions: {}") is None:
+        failures.append("explicit empty top-level permissions were rejected")
+    if TOP_LEVEL_PERMISSIONS_RE.match("permissions:") is None:
+        failures.append("block-style top-level permissions were rejected")
 
     return failures
 
