@@ -33,9 +33,15 @@ The record must contain:
 - exact RC tag;
 - exact 40-character source commit SHA;
 - exact GoreeVault multi-architecture OCI manifest digest;
-- digest-pinned PostgreSQL image reference;
-- exact browser-vault asset/client identification;
+- PostgreSQL artifact as a syntactically valid immutable `name@sha256:<64-lowercase-hex>` reference;
+- primary browser-vault asset as its own syntactically valid immutable `name@sha256:<64-lowercase-hex>` identity;
+- exact deployed GoreeVault image reference whose digest equals the RC manifest digest;
+- previous-known-good rollback artifact as a syntactically valid immutable reference distinct from the candidate server manifest;
 - Central Time-aware or otherwise offset-aware collection/test timestamps.
+
+The PostgreSQL and browser-vault digests must identify their own artifacts rather than reuse the GoreeVault server manifest digest. A semantic version, mutable tag, filename without a checksum, or arbitrary string containing `@sha256:` is not accepted as immutable artifact evidence.
+
+The browser asset identity can represent a release bundle, archive, container, or other reviewed browser artifact, but it must use the canonical `name@sha256:<digest>` evidence form so the release record identifies exact bytes rather than only a version label.
 
 ## Required multi-user evidence
 
@@ -76,9 +82,11 @@ Every required client must pass:
 - refresh-token rotation/replay behavior;
 - logout and device/session invalidation.
 
+`docs/CLIENT-COMPATIBILITY.md` is the human-readable execution record for this matrix. Its six required client sections use the exact schema-version-2 check keys consumed by `scripts/validate-stable-evidence.py`. Under the current schema, a required `N/A`, `FAIL`, or `NOT TESTED` row cannot be translated to `true` in the final Stable evidence record.
+
 ## Required WebAuthn/passkey evidence
 
-A real supported browser/device/authenticator path must prove both registration and authentication against the exact candidate.
+A real supported browser/device/authenticator path must prove both registration and authentication against the exact candidate. `docs/CLIENT-COMPATIBILITY.md` maps these to `webauthn.registration` and `webauthn.authentication` so the human evidence and machine record remain traceable.
 
 ## Required Glaze UI evidence
 
@@ -134,9 +142,10 @@ Machine-observed checks include:
 - the production environment file is not group/world accessible;
 - configured and live GoreeVault/PostgreSQL images are immutable digest references;
 - the live GoreeVault image matches the expected RC manifest digest;
+- both GoreeVault and PostgreSQL containers are running and healthy;
+- the GoreeVault server uses the reviewed non-zero numeric UID/GID runtime form;
 - the GoreeVault backend is published only on `127.0.0.1`;
 - PostgreSQL has no host-published port;
-- the server runs non-root;
 - the root filesystem is read-only;
 - all Linux capabilities are dropped;
 - `no-new-privileges` is active;
@@ -146,7 +155,7 @@ Machine-observed checks include:
 
 Controls that cannot be proven safely from container metadata require explicit operator flags, including real HTTPS/WSS reverse-proxy validation, backup creation, restore rehearsal, rollback recording, monitoring verification, privacy-conscious log review, and the approved NetBird/private administrative path.
 
-The collector never serializes container environment values, database credentials, vault contents, session material, tokens, or other reusable secrets. It reads only the values required to decide whether a control passes and emits the non-secret Stable evidence fields.
+The collector never serializes container environment values, database credentials, vault contents, session material, tokens, or other reusable secrets. It reads only the values required to decide whether a control passes and emits the non-secret Stable evidence fields. When written to a file, the collector applies mode `0600`.
 
 Example after a real rehearsal:
 
@@ -186,6 +195,12 @@ Stable evidence must record the required repository controls as verified:
 
 Secret scanning, push protection, and private vulnerability reporting must be recorded as `pass` or `not_supported`. `not_supported` is acceptable only when the GitHub repository/account capability is genuinely unavailable, not as a waiver.
 
+## Human-readable RC evidence index
+
+`docs/RC-EVIDENCE.md` is the human-readable evidence index for the candidate. It tracks automated exact-head gates, supply chain, recovery/migration, security disposition, multi-user proof, the real-client/WebAuthn matrix, target rehearsal, server and product-wide Glaze UI state, open blockers, RC qualification, Stable assembly, and post-promotion verification.
+
+Approval of the server RC section does not imply product-wide Stable approval. The final Stable workflow relies on the validated machine-readable evidence asset.
+
 ## Local validation
 
 Use the exact RC values:
@@ -220,7 +235,7 @@ On a Stable tag, `.github/workflows/goreevault-release.yml`:
 2. verifies the Stable tag points to the same source commit;
 3. resolves the exact RC OCI manifest digest;
 4. downloads `goreevault-stable-evidence.json` from that RC release;
-5. validates the evidence against the selected RC tag, source SHA, manifest, multi-user gate, product-wide Glaze UI gate, real-client matrix, WebAuthn, target environment, governance, and approvals;
+5. validates the evidence against the selected RC tag, source SHA, manifest, immutable supporting artifacts, multi-user gate, product-wide Glaze UI gate, real-client matrix, WebAuthn, target environment, governance, and approvals;
 6. only then promotes the exact RC manifest to the Stable version and `latest`.
 
 A missing or invalid evidence asset blocks Stable publication.
