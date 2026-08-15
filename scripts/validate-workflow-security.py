@@ -15,21 +15,31 @@ from pathlib import Path
 
 CHECKOUT_RE = re.compile(r"^\s*uses:\s*actions/checkout@([0-9a-f]{40})\s*(?:#.*)?$")
 CHECKOUT_ANY_RE = re.compile(r"^\s*uses:\s*actions/checkout@([^\s#]+)")
-
-
-class ValidationError(ValueError):
-    pass
+TOP_LEVEL_PERMISSIONS_RE = re.compile(r"^permissions:\s*(?:#.*)?$")
 
 
 def leading_spaces(line: str) -> int:
     return len(line) - len(line.lstrip(" "))
 
 
+def checkout_block(lines: list[str], index: int) -> list[str]:
+    """Return only the current checkout step, never a later step's settings."""
+    checkout_indent = leading_spaces(lines[index])
+    block: list[str] = []
+    for candidate in lines[index + 1 :]:
+        stripped = candidate.strip()
+        indent = leading_spaces(candidate)
+        if stripped.startswith("-") and indent <= checkout_indent:
+            break
+        block.append(candidate)
+    return block
+
+
 def validate_workflow(path: Path) -> list[str]:
     errors: list[str] = []
     lines = path.read_text(encoding="utf-8").splitlines()
 
-    if not any(line.startswith("permissions:") for line in lines):
+    if not any(TOP_LEVEL_PERMISSIONS_RE.match(line) for line in lines):
         errors.append("missing explicit top-level permissions boundary")
 
     checkout_count = 0
@@ -44,17 +54,7 @@ def validate_workflow(path: Path) -> list[str]:
                 f"line {index + 1}: actions/checkout must be pinned to a full 40-character commit SHA"
             )
 
-        checkout_indent = leading_spaces(line)
-        block: list[str] = []
-        for candidate in lines[index + 1 :]:
-            stripped = candidate.strip()
-            indent = leading_spaces(candidate)
-            if stripped.startswith("- name:") and indent <= checkout_indent:
-                break
-            if stripped.startswith("- uses:") and indent <= checkout_indent:
-                break
-            block.append(candidate)
-
+        block = checkout_block(lines, index)
         if not any(
             candidate.strip() == "persist-credentials: false" for candidate in block
         ):
@@ -68,6 +68,42 @@ def validate_workflow(path: Path) -> list[str]:
     return errors
 
 
+def run_self_tests() -> list[str]:
+    """Exercise parser boundaries that could otherwise create false passes."""
+    failures: list[str] = []
+
+    boundary_lines = [
+        "      - name: Checkout one",
+        "        uses: actions/checkout@" + "a" * 40,
+        "      - run: echo next-step",
+        "        with:",
+        "          persist-credentials: false",
+    ]
+    if any(
+        line.strip() == "persist-credentials: false"
+        for line in checkout_block(boundary_lines, 1)
+    ):
+        failures.append("checkout step parser leaked into a later run step")
+
+    valid_lines = [
+        "      - name: Checkout",
+        "        uses: actions/checkout@" + "a" * 40,
+        "        with:",
+        "          persist-credentials: false",
+        "      - run: echo done",
+    ]
+    if not any(
+        line.strip() == "persist-credentials: false"
+        for line in checkout_block(valid_lines, 1)
+    ):
+        failures.append("checkout step parser rejected an in-step credential setting")
+
+    if TOP_LEVEL_PERMISSIONS_RE.match("  permissions:"):
+        failures.append("job-level permissions were accepted as top-level permissions")
+
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -77,6 +113,13 @@ def main() -> int:
         help="Workflow directory to inspect (default: .github/workflows)",
     )
     args = parser.parse_args()
+
+    self_test_failures = run_self_tests()
+    if self_test_failures:
+        print("GoreeVault workflow security validator self-test failed:", file=sys.stderr)
+        for failure in self_test_failures:
+            print(f"- {failure}", file=sys.stderr)
+        return 1
 
     workflows = sorted(args.root.glob("goreevault-*.yml"))
     if not workflows:
