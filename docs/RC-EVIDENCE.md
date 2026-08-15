@@ -278,17 +278,21 @@ Approval of a server RC does not imply product-wide Stable approval.
 
 Only after every Stable blocker is closed:
 
-- copy `docs/stable-evidence.example.json` to `goreevault-stable-evidence.json`: NO
-- bind exact RC tag, source SHA, GoreeVault manifest digest, PostgreSQL image, and browser-vault asset: NO
-- transfer real multi-user evidence: NO
-- transfer all six real-client records with every schema-required check true: NO
-- transfer real WebAuthn evidence: NO
-- transfer product-wide Glaze UI evidence: NO
-- transfer target-environment collector/reviewed evidence: NO
-- transfer verified repository governance state: NO
-- record required reviewer approval: NO
-- run `scripts/validate-stable-evidence.py` successfully against exact RC values: NO
-- attach canonical `goreevault-stable-evidence.json` to matching RC GitHub release: NO
+- prepare reviewed section files for `rc`, `multi_user`, `clients`, `webauthn`, `glaze_ui`, `target_environment`, `governance`, and `approvals`: NO
+- verify every section contains only the exact schema value and no reusable secrets/private vault data: NO
+- bind exact RC tag, source SHA, GoreeVault manifest digest, PostgreSQL image, and immutable browser-vault asset identity: NO
+- verify all six real-client records have every schema-required check true: NO
+- verify real WebAuthn registration/authentication evidence: NO
+- verify product-wide Glaze UI evidence: NO
+- verify target-environment collector/reviewed evidence: NO
+- verify repository governance evidence: NO
+- verify required reviewer approval: NO
+- run `scripts/assemble-stable-evidence.py` successfully against the exact source SHA, RC tag, and manifest digest: NO
+- independently run `scripts/validate-stable-evidence.py` successfully against the assembled canonical file: NO
+- verify `goreevault-stable-evidence.json` is mode `0600` before upload: NO
+- attach canonical `goreevault-stable-evidence.json` to the matching RC GitHub release: NO
+
+The assembler does not create evidence or complete missing tests. It rejects placeholders, unknown/duplicate fields through the Stable validator, mismatched exact-RC identifiers, implicit overwrite, and symbolic-link output paths.
 
 ## Stable promotion verification
 
