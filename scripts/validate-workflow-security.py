@@ -3,7 +3,9 @@
 
 The validator intentionally uses only the Python standard library. It limits its
 scope to .github/workflows/goreevault-*.yml so inherited upstream workflows are
-not silently reclassified as GoreeVault-owned policy surfaces.
+not silently reclassified as GoreeVault-owned policy surfaces. External
+repository actions must use immutable commit pins; checkout must additionally
+remove its reusable Git credential after the initial fetch.
 """
 
 from __future__ import annotations
