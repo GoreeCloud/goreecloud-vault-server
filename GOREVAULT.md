@@ -26,6 +26,8 @@ GoreeVault-owned server presentation uses GoreeVault identity and Glaze UI. The 
 
 Under the current GoreeCloud baseline, product-wide Stable readiness remains blocked until the primary browser vault is GoreeVault-owned and Glaze-conformant, or a separately documented material exception is explicitly approved with its reason, impact, compensating controls, review condition, and removal condition. No such production exception is approved by this repository.
 
+The implementation boundary for the future browser client is defined in `docs/WEB-CLIENT-CONTRACT.md`. That contract preserves the separate-client architecture, client-side zero-knowledge responsibility, multi-user isolation, browser-storage controls, Glaze UI requirements, accessibility, immutable release evidence, and reversible cutover requirements without claiming the client already exists.
+
 ## Upstream provenance
 
 - Upstream project: Vaultwarden
@@ -51,6 +53,8 @@ Production clients use `https://vault.goreecloud.com`; TLS terminates at the tru
 
 Tests must use synthetic identities and data. Production vault exports, databases, backups, reusable credentials, and private user information are prohibited test inputs.
 
+Target-environment evidence collection is read-only and secret-minimizing. `scripts/collect-target-evidence.py` may inspect production container metadata and required policy values, but it must never serialize reusable credentials, full container environments, vault contents, session material, database passwords, recovery data, or other private values into Stable evidence.
+
 ## Repository structure
 
 Repository ownership boundaries are documented in `docs/REPOSITORY-STRUCTURE.md`. New top-level components or client applications must have a durable Role and Purpose, security/data boundary, release lifecycle, recovery implications, and Glaze UI applicability before they are introduced.
@@ -60,10 +64,11 @@ Repository ownership boundaries are documented in `docs/REPOSITORY-STRUCTURE.md`
 GoreeVault development follows the repository contracts in:
 
 - `docs/GLAZE-UI.md` — GoreeCloud Glaze UI presentation/accessibility/privacy contract;
+- `docs/WEB-CLIENT-CONTRACT.md` — GoreeVault Web zero-knowledge, multi-user, Glaze UI, accessibility, storage, release, migration, and rollback boundary;
 - `docs/SECURITY-MODEL.md` and `SECURITY.md` — zero-knowledge and security boundaries;
 - `docs/PRODUCTION-DEPLOYMENT.md` — hardened deployment contract;
 - `docs/PRODUCTION-READINESS.md` — Release Candidate and Stable evidence/governance gates;
-- `docs/STABLE-EVIDENCE.md` — exact-RC machine-readable Stable evidence contract;
+- `docs/STABLE-EVIDENCE.md` — exact-RC machine-readable Stable evidence contract and target-environment evidence collection;
 - `docs/REPOSITORY-STRUCTURE.md` — source ownership and repository layout;
 - `docs/UPSTREAM.md` — upstream tracking and review expectations.
 
