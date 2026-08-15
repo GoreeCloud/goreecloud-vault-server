@@ -15,6 +15,7 @@ REQUIRED_FILES = {
     "CONTRIBUTING.md",
     "SECURITY.md",
     "docs/GLAZE-UI.md",
+    "docs/OPEN-READINESS-BLOCKERS.md",
     "docs/PRODUCTION-DEPLOYMENT.md",
     "docs/PRODUCTION-READINESS.md",
     "docs/REPOSITORY-STRUCTURE.md",
@@ -77,6 +78,7 @@ def validate_goreecloud_gates() -> None:
     readiness = read("docs/PRODUCTION-READINESS.md")
     glaze = read("docs/GLAZE-UI.md")
     stable = read("docs/STABLE-EVIDENCE.md")
+    blockers = read("docs/OPEN-READINESS-BLOCKERS.md")
 
     for name, text in {
         "GOREVAULT.md": goreevault,
@@ -103,6 +105,16 @@ def validate_goreecloud_gates() -> None:
         "Schema version 2" in stable,
         "docs/STABLE-EVIDENCE.md must use the multi-user/Glaze-aware Stable evidence schema",
     )
+    for blocker in (
+        "GitHub repository governance",
+        "Real supported-client matrix",
+        "Real WebAuthn/passkey path",
+        "Target-environment production rehearsal",
+        "Product-wide Glaze UI ownership",
+        "Exact-RC Stable evidence",
+    ):
+        require(blocker in blockers, f"open readiness tracker is missing blocker: {blocker}")
+    require("Status:** Stable blocked" in blockers, "open readiness tracker must preserve the Stable-blocked state")
 
 
 def validate_stable_template() -> None:
