@@ -31,10 +31,35 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Trace legacy rustls-webpki dependency
-        continue-on-error: true
+      - name: Rehearse reverse-proxy-only Rocket build
+        shell: bash
         run: |
-          cargo tree -i rustls-webpki@0.101.7 || true
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("Cargo.toml")
+          text = path.read_text()
+          old = 'rocket = { version = "0.5.1", default-features = false, features = ["json", "tls"] }'
+          new = 'rocket = { version = "0.5.1", default-features = false, features = ["json"] }'
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one Rocket TLS dependency declaration")
+          path.write_text(text.replace(old, new))
+          PY
+
+          cargo check --features postgresql
+
+          if cargo tree -i rustls-webpki@0.101.7; then
+            echo '::error title=Legacy Rocket TLS chain::rustls-webpki 0.101.7 is still reachable after removing Rocket TLS.'
+            exit 1
+          fi
+
+          echo 'Legacy Rocket TLS chain is absent after removing Rocket TLS.'
+          echo '### Reverse-proxy-only Rocket dependency delta' >> "${GITHUB_STEP_SUMMARY}"
+          echo '```diff' >> "${GITHUB_STEP_SUMMARY}"
+          git diff -- Cargo.toml Cargo.lock >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Scan GoreeVault repository
         id: trivy_repo
