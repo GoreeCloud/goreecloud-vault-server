@@ -4,10 +4,9 @@ on:
   push:
     branches:
       - agent/production-tls-hardening
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: goreevault-lockfile-refresh-${{ github.ref }}
@@ -15,7 +14,8 @@ concurrency:
 
 jobs:
   refresh:
-    name: Regenerate and verify Cargo.lock
+    name: Regenerate, verify, and commit Cargo.lock
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -23,7 +23,22 @@ jobs:
       - name: Checkout GoreeVault
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          persist-credentials: true
+
+      - name: Verify intended hardening source state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          cargo = Path('Cargo.toml').read_text()
+          expected = 'rocket = { version = "0.5.1", default-features = false, features = ["json"] }'
+          if expected not in cargo:
+              raise SystemExit('Expected Rocket json-only dependency declaration is absent')
+          if 'features = ["json", "tls"]' in cargo or 'features = ["tls", "json"]' in cargo:
+              raise SystemExit('Rocket embedded TLS was re-enabled')
+          PY
 
       - name: Install PostgreSQL build dependencies
         run: |
@@ -32,6 +47,18 @@ jobs:
 
       - name: Regenerate lockfile
         run: cargo generate-lockfile
+
+      - name: Verify regenerated lockfile matches approved artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='6f2019fe0692ff7daf2d1f0aae0a3ef8772babe3bd120191576f84b4e51895eb'
+          actual="$(sha256sum Cargo.lock | awk '{print $1}')"
+          if [[ "${actual}" != "${expected}" ]]; then
+            echo "::error title=Unexpected Cargo.lock digest::Expected ${expected}, got ${actual}. Refusing to commit."
+            exit 1
+          fi
+          echo "Verified Cargo.lock SHA-256: ${actual}"
 
       - name: Verify legacy Rocket TLS dependency branch is absent
         shell: bash
@@ -56,21 +83,35 @@ jobs:
             exit 1
           fi
 
-          echo 'Legacy Rocket TLS dependency branch is absent from the active graph and regenerated lockfile.'
-
-      - name: Compile PostgreSQL target with regenerated lockfile
+      - name: Compile PostgreSQL target
         run: cargo check --locked --no-default-features --features postgresql
 
       - name: Compile PostgreSQL test targets
         run: cargo check --locked --tests --no-default-features --features postgresql
 
-      - name: Show lockfile delta
-        run: git diff -- Cargo.lock
+      - name: Verify only Cargo.lock changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --short | awk '{print $2}')
+          if (( ${#changed[@]} != 1 )) || [[ "${changed[0]}" != 'Cargo.lock' ]]; then
+            printf 'Unexpected working-tree change: %s\n' "${changed[@]}" >&2
+            exit 1
+          fi
 
-      - name: Upload regenerated Cargo.lock
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: goreevault-cargo-lock-${{ github.sha }}
-          path: Cargo.lock
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit exact verified Cargo.lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- Cargo.lock
+
+          mapfile -t staged < <(git diff --cached --name-only)
+          if (( ${#staged[@]} != 1 )) || [[ "${staged[0]}" != 'Cargo.lock' ]]; then
+            printf 'Unexpected staged path: %s\n' "${staged[@]}" >&2
+            exit 1
+          fi
+
+          git commit -m 'Regenerate lockfile after disabling embedded Rocket TLS'
+          git push origin HEAD:agent/production-tls-hardening
