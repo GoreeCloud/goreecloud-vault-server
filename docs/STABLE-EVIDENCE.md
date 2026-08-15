@@ -121,6 +121,56 @@ The target rehearsal must verify the production contract at `https://vault.goree
 - logs have been reviewed for sensitive-data minimization;
 - the approved NetBird/private-access path is verified.
 
+### Target evidence collector
+
+`scripts/collect-target-evidence.py` provides a read-only helper for producing the exact `target_environment` object after a real target-environment rehearsal.
+
+The collector intentionally does **not** create a complete Stable evidence record and cannot attest client, WebAuthn, Glaze UI, governance, or reviewer approval on the operator's behalf. Its scope is limited to the target-environment section.
+
+Machine-observed checks include:
+
+- the reviewed production deployment source validator still passes;
+- the production Compose model renders with the operator-controlled environment file;
+- the production environment file is not group/world accessible;
+- configured and live GoreeVault/PostgreSQL images are immutable digest references;
+- the live GoreeVault image matches the expected RC manifest digest;
+- the GoreeVault backend is published only on `127.0.0.1`;
+- PostgreSQL has no host-published port;
+- the server runs non-root;
+- the root filesystem is read-only;
+- all Linux capabilities are dropped;
+- `no-new-privileges` is active;
+- registration is closed;
+- the admin token is absent/empty under the current disabled-admin policy;
+- the canonical HTTPS `/alive` endpoint responds successfully.
+
+Controls that cannot be proven safely from container metadata require explicit operator flags, including real HTTPS/WSS reverse-proxy validation, backup creation, restore rehearsal, rollback recording, monitoring verification, privacy-conscious log review, and the approved NetBird/private administrative path.
+
+The collector never serializes container environment values, database credentials, vault contents, session material, tokens, or other reusable secrets. It reads only the values required to decide whether a control passes and emits the non-secret Stable evidence fields.
+
+Example after a real rehearsal:
+
+```bash
+python3 scripts/collect-target-evidence.py \
+  --env-file /etc/goreevault/production.env \
+  --expected-manifest-digest "sha256:<64-hex RC manifest digest>" \
+  --previous-known-good-image "ghcr.io/goreecloud/goreevault-server@sha256:<64-hex previous digest>" \
+  --backup-reference "<approved backup or snapshot reference>" \
+  --rollback-reference "<rollback rehearsal/runbook reference>" \
+  --reverse-proxy-https-wss \
+  --backup-created \
+  --restore-rehearsed \
+  --rollback-recorded \
+  --monitoring-verified \
+  --logs-reviewed-for-sensitive-data \
+  --netbird-path-verified \
+  --output target-environment.json
+```
+
+The default evidence timestamp uses `America/Chicago`, matching GoreeCloud's Central Time documentation convention. The resulting `target-environment.json` is the value for the full Stable record's `target_environment` field; it must still be reviewed before insertion and final validation.
+
+Do not run the collector against production merely to obtain a passing JSON file. Run it only after the underlying backup, restore, rollback, monitoring, log, network, and client work has actually been performed.
+
 ## Governance evidence
 
 Stable evidence must record the required repository controls as verified:
