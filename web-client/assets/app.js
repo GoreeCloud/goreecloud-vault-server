@@ -1,6 +1,13 @@
 import { runtimeConfig, resolveServerOrigin } from './runtime-config.js';
 import { getSessionSnapshot, subscribeSession } from './session-state.js';
 import { cryptoBoundary } from './crypto-boundary.js';
+import { requestPreloginMetadata, normalizeAccountIdentifier } from './auth-protocol.js';
+import {
+  acceptPrelogin,
+  beginPrelogin,
+  rejectAuthentication,
+  subscribeAuth,
+} from './auth-state.js';
 
 const APPEARANCE_KEY = 'goreevault-web-appearance';
 const MODES = ['system', 'light', 'dark'];
@@ -64,8 +71,66 @@ function renderSecurityState(snapshot) {
     const origin = resolveServerOrigin();
     prealpha.textContent = snapshot.accountId
       ? `Account scoped · vault locked · ${origin}`
-      : `Local shell only · no credential processing · ${origin}`;
+      : `Prelogin available · credential processing disabled · ${origin}`;
   }
+}
+
+function renderAuthState(snapshot) {
+  document.documentElement.dataset.authPhase = snapshot.phase;
+  const result = document.querySelector('#prelogin-result');
+  if (!result) return;
+
+  if (snapshot.phase === 'prelogin-pending') {
+    result.textContent = 'Checking the account KDF settings. No password is being requested or processed.';
+    return;
+  }
+  if (snapshot.phase === 'prelogin-ready' && snapshot.prelogin) {
+    const kdfName = snapshot.prelogin.kdf === 0 ? 'PBKDF2' : 'Argon2id';
+    result.textContent = `Account preparation succeeded. Server KDF: ${kdfName}. Password entry and cryptographic unlock remain disabled.`;
+    return;
+  }
+  if (snapshot.phase === 'authentication-error') {
+    result.textContent = 'Account preparation could not be completed. Verify the address and GoreeVault Server availability, then try again.';
+    return;
+  }
+  result.textContent = 'No account has been checked yet.';
+}
+
+function bindPrelogin() {
+  const form = document.querySelector('#prelogin-form');
+  const input = document.querySelector('#account-email');
+  const submit = document.querySelector('#prelogin-submit');
+  if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement) || !(submit instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    input.setCustomValidity('');
+
+    let email;
+    try {
+      email = normalizeAccountIdentifier(input.value);
+    } catch (_) {
+      input.setCustomValidity('Enter a valid GoreeVault account email address.');
+      input.reportValidity();
+      return;
+    }
+
+    const pending = beginPrelogin({ accountId: email, emailHint: email });
+    submit.disabled = true;
+    input.setAttribute('aria-busy', 'true');
+
+    try {
+      const metadata = await requestPreloginMetadata(email);
+      acceptPrelogin(metadata, pending.requestEpoch);
+    } catch (error) {
+      rejectAuthentication(error?.code ?? 'request_failed', pending.requestEpoch);
+    } finally {
+      submit.disabled = false;
+      input.removeAttribute('aria-busy');
+    }
+  });
 }
 
 function assertPreAlphaSafety() {
@@ -83,5 +148,7 @@ function assertPreAlphaSafety() {
 
 assertPreAlphaSafety();
 subscribeSession(renderSecurityState);
+subscribeAuth(renderAuthState);
 bindAppearance();
 bindSkipTarget();
+bindPrelogin();
