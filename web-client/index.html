@@ -54,7 +54,7 @@
     </aside>
 
     <main id="main" tabindex="-1" class="workspace">
-      <section class="hero-panel glaze-surface" aria-labelledby="page-title">
+      <section class="hero-panel glaze-surface hero-panel-compact" aria-labelledby="page-title">
         <div>
           <p class="eyebrow">Secure browser vault</p>
           <h1 id="page-title">Your vault, under your control.</h1>
@@ -62,7 +62,7 @@
         </div>
         <div class="hero-actions">
           <a class="primary-button" href="#sign-in">Prepare sign-in</a>
-          <a class="secondary-button" href="#readiness">View readiness</a>
+          <a class="secondary-button" href="#vault">Open vault workspace</a>
         </div>
       </section>
 
@@ -87,18 +87,19 @@
         <p class="privacy-note" id="prelogin-result" aria-live="polite">No account has been checked yet.</p>
       </section>
 
-      <section class="toolbar" aria-label="Vault tools">
-        <label class="search-field">
-          <span class="sr-only">Search vault</span>
+      <section class="toolbar vault-toolbar" aria-label="Vault tools" aria-describedby="vault-tools-status">
+        <label class="search-field locked-tool">
+          <span class="sr-only">Search vault unavailable while the vault is locked</span>
           <span aria-hidden="true">⌕</span>
           <input type="search" placeholder="Search vault" disabled>
           <kbd aria-hidden="true">/</kbd>
         </label>
-        <button class="primary-button" type="button" disabled>+ New item</button>
+        <button class="primary-button locked-action" type="button" aria-disabled="true" data-prealpha-action="New item">+ New item</button>
+        <span class="vault-tools-status" id="vault-tools-status">Search and item creation become available after an approved vault unlock.</span>
       </section>
 
-      <section class="content-grid" id="vault" aria-label="Vault preview">
-        <article class="vault-panel glaze-surface">
+      <section class="content-grid content-grid-vault" id="vault" aria-label="Vault preview">
+        <article class="vault-panel glaze-surface vault-primary-panel">
           <div class="section-heading">
             <div>
               <p class="eyebrow">Vault</p>
@@ -113,22 +114,29 @@
           </div>
         </article>
 
-        <aside class="readiness-panel glaze-surface" id="readiness" aria-labelledby="readiness-title">
-          <p class="eyebrow">Build status</p>
-          <h2 id="readiness-title">Foundation readiness</h2>
-          <p class="readiness-summary">Green checks represent implemented, automated foundations—not authorization for production credentials.</p>
-          <ul class="check-list">
-            <li><span class="check" aria-hidden="true">✓</span><span>GoreeVault identity and Glaze UI shell</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>System / Light / Dark and accessibility fallbacks</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>Server verification and prelogin/KDF metadata</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>PBKDF2, token-state, and authenticated-sync foundations</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>HKDF, AES-CBC-HMAC, and type-2 EncString primitives</span></li>
-            <li><span class="pending" aria-hidden="true">○</span><span>Argon2id and reviewed end-to-end vault crypto</span></li>
-            <li><span class="pending" aria-hidden="true">○</span><span>Real sign-in, decrypted vault, and item workflows</span></li>
-            <li><span class="pending" aria-hidden="true">○</span><span>Real browser/device acceptance and Stable evidence</span></li>
-          </ul>
-          <p class="privacy-note">No analytics. No remote fonts. No third-party presentation scripts.</p>
-        </aside>
+        <details class="readiness-panel glaze-surface readiness-details" id="readiness">
+          <summary>
+            <span>
+              <span class="eyebrow">Development status</span>
+              <strong id="readiness-title">Readiness details</strong>
+            </span>
+            <span class="pill">5 foundations ready</span>
+          </summary>
+          <div class="readiness-body" aria-labelledby="readiness-title">
+            <p class="readiness-summary">Green checks represent implemented, automated foundations—not authorization for production credentials.</p>
+            <ul class="check-list">
+              <li><span class="check" aria-hidden="true">✓</span><span>GoreeVault identity and Glaze UI shell</span></li>
+              <li><span class="check" aria-hidden="true">✓</span><span>System / Light / Dark and accessibility fallbacks</span></li>
+              <li><span class="check" aria-hidden="true">✓</span><span>Server verification and prelogin/KDF metadata</span></li>
+              <li><span class="check" aria-hidden="true">✓</span><span>PBKDF2, token-state, and authenticated-sync foundations</span></li>
+              <li><span class="check" aria-hidden="true">✓</span><span>HKDF, AES-CBC-HMAC, and type-2 EncString primitives</span></li>
+              <li><span class="pending" aria-hidden="true">○</span><span>Argon2id and reviewed end-to-end vault crypto</span></li>
+              <li><span class="pending" aria-hidden="true">○</span><span>Real sign-in, decrypted vault, and item workflows</span></li>
+              <li><span class="pending" aria-hidden="true">○</span><span>Real browser/device acceptance and Stable evidence</span></li>
+            </ul>
+            <p class="privacy-note">No analytics. No remote fonts. No third-party presentation scripts.</p>
+          </div>
+        </details>
       </section>
     </main>
   </div>
