@@ -99,6 +99,13 @@ function announceUnavailableRoute(label) {
   );
 }
 
+function announceLockedAction(label) {
+  showToast(
+    `${label} requires an unlocked vault`,
+    'This build keeps the vault locked while end-to-end cryptography and interoperability are still under review.',
+  );
+}
+
 function renderNavigationState() {
   const route = routeFromHash();
   const activeRoute = route === 'vault' || route === '' || route === 'main' || route === 'sign-in' || route === 'readiness'
@@ -126,6 +133,13 @@ function bindNavigation() {
     item.addEventListener('click', (event) => {
       event.preventDefault();
       announceUnavailableRoute(item.textContent?.trim() || 'This section');
+    });
+  });
+
+  document.querySelectorAll('[data-prealpha-action]').forEach((control) => {
+    control.addEventListener('click', (event) => {
+      event.preventDefault();
+      announceLockedAction(control.getAttribute('data-prealpha-action') || 'This action');
     });
   });
 
