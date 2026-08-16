@@ -12,6 +12,7 @@ import {
 
 const APPEARANCE_KEY = 'goreevault-web-appearance';
 const MODES = ['system', 'light', 'dark'];
+const PREALPHA_DISABLED_ROUTES = new Set(['favorites', 'organizations', 'send']);
 let verifiedServerConfig = null;
 
 function safeStore(mode) {
@@ -56,6 +57,51 @@ function bindAppearance() {
     const next = MODES[(MODES.indexOf(current) + 1) % MODES.length];
     setAppearance(next, true);
   });
+}
+
+function routeFromHash() {
+  return window.location.hash.replace(/^#/, '').trim().toLowerCase();
+}
+
+function announceUnavailableRoute(label) {
+  const status = document.querySelector('#navigation-status');
+  if (status) {
+    status.textContent = `${label} is not available in this pre-alpha build. The vault remains locked and no private data is loaded.`;
+  }
+}
+
+function renderNavigationState() {
+  const route = routeFromHash();
+  const activeRoute = route === 'vault' || route === '' || route === 'main' || route === 'sign-in' || route === 'readiness'
+    ? 'vault'
+    : null;
+
+  document.querySelectorAll('.nav-item').forEach((item) => {
+    const itemRoute = item.getAttribute('href')?.replace(/^#/, '') ?? '';
+    const active = itemRoute === activeRoute;
+    item.classList.toggle('active', active);
+    if (active) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
+
+  if (PREALPHA_DISABLED_ROUTES.has(route)) {
+    const item = document.querySelector(`.nav-item[href="#${route}"]`);
+    announceUnavailableRoute(item?.textContent?.trim() || route);
+    history.replaceState(null, '', '#vault');
+    renderNavigationState();
+  }
+}
+
+function bindNavigation() {
+  document.querySelectorAll('.nav-item[data-prealpha-disabled="true"]').forEach((item) => {
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      announceUnavailableRoute(item.textContent?.trim() || 'This section');
+    });
+  });
+
+  window.addEventListener('hashchange', renderNavigationState);
+  renderNavigationState();
 }
 
 function bindSkipTarget() {
@@ -155,5 +201,6 @@ assertPreAlphaSafety();
 subscribeSession(renderSecurityState);
 subscribeAuth(renderAuthState);
 bindAppearance();
+bindNavigation();
 bindSkipTarget();
 bindPrelogin();
