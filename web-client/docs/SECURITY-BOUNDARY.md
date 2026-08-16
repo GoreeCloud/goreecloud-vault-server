@@ -11,20 +11,20 @@ GoreeVault Web is pre-alpha. The current implementation is an application shell 
 - Do not log secrets to the browser console, DOM diagnostics, telemetry, crash reports, URLs, or analytics events.
 - Do not add analytics, advertising, fingerprinting, remote fonts, third-party browser scripts, or a hosted control plane for ordinary operation.
 - Treat NetBird/private-network reachability as transport access only; it is not application authorization.
-- Keep all account/session and vault state explicitly scoped to the selected GoreeVault identity.
+- Keep all account/session state explicitly scoped to the selected GoreeVault identity, and keep opaque vault state bound to the same explicit account scope.
 - Clear decrypted state and key material on lock, logout, account switch, account removal, and session invalidation.
 - Service workers must not cache authenticated private API responses unless the representation is encrypted and separately reviewed.
 - Keep reusable authentication tokens out of general browser storage until the approved compatible session model and storage controls are implemented and reviewed.
 
 ## Current protocol boundary
 
-Server capability verification and prelogin are the only authentication-preparation interactions authorized in this implementation slice. The client may request `/api/config` to verify GoreeVault server identity and the approved production environment, then send the normalized account email identifier to `/api/accounts/prelogin` and accept only the compatible KDF metadata required to prepare a future client-side sign-in flow: `kdf`, `kdfIterations`, `kdfMemory`, and `kdfParallelism`.
+Server capability verification and Prelogin are the only authentication-preparation interactions authorized in this implementation slice. The client may request `/api/config` to verify GoreeVault server identity and the approved production environment, then send the normalized account email identifier to `/api/accounts/prelogin` and accept only the compatible KDF metadata required to prepare a future client-side sign-in flow: `kdf`, `kdfIterations`, `kdfMemory`, and `kdfParallelism`.
 
-The prelogin response does not authorize password derivation or sign-in. Account-scoped request epochs must reject stale responses after an account change or authentication reset. The Glaze UI contains no password input and must not add one while credential processing remains disabled.
+The prelogin response does not authorize password derivation or sign-in. Account-scoped request epochs must reject stale responses after an account change or authentication reset. Real password entry remains disabled. The Glaze UI contains no password input and must not add one while credential processing remains disabled.
 
 The compatible password-grant fields, two-factor challenge shape, token-rotation requirement, and sync-envelope shape may be modeled and tested without transmitting secrets. This structural modeling does not authorize a secret-bearing request.
 
-Real password entry remains disabled. Master-password processing, KDF execution, password-hash generation, access-token acceptance, refresh-token exchange, refresh-token persistence, authenticated sync, vault unlock, and secret-bearing authentication requests are outside the current approved slice.
+Master-password processing, KDF execution, password-hash generation, access-token acceptance, refresh-token exchange, refresh-token persistence, authenticated sync, vault unlock, and secret-bearing authentication requests are outside the current approved slice.
 
 Browser API requests must remain abortable and timeout-bounded, avoid general browser caching, reject redirects, and avoid broader credential scope than the selected GoreeVault origin requires. Normalized errors must not expose or log secret request material.
 
