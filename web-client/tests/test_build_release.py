@@ -14,6 +14,17 @@ assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
+SECURITY_RUNTIME_FILES = {
+    "assets/aes-cbc-hmac.js",
+    "assets/auth-kdf.js",
+    "assets/authenticated-api.js",
+    "assets/enc-string.js",
+    "assets/identity-protocol.js",
+    "assets/master-key-crypto.js",
+    "assets/sync-client.js",
+    "assets/token-state.js",
+}
+
 
 class ReleaseBuildTests(unittest.TestCase):
     def test_manifest_is_deterministic_for_same_source(self) -> None:
@@ -34,6 +45,12 @@ class ReleaseBuildTests(unittest.TestCase):
             self.assertNotIn("docs/SECURITY-BOUNDARY.md", paths)
             self.assertNotIn("tests/auth-protocol.test.js", paths)
             self.assertTrue((output / "release-manifest.json").is_file())
+
+    def test_release_contains_security_runtime_modules(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest = MODULE.build(Path(temp_dir), "abc123")
+            paths = {entry["path"] for entry in manifest["files"]}
+            self.assertTrue(SECURITY_RUNTIME_FILES.issubset(paths))
 
     def test_manifest_records_sha256_and_size(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
