@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-//! GoreeVault Web's pre-alpha Argon2id provider core.
+//! `GoreeVault` Web's pre-alpha Argon2id provider core.
 //!
 //! This crate intentionally contains no JavaScript/WASM binding. It proves the
 //! Bitwarden-compatible Argon2id primitive and its wasm32 buildability before a
@@ -24,7 +24,7 @@ pub const MIN_PARALLELISM: u32 = 1;
 pub enum ProviderError {
     /// One or more KDF parameters are below the GoreeVault/Bitwarden minimum.
     InsufficientParameters,
-    /// RustCrypto rejected the supplied parameter combination.
+    /// `RustCrypto` rejected the supplied parameter combination.
     InvalidParameters,
     /// Argon2id derivation failed.
     DerivationFailed,
@@ -35,6 +35,13 @@ pub enum ProviderError {
 /// `salt_sha256` must already be the SHA-256 digest of the normalized account
 /// identifier. The JavaScript boundary owns that normalization and hashing so
 /// this low-level core cannot accidentally diverge from the account protocol.
+///
+/// # Errors
+///
+/// Returns [`ProviderError::InsufficientParameters`] when any supplied KDF
+/// parameter is below the reviewed minimum, [`ProviderError::InvalidParameters`]
+/// when `RustCrypto` rejects the parameter combination, or
+/// [`ProviderError::DerivationFailed`] when Argon2id derivation fails.
 pub fn derive_argon2id(
     secret: &[u8],
     salt_sha256: &[u8; OUTPUT_BYTES],
