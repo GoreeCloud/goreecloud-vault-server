@@ -67,13 +67,22 @@ The fifth slice establishes sync and release-engineering boundaries without enab
 - a zero-dependency Node test harness for transport, authentication, account isolation, prelogin UI, server-config, and sync boundaries;
 - a deterministic static release builder with an explicit production-file allowlist, SHA-256 file identities, source-revision binding, and an explicit empty runtime-dependency inventory.
 
-These slices **do not** implement vault decryption, key derivation, real sign-in, token persistence, authenticated sync, WebAuthn, attachments, organizations, TOTP, import/export, or persistent credential storage. Those features must be added only against the GoreeVault Web contract and compatible server protocol.
+The sixth slice strengthens browser release evidence without changing credential handling:
+
+- the deterministic release now emits an SPDX 2.3 JSON SBOM for the exact allowlisted browser files;
+- every SBOM file record carries SHA-1, as required for analyzed files by SPDX 2.3, plus SHA-256 for GoreeVault integrity evidence;
+- the package verification code is derived from the exact analyzed release files;
+- SPDX creation time is bound to an explicit source-date epoch so rebuilding the same source with the same source timestamp produces identical evidence;
+- `release-manifest.json` binds the SBOM path, byte size, SHA-256 digest, source revision, source timestamp, and explicit empty runtime-dependency inventory;
+- file license and copyright conclusions remain `NOASSERTION` in the generated SBOM until the standalone GoreeVault Web repository establishes and validates its own final package-level licensing metadata.
+
+These slices **do not** implement production credential processing, Argon2id account authentication, real password sign-in, production token exchange, end-to-end vault decryption, cipher CRUD, persistent encrypted cache, WebAuthn, attachments, organizations, TOTP, import/export, or persistent credential storage. Those features must be added only against the GoreeVault Web contract and compatible server protocol.
 
 ## Security boundary
 
-The shell must not store or process real credentials yet. UI development must never introduce placeholder cryptography, fake encryption, plaintext vault persistence, or console logging of secrets simply to make screens appear functional.
+The shell must not store or process production credentials yet. UI development must never introduce placeholder cryptography, fake encryption, plaintext vault persistence, or console logging of secrets simply to make screens appear functional.
 
-Appearance is the only current browser-local preference. Account/session/authentication and opaque sync state remain in memory, and no reusable credentials or decrypted vault material are written to general browser storage. Prelogin handles only the normalized account identifier and server-provided KDF metadata; password entry and all secret-bearing authentication operations remain disabled.
+Appearance is the only current browser-local preference. Account/session/authentication and opaque sync state remain in memory, and no reusable credentials or decrypted vault material are written to general browser storage. Prelogin handles only the normalized account identifier and server-provided KDF metadata; production password entry and secret-bearing network authentication remain disabled.
 
 See `docs/SECURITY-BOUNDARY.md`.
 
@@ -85,11 +94,11 @@ Run:
 python3 web-client/tests/validate_web_shell.py
 python3 -m unittest web-client/tests/test_build_release.py
 cd web-client && npm test
-python3 scripts/build_release.py --out /tmp/goreevault-web --source-revision local-validation
+python3 scripts/build_release.py --out /tmp/goreevault-web --source-revision local-validation --source-date-epoch 0
 ```
 
-The validation gate checks local-only browser dependencies, required privacy/security metadata, Glaze UI/accessibility behavior, canonical runtime configuration, account/session isolation, disabled secret persistence, the unavailable cryptography boundary, bounded API behavior, compatible prelogin metadata handling, stale-response rejection, disabled token persistence, server identity/config negotiation, opaque sync isolation, and deterministic release layout.
+The validation gate checks local-only browser dependencies, required privacy/security metadata, Glaze UI/accessibility behavior, canonical runtime configuration, account/session isolation, disabled secret persistence, the fail-closed cryptography boundary, bounded API behavior, compatible prelogin metadata handling, stale-response rejection, disabled production token exchange, server identity/config negotiation, opaque sync isolation, deterministic release layout, source-bound manifest integrity, and SPDX SBOM integrity.
 
 ## Stable boundary
 
-Creating these foundations does not close the GoreeVault product-wide Glaze UI blocker. Stable still requires the standalone GoreeVault Web repository, complete supported browser workflow matrix, client-side zero-knowledge implementation, real accessibility acceptance, immutable browser build identity and dependency inventory, migration/rollback proof, real-client testing, WebAuthn/passkey evidence, target-environment rehearsal, governance, and final exact-RC evidence.
+Creating these foundations does not close the GoreeVault product-wide Glaze UI or browser-readiness blockers. Stable still requires the standalone GoreeVault Web repository, reviewed Argon2id compatibility, complete end-to-end client cryptography, production sign-in/two-factor/token-refresh behavior, complete supported browser workflow matrix, real accessibility acceptance, immutable browser candidate publication, independent SBOM/dependency evidence from the final repository, migration/rollback proof, real-client testing, WebAuthn/passkey evidence, target-environment rehearsal, governance, and final exact-RC evidence.

@@ -87,22 +87,36 @@ jobs:
       - name: Validate authentication/runtime fail-closed boundaries
         run: python3 web-client/tests/validate_auth_runtime.py
 
-      - name: Validate deterministic release builder
+      - name: Validate deterministic release builder and SPDX evidence
         run: |
           python3 -m unittest web-client/tests/test_build_release.py
-          python3 web-client/scripts/build_release.py \
-            --out "${RUNNER_TEMP}/goreevault-web" \
-            --source-revision "${GITHUB_SHA}"
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${GITHUB_SHA}")"
+          python3 web-client/scripts/build_release.py --out "${RUNNER_TEMP}/goreevault-web" --source-revision "${GITHUB_SHA}" --source-date-epoch "${SOURCE_DATE_EPOCH}"
           python3 - <<'PY'
+          import hashlib
           import json
           import os
           from pathlib import Path
 
-          manifest = json.loads((Path(os.environ['RUNNER_TEMP']) / 'goreevault-web' / 'release-manifest.json').read_text())
+          root = Path(os.environ['RUNNER_TEMP']) / 'goreevault-web'
+          manifest = json.loads((root / 'release-manifest.json').read_text())
+          sbom_path = root / manifest['sbom']['path']
+          sbom = json.loads(sbom_path.read_text())
+          sbom_sha256 = hashlib.sha256(sbom_path.read_bytes()).hexdigest()
+
           assert manifest['sourceRevision'] == os.environ['GITHUB_SHA']
           assert manifest['runtimeDependencies'] == []
           assert manifest['files']
-          print(f"Validated deterministic manifest for {len(manifest['files'])} browser files.")
+          assert manifest['sbom']['format'] == 'SPDX-2.3'
+          assert manifest['sbom']['sha256'] == sbom_sha256
+          assert sbom['spdxVersion'] == 'SPDX-2.3'
+          assert sbom['dataLicense'] == 'CC0-1.0'
+          assert len(sbom['files']) == len(manifest['files'])
+          assert sbom['packages'][0]['filesAnalyzed'] is True
+          print(
+              f"Validated deterministic manifest and SPDX SBOM for "
+              f"{len(manifest['files'])} browser files."
+          )
           PY
 
       - name: Validate Glaze UI, accessibility, privacy, and client safety contracts
