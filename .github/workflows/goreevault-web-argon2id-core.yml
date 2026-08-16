@@ -51,8 +51,10 @@ jobs:
       - name: Run native Bitwarden interoperability tests
         run: cargo test --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
 
-      - name: Test fail-closed WASM identity evidence
-        run: python3 web-client/crypto/argon2id-provider/scripts/test_build_wasm_evidence.py
+      - name: Test fail-closed WASM and binding evidence
+        run: |
+          python3 web-client/crypto/argon2id-provider/scripts/test_build_wasm_evidence.py
+          python3 web-client/crypto/argon2id-provider/scripts/test_build_binding_evidence.py
 
       - name: Build wasm32 ABI
         run: |
@@ -79,6 +81,19 @@ jobs:
         run: |
           node web-client/crypto/argon2id-provider/tests/test-wasm-abi.cjs \
             web-client/crypto/argon2id-provider/target/wasm-bindgen-node/goreevault_web_argon2id_core.js
+
+      - name: Generate exact fail-closed binding evidence
+        env:
+          GOREEVAULT_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 web-client/crypto/argon2id-provider/scripts/build_binding_evidence.py \
+            --bindings web-client/crypto/argon2id-provider/target/wasm-bindgen-node \
+            --source-revision "$GOREEVAULT_SOURCE_REVISION" \
+            --wasm-bindgen-version 0.2.126 \
+            --output web-client/crypto/argon2id-provider/target/binding-evidence.json
+          cat web-client/crypto/argon2id-provider/target/binding-evidence.json
+          grep -F '"runtimeIntegrationApproved": false' web-client/crypto/argon2id-provider/target/binding-evidence.json
+          grep -F '"credentialProcessingApproved": false' web-client/crypto/argon2id-provider/target/binding-evidence.json
 
       - name: Generate exact build-only WASM identity evidence
         env:
