@@ -1,0 +1,24 @@
+[package]
+name = "goreevault-web-argon2id-core"
+version = "0.0.0-prealpha"
+description = "Pre-alpha GoreeVault Web Argon2id provider core."
+license = "AGPL-3.0-only"
+publish = false
+edition = "2024"
+rust-version = "1.97"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+argon2 = { version = "=0.6.0-rc.8", default-features = false, features = ["kdf", "zeroize"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

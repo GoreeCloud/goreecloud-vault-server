@@ -1,0 +1,58 @@
+name: GoreeVault Web Argon2id Core
+
+on:
+  pull_request:
+    paths:
+      - 'web-client/crypto/argon2id-provider/**'
+      - '.github/workflows/goreevault-web-argon2id-core.yml'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - 'web-client/crypto/argon2id-provider/**'
+      - '.github/workflows/goreevault-web-argon2id-core.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-web-argon2id-core-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Rust Argon2id provider core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show Rust toolchain
+        run: rustc --version && cargo --version
+
+      - name: Generate dependency lock evidence
+        run: |
+          cargo generate-lockfile --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
+          sha256sum web-client/crypto/argon2id-provider/Cargo.lock
+          cat web-client/crypto/argon2id-provider/Cargo.lock
+
+      - name: Validate formatting
+        run: cargo fmt --manifest-path web-client/crypto/argon2id-provider/Cargo.toml -- --check
+
+      - name: Lint native targets
+        run: cargo clippy --manifest-path web-client/crypto/argon2id-provider/Cargo.toml --all-targets -- -D warnings
+
+      - name: Run Bitwarden interoperability tests
+        run: cargo test --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
+
+      - name: Validate wasm32 buildability without browser integration
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo check \
+            --manifest-path web-client/crypto/argon2id-provider/Cargo.toml \
+            --target wasm32-unknown-unknown
