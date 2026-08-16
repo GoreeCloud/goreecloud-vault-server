@@ -24,6 +24,7 @@ RELEASE_FILES = (
     "assets/authenticated-api.js",
     "assets/crypto-boundary.js",
     "assets/enc-string.js",
+    "assets/feedback.css",
     "assets/glaze.css",
     "assets/goreevault-mark.svg",
     "assets/identity-protocol.js",
