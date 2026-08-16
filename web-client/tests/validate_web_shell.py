@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed source validation for the GoreeVault Web incubation shell."""
+"""Fail-closed source validation for the GoreeVault Web incubation client."""
 
 from __future__ import annotations
 
@@ -36,7 +36,6 @@ def validate_html() -> None:
         'id="appearance-toggle"',
         'aria-live="polite"',
         'Local shell only · no credential processing',
-        'Authentication, encryption, sync, and real vault data remain intentionally disabled',
     ]
     missing = [token for token in required if token not in html]
     require(not missing, f"index.html is missing required shell contract tokens: {missing}")
@@ -50,6 +49,7 @@ def validate_html() -> None:
     require("unsafe-eval" not in csp, "CSP must not allow unsafe-eval")
     require("unsafe-inline" not in csp, "CSP must not allow unsafe-inline")
     require("https://vault.goreecloud.com" in csp, "canonical GoreeVault Server origin must be explicit")
+    require('type="password"' not in html.lower(), "password entry must remain absent while credential processing is disabled")
 
 
 def validate_css() -> None:
@@ -83,6 +83,10 @@ def validate_javascript() -> None:
         "assets/auth-protocol.js",
         "assets/auth-state.js",
         "assets/auth-request.js",
+        "assets/auth-kdf.js",
+        "assets/server-config.js",
+        "assets/sync-protocol.js",
+        "assets/vault-state.js",
     ]
     combined = "\n".join(read(path) for path in files)
     require("goreevault-web-appearance" in combined, "appearance preference key is required")
@@ -91,13 +95,19 @@ def validate_javascript() -> None:
     require("credentialProcessingEnabled: false" in combined, "credential processing must remain fail-closed")
     require("persistentDecryptedStateEnabled: false" in combined, "decrypted persistence must remain disabled")
     require("offlinePrivateResponseCachingEnabled: false" in combined, "private response caching must remain disabled")
-    require("unavailable-pre-alpha" in combined, "cryptography adapter must remain explicitly unavailable")
+    require("unavailable-pre-alpha" in combined, "vault cryptography adapter must remain explicitly unavailable")
     require("clearSession" in combined and "switchAccount" in combined, "account/session clearing boundary is required")
     require("sessionEpoch" in combined, "session invalidation epoch is required")
 
     require("/api/accounts/prelogin" in combined, "compatible prelogin endpoint boundary is required")
     require("kdfIterations" in combined and "kdfMemory" in combined and "kdfParallelism" in combined,
             "prelogin KDF metadata must be modeled explicitly")
+    require("PBKDF2_MIN_ITERATIONS = 5000" in combined, "Bitwarden PBKDF2 minimum must be enforced")
+    require("hash: 'SHA-256'" in combined, "PBKDF2-SHA256 authentication KDF is required")
+    require("SERVER_AUTHORIZATION_PURPOSE = 1" in combined, "server authorization hash purpose must remain explicit")
+    require("Argon2id authentication remains unavailable" in combined,
+            "Argon2id must stay fail-closed until a reviewed local implementation exists")
+    require("masterKey.fill(0)" in combined, "temporary PBKDF2 master key material must be cleared after hash derivation")
     require("TwoFactorProviders" in combined and "Two factor required." in combined,
             "compatible two-factor challenge shape must be modeled explicitly")
     require("PASSWORD_SCOPE = 'api offline_access'" in combined, "password grant scope must match the compatible server")
@@ -109,6 +119,8 @@ def validate_javascript() -> None:
     require("persistentTokenStorageEnabled: false" in combined, "persistent token storage must remain disabled")
     require("refreshRotationRequired: true" in combined, "refresh-token rotation requirement must remain explicit")
     require("replayRejectionRequired: true" in combined, "refresh-token replay rejection requirement must remain explicit")
+    require("/api/config" in combined, "server configuration verification endpoint is required")
+    require("/api/sync" in combined, "compatible sync endpoint boundary is required")
     require("credentials: 'same-origin'" in combined, "API requests must not broaden credential scope")
     require("cache: 'no-store'" in combined, "API requests must not use general browser caching")
     require("redirect: 'error'" in combined, "API requests must reject redirects")
@@ -150,14 +162,30 @@ def validate_test_harness() -> None:
         read("tests/api-client.test.js"),
         read("tests/auth-protocol.test.js"),
         read("tests/auth-state.test.js"),
+        read("tests/auth-kdf.test.js"),
+        read("tests/prelogin-ui.test.js"),
+        read("tests/server-config.test.js"),
+        read("tests/sync-boundary.test.js"),
     ])
     for token in [
         "same-origin credential scope",
         "stale failures cannot overwrite",
         "secret-bearing grants and token lifecycle stay fail-closed",
         "two-factor challenges",
+        "PBKDF2 master-key derivation matches the Bitwarden SDK vector",
+        "Argon2id remains fail-closed",
+        "cross-account",
     ]:
-        require(token in tests, f"missing protocol regression coverage: {token}")
+        require(token in tests, f"missing protocol/security regression coverage: {token}")
+
+
+def validate_release_builder() -> None:
+    builder = read("scripts/build_release.py")
+    builder_tests = read("tests/test_build_release.py")
+    require("RELEASE_FILES" in builder, "release builder must use an explicit file allowlist")
+    require("sha256" in builder and "sourceRevision" in builder, "release manifest identity is required")
+    require('"runtimeDependencies": []' in builder, "runtime dependency inventory must remain explicit")
+    require("deterministic" in builder_tests.lower(), "deterministic release behavior must be tested")
 
 
 def validate_security_docs() -> None:
@@ -170,8 +198,9 @@ def validate_security_docs() -> None:
     require("plaintext vault" in security, "plaintext storage prohibition must be documented")
     require("account/session state explicitly scoped" in security, "account-scoped session requirement must be documented")
     require("Clear decrypted state and key material" in security, "sensitive-state clearing requirement must be documented")
-    require("Prelogin" in security and "KDF metadata" in security, "prelogin-only protocol scope must be documented")
+    require("Prelogin" in security and "KDF metadata" in security, "prelogin protocol scope must be documented")
     require("password entry remains disabled" in security, "password-processing prohibition must remain explicit")
+    require("opaque sync" in security.lower(), "opaque sync limitation must remain documented")
 
 
 def validate_svg() -> None:
@@ -181,40 +210,52 @@ def validate_svg() -> None:
 
 
 def main() -> int:
+    required_files = [
+        "README.md",
+        "package.json",
+        "index.html",
+        "assets/glaze.css",
+        "assets/theme-init.js",
+        "assets/app.js",
+        "assets/runtime-config.js",
+        "assets/session-state.js",
+        "assets/crypto-boundary.js",
+        "assets/api-errors.js",
+        "assets/api-client.js",
+        "assets/auth-protocol.js",
+        "assets/auth-state.js",
+        "assets/auth-request.js",
+        "assets/auth-kdf.js",
+        "assets/server-config.js",
+        "assets/sync-protocol.js",
+        "assets/vault-state.js",
+        "assets/goreevault-mark.svg",
+        "docs/SECURITY-BOUNDARY.md",
+        "scripts/build_release.py",
+        "tests/test_build_release.py",
+        "tests/api-client.test.js",
+        "tests/auth-protocol.test.js",
+        "tests/auth-state.test.js",
+        "tests/auth-kdf.test.js",
+        "tests/prelogin-ui.test.js",
+        "tests/server-config.test.js",
+        "tests/sync-boundary.test.js",
+    ]
     try:
-        for path in [
-            "README.md",
-            "package.json",
-            "index.html",
-            "assets/glaze.css",
-            "assets/theme-init.js",
-            "assets/app.js",
-            "assets/runtime-config.js",
-            "assets/session-state.js",
-            "assets/crypto-boundary.js",
-            "assets/api-errors.js",
-            "assets/api-client.js",
-            "assets/auth-protocol.js",
-            "assets/auth-state.js",
-            "assets/auth-request.js",
-            "assets/goreevault-mark.svg",
-            "docs/SECURITY-BOUNDARY.md",
-            "tests/api-client.test.js",
-            "tests/auth-protocol.test.js",
-            "tests/auth-state.test.js",
-        ]:
-            require((ROOT / path).is_file(), f"missing required web shell file: {path}")
+        for path in required_files:
+            require((ROOT / path).is_file(), f"missing required GoreeVault Web file: {path}")
         validate_html()
         validate_css()
         validate_javascript()
         validate_test_harness()
+        validate_release_builder()
         validate_security_docs()
         validate_svg()
     except (OSError, UnicodeError, ValueError) as exc:
-        print(f"GoreeVault Web shell validation failed: {exc}", file=sys.stderr)
+        print(f"GoreeVault Web validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault Web Glaze UI shell, client safety, and authentication protocol-boundary validation passed.")
+    print("GoreeVault Web Glaze UI, protocol, KDF, release, privacy, and client-safety validation passed.")
     return 0
 
 
