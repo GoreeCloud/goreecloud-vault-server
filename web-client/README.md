@@ -44,9 +44,28 @@ The third slice establishes the protocol-facing authentication foundation while 
 - normalized API errors that expose status/category information without logging request bodies, tokens, passwords, or server responses to the console;
 - the existing compatible `/api/accounts/prelogin` endpoint for account-identifier preflight only;
 - explicit validation of `kdf`, `kdfIterations`, `kdfMemory`, and `kdfParallelism` metadata returned by GoreeVault Server;
+- compatible non-secret password-grant envelope modeling with `client_id=web`, `scope=api offline_access`, and explicit browser-device metadata;
+- compatible two-factor challenge modeling without accepting or transmitting a two-factor secret;
 - account-scoped authentication phases and request epochs that reject stale prelogin responses after account changes;
 - an explicit token lifecycle contract requiring refresh-token rotation and replay rejection while persistent token storage remains disabled;
 - token acceptance, refresh exchange, revocation, password processing, KDF execution, sign-in submission, and vault unlock remain intentionally unavailable.
+
+The fourth slice adds a functional Glaze UI prelogin-only experience and server capability verification:
+
+- an email-only account-preparation form with accessible progress and result announcements;
+- no password field and no secret-bearing authentication submission;
+- `/api/config` verification requiring GoreeVault server identity and the approved production origin before prelogin proceeds;
+- explicit display of the verified server version and KDF family after successful account preparation;
+- automated source tests that fail if a password input or secret-bearing sign-in path appears while credential processing remains disabled.
+
+The fifth slice establishes sync and release-engineering boundaries without enabling private-data use:
+
+- structural validation of the compatible `/api/sync` envelope containing profile, folders, collections, policies, ciphers, domains, sends, and user-decryption metadata;
+- opaque sync data held only in account-scoped memory;
+- stale-epoch and cross-account sync rejection;
+- authenticated sync transport, persistent encrypted cache, and decryption remain disabled;
+- a zero-dependency Node test harness for transport, authentication, account isolation, prelogin UI, server-config, and sync boundaries;
+- a deterministic static release builder with an explicit production-file allowlist, SHA-256 file identities, source-revision binding, and an explicit empty runtime-dependency inventory.
 
 These slices **do not** implement vault decryption, key derivation, real sign-in, token persistence, authenticated sync, WebAuthn, attachments, organizations, TOTP, import/export, or persistent credential storage. Those features must be added only against the GoreeVault Web contract and compatible server protocol.
 
@@ -54,7 +73,7 @@ These slices **do not** implement vault decryption, key derivation, real sign-in
 
 The shell must not store or process real credentials yet. UI development must never introduce placeholder cryptography, fake encryption, plaintext vault persistence, or console logging of secrets simply to make screens appear functional.
 
-Appearance is the only current browser-local preference. Account/session/authentication state remains in memory, and no reusable credentials or decrypted vault material are written to general browser storage. Prelogin handles only the normalized account identifier and server-provided KDF metadata; password entry and all secret-bearing authentication operations remain disabled.
+Appearance is the only current browser-local preference. Account/session/authentication and opaque sync state remain in memory, and no reusable credentials or decrypted vault material are written to general browser storage. Prelogin handles only the normalized account identifier and server-provided KDF metadata; password entry and all secret-bearing authentication operations remain disabled.
 
 See `docs/SECURITY-BOUNDARY.md`.
 
@@ -64,19 +83,13 @@ Run:
 
 ```sh
 python3 web-client/tests/validate_web_shell.py
-node --check web-client/assets/theme-init.js
-node --check web-client/assets/app.js
-node --check web-client/assets/runtime-config.js
-node --check web-client/assets/session-state.js
-node --check web-client/assets/crypto-boundary.js
-node --check web-client/assets/api-errors.js
-node --check web-client/assets/api-client.js
-node --check web-client/assets/auth-protocol.js
-node --check web-client/assets/auth-state.js
+python3 -m unittest web-client/tests/test_build_release.py
+cd web-client && npm test
+python3 scripts/build_release.py --out /tmp/goreevault-web --source-revision local-validation
 ```
 
-The validation gate checks local-only browser dependencies, required privacy/security metadata, Glaze UI/accessibility behavior, canonical runtime configuration, account/session isolation, disabled secret persistence, the unavailable cryptography boundary, bounded API behavior, compatible prelogin metadata handling, stale-response rejection, disabled token persistence, and the explicit pre-alpha safety state.
+The validation gate checks local-only browser dependencies, required privacy/security metadata, Glaze UI/accessibility behavior, canonical runtime configuration, account/session isolation, disabled secret persistence, the unavailable cryptography boundary, bounded API behavior, compatible prelogin metadata handling, stale-response rejection, disabled token persistence, server identity/config negotiation, opaque sync isolation, and deterministic release layout.
 
 ## Stable boundary
 
-Creating these foundations does not close the GoreeVault product-wide Glaze UI blocker. Stable still requires the complete supported browser workflow matrix, client-side zero-knowledge implementation, real accessibility acceptance, immutable browser build identity, migration/rollback proof, real-client testing, WebAuthn/passkey evidence, target-environment rehearsal, governance, and final exact-RC evidence.
+Creating these foundations does not close the GoreeVault product-wide Glaze UI blocker. Stable still requires the standalone GoreeVault Web repository, complete supported browser workflow matrix, client-side zero-knowledge implementation, real accessibility acceptance, immutable browser build identity and dependency inventory, migration/rollback proof, real-client testing, WebAuthn/passkey evidence, target-environment rehearsal, governance, and final exact-RC evidence.
