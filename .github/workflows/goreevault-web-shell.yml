@@ -58,6 +58,9 @@ jobs:
           node --check web-client/assets/sync-protocol.js
           node --check web-client/assets/vault-state.js
           node --check web-client/assets/sync-client.js
+          node --check web-client/assets/master-key-crypto.js
+          node --check web-client/assets/aes-cbc-hmac.js
+          node --check web-client/assets/enc-string.js
           node --check web-client/tests/api-client.test.js
           node --check web-client/tests/auth-protocol.test.js
           node --check web-client/tests/auth-state.test.js
@@ -69,8 +72,11 @@ jobs:
           node --check web-client/tests/server-config.test.js
           node --check web-client/tests/sync-boundary.test.js
           node --check web-client/tests/sync-client.test.js
+          node --check web-client/tests/master-key-crypto.test.js
+          node --check web-client/tests/aes-cbc-hmac.test.js
+          node --check web-client/tests/enc-string.test.js
 
-      - name: Run protocol, KDF, identity, token, authenticated-transport, and client-boundary unit tests
+      - name: Run protocol, KDF, identity, token, crypto, authenticated-transport, and client-boundary unit tests
         working-directory: web-client
         run: npm test
 
