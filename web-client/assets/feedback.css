@@ -17,6 +17,19 @@
   font-size: clamp(2rem, 4vw, 3.55rem);
 }
 
+.account-button[aria-disabled="true"],
+.locked-action[aria-disabled="true"],
+.locked-search[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.account-button[aria-disabled="true"]:hover,
+.locked-search[aria-disabled="true"]:hover,
+.locked-search[aria-disabled="true"]:focus-visible {
+  border-color: var(--border);
+  background: rgba(119, 133, 166, 0.08);
+}
+
 .vault-toolbar {
   flex-wrap: wrap;
 }
@@ -25,9 +38,19 @@
   opacity: 0.72;
 }
 
+.locked-search {
+  width: auto;
+  color: var(--muted);
+  text-align: left;
+}
+
+.locked-search-label {
+  flex: 1;
+  min-width: 0;
+}
+
 .locked-action[aria-disabled="true"] {
   opacity: 0.56;
-  cursor: not-allowed;
 }
 
 .vault-tools-status {
