@@ -75,9 +75,7 @@ pub fn derive_argon2id(
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut output = [0_u8; OUTPUT_BYTES];
 
-    argon2
-        .hash_password_into(secret, salt_sha256, &mut output)
-        .map_err(|_| ProviderError::DerivationFailed)?;
+    argon2.hash_password_into(secret, salt_sha256, &mut output).map_err(|_| ProviderError::DerivationFailed)?;
 
     clear_argon2_stack_residue();
     Ok(output)
