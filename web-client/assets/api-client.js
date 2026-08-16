@@ -42,13 +42,15 @@ export async function requestApi(path, {
   headers = {},
   signal = undefined,
   timeoutMs = DEFAULT_TIMEOUT_MS,
-  locationOrigin = window.location.origin,
+  locationOrigin = globalThis.location?.origin,
+  fetchImpl = globalThis.fetch,
 } = {}) {
   const normalizedMethod = String(method).toUpperCase();
   if (!ALLOWED_METHODS.has(normalizedMethod)) throw new TypeError('Unsupported API method.');
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1000 || timeoutMs > 60000) {
     throw new RangeError('API timeout must be between 1000 and 60000 milliseconds.');
   }
+  if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required.');
 
   const url = buildApiUrl(path, locationOrigin);
   const abort = combineAbortSignals(signal, timeoutMs);
@@ -62,7 +64,7 @@ export async function requestApi(path, {
   }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchImpl(url, {
       method: normalizedMethod,
       headers: requestHeaders,
       body: requestBody,
