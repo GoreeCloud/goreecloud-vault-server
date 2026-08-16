@@ -62,6 +62,7 @@ jobs:
           node --check web-client/assets/aes-cbc-hmac.js
           node --check web-client/assets/enc-string.js
           node --check web-client/assets/account-crypto.js
+          node --check web-client/assets/unlock-coordinator.js
           node --check web-client/tests/api-client.test.js
           node --check web-client/tests/auth-protocol.test.js
           node --check web-client/tests/auth-state.test.js
@@ -77,6 +78,7 @@ jobs:
           node --check web-client/tests/aes-cbc-hmac.test.js
           node --check web-client/tests/enc-string.test.js
           node --check web-client/tests/account-crypto.test.js
+          node --check web-client/tests/unlock-coordinator.test.js
 
       - name: Run protocol, KDF, identity, token, crypto, authenticated-transport, and client-boundary unit tests
         working-directory: web-client
