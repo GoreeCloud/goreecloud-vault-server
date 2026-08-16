@@ -49,17 +49,19 @@ jobs:
           node --check web-client/assets/auth-protocol.js
           node --check web-client/assets/auth-state.js
           node --check web-client/assets/auth-request.js
+          node --check web-client/assets/auth-kdf.js
           node --check web-client/assets/server-config.js
           node --check web-client/assets/sync-protocol.js
           node --check web-client/assets/vault-state.js
           node --check web-client/tests/api-client.test.js
           node --check web-client/tests/auth-protocol.test.js
           node --check web-client/tests/auth-state.test.js
+          node --check web-client/tests/auth-kdf.test.js
           node --check web-client/tests/prelogin-ui.test.js
           node --check web-client/tests/server-config.test.js
           node --check web-client/tests/sync-boundary.test.js
 
-      - name: Run protocol and client-boundary unit tests
+      - name: Run protocol, KDF, and client-boundary unit tests
         working-directory: web-client
         run: npm test
 
