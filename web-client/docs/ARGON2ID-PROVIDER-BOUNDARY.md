@@ -39,9 +39,10 @@ A future real provider must not be treated as production-ready merely because it
 
 ## Non-goals
 
+This boundary does not implement the Argon2id algorithm. It only defines the controlled interface through which a separately reviewed implementation may later be admitted.
+
 This boundary does not:
 
-- implement the Argon2id algorithm;
 - enable master-password input;
 - transmit a password grant;
 - accept production tokens;
