@@ -82,6 +82,7 @@ def validate_javascript() -> None:
         "assets/api-client.js",
         "assets/auth-protocol.js",
         "assets/auth-state.js",
+        "assets/auth-request.js",
     ]
     combined = "\n".join(read(path) for path in files)
     require("goreevault-web-appearance" in combined, "appearance preference key is required")
@@ -97,6 +98,14 @@ def validate_javascript() -> None:
     require("/api/accounts/prelogin" in combined, "compatible prelogin endpoint boundary is required")
     require("kdfIterations" in combined and "kdfMemory" in combined and "kdfParallelism" in combined,
             "prelogin KDF metadata must be modeled explicitly")
+    require("TwoFactorProviders" in combined and "Two factor required." in combined,
+            "compatible two-factor challenge shape must be modeled explicitly")
+    require("PASSWORD_SCOPE = 'api offline_access'" in combined, "password grant scope must match the compatible server")
+    require("WEB_CLIENT_ID = 'web'" in combined, "browser client identity must remain explicit")
+    require("UNKNOWN_BROWSER_DEVICE_TYPE = 14" in combined, "default browser device type must remain explicit")
+    require("buildPasswordGrantEnvelope" in combined, "non-secret password grant envelope is required")
+    require("Secret-bearing password grants are disabled" in combined,
+            "secret-bearing password grants must remain fail-closed")
     require("persistentTokenStorageEnabled: false" in combined, "persistent token storage must remain disabled")
     require("refreshRotationRequired: true" in combined, "refresh-token rotation requirement must remain explicit")
     require("replayRejectionRequired: true" in combined, "refresh-token replay rejection requirement must remain explicit")
@@ -131,6 +140,26 @@ def validate_javascript() -> None:
     require(not found, f"forbidden browser telemetry/debug/secret persistence surface found: {found}")
 
 
+def validate_test_harness() -> None:
+    package = read("package.json")
+    require('"private": true' in package, "incubation package must remain private")
+    require('"type": "module"' in package, "ES module test boundary is required")
+    require('node --test tests/*.test.js' in package, "Node unit-test command is required")
+
+    tests = "\n".join([
+        read("tests/api-client.test.js"),
+        read("tests/auth-protocol.test.js"),
+        read("tests/auth-state.test.js"),
+    ])
+    for token in [
+        "same-origin credential scope",
+        "stale failures cannot overwrite",
+        "secret-bearing grants and token lifecycle stay fail-closed",
+        "two-factor challenges",
+    ]:
+        require(token in tests, f"missing protocol regression coverage: {token}")
+
+
 def validate_security_docs() -> None:
     readme = read("README.md")
     security = read("docs/SECURITY-BOUNDARY.md")
@@ -155,6 +184,7 @@ def main() -> int:
     try:
         for path in [
             "README.md",
+            "package.json",
             "index.html",
             "assets/glaze.css",
             "assets/theme-init.js",
@@ -166,13 +196,18 @@ def main() -> int:
             "assets/api-client.js",
             "assets/auth-protocol.js",
             "assets/auth-state.js",
+            "assets/auth-request.js",
             "assets/goreevault-mark.svg",
             "docs/SECURITY-BOUNDARY.md",
+            "tests/api-client.test.js",
+            "tests/auth-protocol.test.js",
+            "tests/auth-state.test.js",
         ]:
             require((ROOT / path).is_file(), f"missing required web shell file: {path}")
         validate_html()
         validate_css()
         validate_javascript()
+        validate_test_harness()
         validate_security_docs()
         validate_svg()
     except (OSError, UnicodeError, ValueError) as exc:
