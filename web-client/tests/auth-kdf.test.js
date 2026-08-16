@@ -5,6 +5,7 @@ import {
   assertSupportedKdf,
   deriveMasterKeyPbkdf2,
   derivePasswordAuthenticationMaterial,
+  derivePbkdf2KeyMaterial,
   deriveServerAuthorizationHash,
 } from '../assets/auth-kdf.js';
 
@@ -14,7 +15,7 @@ const authoritativeMasterKeyVector = new Uint8Array([
 ]);
 
 test('PBKDF2 master-key derivation matches the Bitwarden SDK vector', async () => {
-  const actual = await deriveMasterKeyPbkdf2('67t9b5g67$%Dh89n', 'test_key', 10000);
+  const actual = await derivePbkdf2KeyMaterial('67t9b5g67$%Dh89n', 'test_key', 10000);
   assert.deepEqual(actual, authoritativeMasterKeyVector);
 });
 
@@ -25,6 +26,13 @@ test('account identifier normalization matches the Bitwarden SDK password-hash v
     masterKey.fill(0);
     assert.equal(passwordHash, 'wmyadRMyBZOH7P/a/ucTCbSghKgdzDpPqUnu/DAVtSw=');
   }
+});
+
+test('production account derivation rejects non-email identifiers', async () => {
+  await assert.rejects(
+    () => deriveMasterKeyPbkdf2('asdfasdf', 'test_key', 100000),
+    /valid account email identifier/,
+  );
 });
 
 test('authentication material returns only the server authorization hash', async () => {
