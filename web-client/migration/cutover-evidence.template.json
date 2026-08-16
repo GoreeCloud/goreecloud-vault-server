@@ -1,0 +1,36 @@
+{
+  "candidate": {
+    "artifactSha256": "TBD",
+    "releaseManifestSha256": "TBD",
+    "sbomSha256": "TBD",
+    "sourceRevision": "TBD"
+  },
+  "evidence": {
+    "accessibility": "TBD",
+    "compatibility": "TBD",
+    "rollback": "TBD",
+    "security": "TBD"
+  },
+  "operator": {
+    "name": "TBD",
+    "timestamp": "TBD"
+  },
+  "outcome": "pending",
+  "previousClient": {
+    "artifactIdentity": "TBD",
+    "name": "Bundled upstream-compatible web vault",
+    "version": "TBD"
+  },
+  "product": "GoreeVault Web",
+  "rollback": {
+    "procedure": "TBD",
+    "requiresDatabaseDowngrade": false,
+    "requiresPlaintextExport": false
+  },
+  "schema": 1,
+  "server": {
+    "ociManifestDigest": "TBD",
+    "sourceRevision": "TBD"
+  },
+  "status": "template"
+}
