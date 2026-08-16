@@ -84,9 +84,10 @@ The seventh slice establishes the first GoreeVault Web client-SDK facade while p
 - server identity/config verification must complete before the SDK permits the prelogin request for an account;
 - SDK snapshots expose only non-secret authentication/session/token/vault metadata and never expose access-token or refresh-token values;
 - sync delegation is rejected unless the selected account already has matching authenticated-session and vault scopes;
+- the email-only Glaze UI account-preparation flow now consumes the SDK facade instead of directly importing server-config and prelogin protocol operations;
 - the SDK does not expose password entry, password-grant transmission, token exchange, decrypted vault presentation, or persistent credential storage;
 - the SDK is included in the deterministic production-file allowlist and SPDX release evidence;
-- zero-dependency tests cover ordering, account normalization, fail-closed server verification, scope enforcement, sync delegation, and complete in-memory reset.
+- zero-dependency tests cover ordering, account normalization, fail-closed server verification, scope enforcement, sync delegation, UI integration, and complete in-memory reset.
 
 These slices **do not** implement production credential processing, Argon2id account authentication, real password sign-in, production token exchange, end-to-end vault decryption, cipher CRUD, persistent encrypted cache, WebAuthn, attachments, organizations, TOTP, import/export, or persistent credential storage. Those features must be added only against the GoreeVault Web contract and compatible server protocol.
 
@@ -109,7 +110,7 @@ cd web-client && npm test
 python3 scripts/build_release.py --out /tmp/goreevault-web --source-revision local-validation --source-date-epoch 0
 ```
 
-The validation gate checks local-only browser dependencies, required privacy/security metadata, Glaze UI/accessibility behavior, canonical runtime configuration, account/session isolation, disabled secret persistence, the fail-closed cryptography boundary, bounded API behavior, compatible prelogin metadata handling, stale-response rejection, disabled production token exchange, server identity/config negotiation, client-SDK scope enforcement, opaque sync isolation, deterministic release layout, source-bound manifest integrity, and SPDX SBOM integrity.
+The validation gate checks local-only browser dependencies, required privacy/security metadata, Glaze UI/accessibility behavior, canonical runtime configuration, account/session isolation, disabled secret persistence, the fail-closed cryptography boundary, bounded API behavior, compatible prelogin metadata handling, stale-response rejection, disabled production token exchange, server identity/config negotiation, client-SDK scope enforcement and UI integration, opaque sync isolation, deterministic release layout, source-bound manifest integrity, and SPDX SBOM integrity.
 
 ## Stable boundary
 

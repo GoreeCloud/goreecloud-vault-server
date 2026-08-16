@@ -1,19 +1,14 @@
 import { runtimeConfig, resolveServerOrigin } from './runtime-config.js';
 import { getSessionSnapshot, subscribeSession } from './session-state.js';
 import { cryptoBoundary } from './crypto-boundary.js';
-import { requestPreloginMetadata, normalizeAccountIdentifier } from './auth-protocol.js';
-import { requestServerConfig } from './server-config.js';
-import {
-  acceptPrelogin,
-  beginPrelogin,
-  rejectAuthentication,
-  subscribeAuth,
-} from './auth-state.js';
+import { createGoreeVaultClient } from './client-sdk.js';
+import { subscribeAuth } from './auth-state.js';
 
 const APPEARANCE_KEY = 'goreevault-web-appearance';
 const MODES = ['system', 'light', 'dark'];
 const PREALPHA_DISABLED_ROUTES = new Set(['favorites', 'organizations', 'send']);
 const TOAST_DURATION_MS = 5000;
+const client = createGoreeVaultClient();
 let verifiedServerConfig = null;
 let toastTimer = null;
 
@@ -205,24 +200,23 @@ function bindPrelogin() {
 
     let email;
     try {
-      email = normalizeAccountIdentifier(input.value);
+      email = client.normalizeAccountIdentifier(input.value);
     } catch (_) {
       input.setCustomValidity('Enter a valid GoreeVault account email address.');
       input.reportValidity();
       return;
     }
 
-    const pending = beginPrelogin({ accountId: email, emailHint: email });
     submit.disabled = true;
     input.setAttribute('aria-busy', 'true');
     verifiedServerConfig = null;
 
     try {
-      verifiedServerConfig = await requestServerConfig();
-      const metadata = await requestPreloginMetadata(email);
-      acceptPrelogin(metadata, pending.requestEpoch);
-    } catch (error) {
-      rejectAuthentication(error?.code ?? 'request_failed', pending.requestEpoch);
+      const prepared = await client.prepareAccount(email);
+      verifiedServerConfig = prepared.server;
+      renderAuthState(client.getSnapshot().authentication);
+    } catch (_) {
+      verifiedServerConfig = null;
     } finally {
       submit.disabled = false;
       input.removeAttribute('aria-busy');
@@ -233,6 +227,9 @@ function bindPrelogin() {
 function assertPreAlphaSafety() {
   if (runtimeConfig.telemetryEnabled || runtimeConfig.credentialProcessingEnabled) {
     throw new Error('Pre-alpha runtime safety flags must remain disabled.');
+  }
+  if (client.boundary.passwordInputEnabled || client.boundary.tokenExchangeEnabled || client.boundary.persistentCredentialStorageEnabled) {
+    throw new Error('Pre-alpha client SDK credential boundaries must remain disabled.');
   }
   if (cryptoBoundary.implementation !== 'unavailable-pre-alpha') {
     throw new Error('Unexpected cryptography implementation state.');

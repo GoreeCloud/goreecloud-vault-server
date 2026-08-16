@@ -18,12 +18,17 @@ test('Glaze sign-in preparation exposes email-only prelogin controls', async () 
   assert.doesNotMatch(html, /name="password"/i);
 });
 
-test('prelogin UI wiring stops after KDF metadata and keeps credential processing disabled', async () => {
+test('prelogin UI uses the GoreeVault client SDK and keeps credential processing disabled', async () => {
   const app = await source('assets/app.js');
   const config = await source('assets/runtime-config.js');
-  assert.match(app, /requestPreloginMetadata/);
-  assert.match(app, /acceptPrelogin/);
+  assert.match(app, /createGoreeVaultClient/);
+  assert.match(app, /client\.prepareAccount\(email\)/);
+  assert.match(app, /client\.normalizeAccountIdentifier\(input\.value\)/);
   assert.match(app, /Password entry and cryptographic unlock remain disabled/);
+  assert.doesNotMatch(app, /requestPreloginMetadata/);
+  assert.doesNotMatch(app, /requestServerConfig/);
+  assert.doesNotMatch(app, /acceptPrelogin/);
+  assert.doesNotMatch(app, /beginPrelogin/);
   assert.doesNotMatch(app, /buildSecretBearingPasswordGrant/);
   assert.match(config, /credentialProcessingEnabled: false/);
 });
