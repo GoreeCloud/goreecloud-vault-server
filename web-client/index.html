@@ -33,7 +33,7 @@
         <button class="icon-button" id="appearance-toggle" type="button" aria-label="Appearance: System" title="Change appearance">
           <span aria-hidden="true">◐</span>
         </button>
-        <button class="account-button" type="button" disabled aria-describedby="prealpha-status">
+        <button class="account-button" type="button" aria-disabled="true" data-prealpha-action="Account menu" aria-describedby="prealpha-status">
           <span class="avatar" aria-hidden="true">G</span>
           <span>Not signed in</span>
         </button>
@@ -88,12 +88,10 @@
       </section>
 
       <section class="toolbar vault-toolbar" aria-label="Vault tools" aria-describedby="vault-tools-status">
-        <label class="search-field locked-tool">
-          <span class="sr-only">Search vault unavailable while the vault is locked</span>
+        <button class="search-field locked-tool locked-search" type="button" aria-disabled="true" data-prealpha-action="Search vault" aria-describedby="vault-tools-status">
           <span aria-hidden="true">⌕</span>
-          <input type="search" placeholder="Search vault" disabled>
-          <kbd aria-hidden="true">/</kbd>
-        </label>
+          <span class="locked-search-label">Search vault</span>
+        </button>
         <button class="primary-button locked-action" type="button" aria-disabled="true" data-prealpha-action="New item">+ New item</button>
         <span class="vault-tools-status" id="vault-tools-status">Search and item creation become available after an approved vault unlock.</span>
       </section>
