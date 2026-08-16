@@ -1,0 +1,129 @@
+.nav-item[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.78;
+}
+
+.nav-item[aria-disabled="true"]:hover,
+.nav-item[aria-disabled="true"]:focus-visible {
+  background: rgba(119, 133, 166, 0.08);
+  color: var(--text);
+}
+
+.app-toast {
+  position: fixed;
+  z-index: 120;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 14px 14px 14px 16px;
+  border-radius: 18px;
+  color: var(--text);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow);
+}
+
+.app-toast[hidden] {
+  display: none;
+}
+
+.app-toast-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--primary);
+  background: linear-gradient(145deg, rgba(104, 123, 255, 0.14), rgba(94, 206, 208, 0.08));
+  font-weight: 800;
+}
+
+.app-toast-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-toast-copy strong,
+.app-toast-copy span {
+  display: block;
+}
+
+.app-toast-copy strong {
+  margin-bottom: 3px;
+  font-size: 0.94rem;
+}
+
+.app-toast-copy span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.app-toast-dismiss {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-toast-dismiss:hover {
+  color: var(--text);
+  background: rgba(119, 133, 166, 0.10);
+}
+
+.readiness-summary {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 580px) {
+  .app-toast {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-toast:not([hidden]) {
+    animation: goreevault-toast-in 160ms ease-out;
+  }
+}
+
+@keyframes goreevault-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-toast,
+  .app-toast-icon,
+  .app-toast-dismiss {
+    border-width: 2px;
+  }
+}
+
+@media (forced-colors: active) {
+  .app-toast,
+  .app-toast-icon,
+  .app-toast-dismiss {
+    forced-color-adjust: auto;
+  }
+}
