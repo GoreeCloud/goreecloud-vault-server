@@ -50,6 +50,26 @@ test('unfinished vault navigation stays on vault and uses in-app Glaze feedback'
   assert.match(feedback, /\.app-toast/);
 });
 
+test('locked vault tools explain why privileged actions are unavailable', async () => {
+  const html = await source('index.html');
+  const app = await source('assets/app.js');
+
+  assert.match(html, /data-prealpha-action="New item"/);
+  assert.match(html, /Search and item creation become available after an approved vault unlock/);
+  assert.match(app, /announceLockedAction/);
+  assert.match(app, /requires an unlocked vault/);
+});
+
+test('development readiness is available without dominating the vault workspace', async () => {
+  const html = await source('index.html');
+  const feedback = await source('assets/feedback.css');
+
+  assert.match(html, /<details class="readiness-panel glaze-surface readiness-details" id="readiness">/);
+  assert.match(html, /5 foundations ready/);
+  assert.match(feedback, /\.readiness-details/);
+  assert.match(feedback, /\.content-grid-vault/);
+});
+
 test('readiness copy distinguishes proven foundations from production approval', async () => {
   const html = await source('index.html');
   assert.match(html, /PBKDF2, token-state, and authenticated-sync foundations/);
