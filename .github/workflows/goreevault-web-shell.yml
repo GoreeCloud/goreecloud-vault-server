@@ -37,6 +37,7 @@ jobs:
       - name: Validate source syntax
         run: |
           python3 -m py_compile web-client/tests/validate_web_shell.py
+          python3 -m py_compile web-client/tests/validate_auth_runtime.py
           python3 -m py_compile web-client/scripts/build_release.py
           python3 -m py_compile web-client/tests/test_build_release.py
           node --check web-client/assets/theme-init.js
@@ -56,6 +57,7 @@ jobs:
           node --check web-client/assets/server-config.js
           node --check web-client/assets/sync-protocol.js
           node --check web-client/assets/vault-state.js
+          node --check web-client/assets/sync-client.js
           node --check web-client/tests/api-client.test.js
           node --check web-client/tests/auth-protocol.test.js
           node --check web-client/tests/auth-state.test.js
@@ -66,10 +68,14 @@ jobs:
           node --check web-client/tests/prelogin-ui.test.js
           node --check web-client/tests/server-config.test.js
           node --check web-client/tests/sync-boundary.test.js
+          node --check web-client/tests/sync-client.test.js
 
       - name: Run protocol, KDF, identity, token, authenticated-transport, and client-boundary unit tests
         working-directory: web-client
         run: npm test
+
+      - name: Validate authentication/runtime fail-closed boundaries
+        run: python3 web-client/tests/validate_auth_runtime.py
 
       - name: Validate deterministic release builder
         run: |
