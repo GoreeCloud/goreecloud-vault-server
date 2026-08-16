@@ -1,0 +1,12 @@
+{
+  "name": "@goreecloud/goreevault-web-incubation",
+  "private": true,
+  "version": "0.0.0-prealpha",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
