@@ -96,7 +96,7 @@ def main() -> int:
         for required in [
             "Bitwarden SDK vector",
             "Argon2id remains fail-closed",
-            "no PBKDF2 fallback",
+            "without PBKDF2 fallback",
             "network token exchange stays fail-closed",
             "non-rotating refresh token invalidates the session",
             "401 invalidates the memory-only token session",
