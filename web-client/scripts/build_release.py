@@ -22,6 +22,7 @@ RELEASE_FILES = (
     "assets/api-client.js",
     "assets/api-errors.js",
     "assets/app.js",
+    "assets/argon2id-provider.js",
     "assets/auth-kdf.js",
     "assets/auth-protocol.js",
     "assets/auth-request.js",

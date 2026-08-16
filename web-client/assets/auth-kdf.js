@@ -1,4 +1,5 @@
 import { normalizeAccountIdentifier } from './auth-protocol.js';
+import { normalizeArgon2idMetadata, requireArgon2idProvider } from './argon2id-provider.js';
 
 const PBKDF2 = 0;
 const ARGON2ID = 1;
@@ -51,14 +52,18 @@ export function bytesToBase64(bytes) {
   return btoa(binary);
 }
 
-export function assertSupportedKdf(metadata) {
+export function assertSupportedKdf(metadata, { argon2idProvider } = {}) {
   if (!metadata || typeof metadata !== 'object') throw new TypeError('KDF metadata is required.');
   if (metadata.kdf === PBKDF2) {
     requirePbkdf2Iterations(metadata.kdfIterations);
     return Object.freeze({ type: 'pbkdf2', iterations: metadata.kdfIterations });
   }
   if (metadata.kdf === ARGON2ID) {
-    throw new Error('Argon2id authentication remains unavailable until a reviewed local implementation passes Bitwarden interoperability vectors.');
+    const params = normalizeArgon2idMetadata(metadata);
+    return Object.freeze({
+      ...params,
+      provider: requireArgon2idProvider(argon2idProvider),
+    });
   }
   throw new Error('Unsupported GoreeVault KDF type.');
 }
@@ -100,13 +105,23 @@ export async function deriveServerAuthorizationHash(masterKey, password, { subtl
 }
 
 export async function derivePasswordAuthenticationMaterial({ password, accountIdentifier, kdfMetadata } = {}, options = {}) {
-  const supported = assertSupportedKdf(kdfMetadata);
-  if (supported.type !== 'pbkdf2') throw new Error('Unsupported authentication KDF.');
+  const supported = assertSupportedKdf(kdfMetadata, options);
+  let masterKey;
+  let kdf;
 
-  const masterKey = await deriveMasterKeyPbkdf2(password, accountIdentifier, supported.iterations, options);
+  if (supported.type === 'pbkdf2') {
+    masterKey = await deriveMasterKeyPbkdf2(password, accountIdentifier, supported.iterations, options);
+    kdf = 'pbkdf2-sha256';
+  } else if (supported.type === 'argon2id') {
+    masterKey = await supported.provider.deriveMasterKey({ password, accountIdentifier, kdfMetadata });
+    kdf = 'argon2id';
+  } else {
+    throw new Error('Unsupported authentication KDF.');
+  }
+
   try {
     const passwordHash = await deriveServerAuthorizationHash(masterKey, password, options);
-    return Object.freeze({ passwordHash, kdf: 'pbkdf2-sha256' });
+    return Object.freeze({ passwordHash, kdf });
   } finally {
     masterKey.fill(0);
   }
