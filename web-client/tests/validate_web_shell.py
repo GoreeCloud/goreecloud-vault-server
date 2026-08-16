@@ -84,6 +84,7 @@ def validate_javascript() -> None:
         "assets/auth-state.js",
         "assets/auth-request.js",
         "assets/auth-kdf.js",
+        "assets/identity-protocol.js",
         "assets/server-config.js",
         "assets/sync-protocol.js",
         "assets/vault-state.js",
@@ -116,6 +117,11 @@ def validate_javascript() -> None:
     require("buildPasswordGrantEnvelope" in combined, "non-secret password grant envelope is required")
     require("Secret-bearing password grants are disabled" in combined,
             "secret-bearing password grants must remain fail-closed")
+    require("/identity/connect/token" in combined, "compatible identity token endpoint boundary is required")
+    require("application/x-www-form-urlencoded" in combined, "identity token requests must remain form encoded")
+    require("Identity token exchange is disabled" in combined, "identity network exchange must remain fail-closed")
+    require("tokenType !== TOKEN_TYPE" in combined, "identity token type validation is required")
+    require("scope.split" in combined, "identity token scope validation is required")
     require("persistentTokenStorageEnabled: false" in combined, "persistent token storage must remain disabled")
     require("refreshRotationRequired: true" in combined, "refresh-token rotation requirement must remain explicit")
     require("replayRejectionRequired: true" in combined, "refresh-token replay rejection requirement must remain explicit")
@@ -163,6 +169,7 @@ def validate_test_harness() -> None:
         read("tests/auth-protocol.test.js"),
         read("tests/auth-state.test.js"),
         read("tests/auth-kdf.test.js"),
+        read("tests/identity-protocol.test.js"),
         read("tests/prelogin-ui.test.js"),
         read("tests/server-config.test.js"),
         read("tests/sync-boundary.test.js"),
@@ -174,6 +181,8 @@ def validate_test_harness() -> None:
         "two-factor challenges",
         "PBKDF2 master-key derivation matches the Bitwarden SDK vector",
         "Argon2id remains fail-closed",
+        "identity form uses the compatible x-www-form-urlencoded shape",
+        "network token exchange stays fail-closed",
         "cross-account",
     ]:
         require(token in tests, f"missing protocol/security regression coverage: {token}")
@@ -226,6 +235,7 @@ def main() -> int:
         "assets/auth-state.js",
         "assets/auth-request.js",
         "assets/auth-kdf.js",
+        "assets/identity-protocol.js",
         "assets/server-config.js",
         "assets/sync-protocol.js",
         "assets/vault-state.js",
@@ -237,6 +247,7 @@ def main() -> int:
         "tests/auth-protocol.test.js",
         "tests/auth-state.test.js",
         "tests/auth-kdf.test.js",
+        "tests/identity-protocol.test.js",
         "tests/prelogin-ui.test.js",
         "tests/server-config.test.js",
         "tests/sync-boundary.test.js",
@@ -255,7 +266,7 @@ def main() -> int:
         print(f"GoreeVault Web validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault Web Glaze UI, protocol, KDF, release, privacy, and client-safety validation passed.")
+    print("GoreeVault Web Glaze UI, protocol, KDF, identity, release, privacy, and client-safety validation passed.")
     return 0
 
 
