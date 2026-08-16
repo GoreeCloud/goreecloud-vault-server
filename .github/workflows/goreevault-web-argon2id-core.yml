@@ -50,9 +50,24 @@ jobs:
       - name: Run Bitwarden interoperability tests
         run: cargo test --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
 
-      - name: Validate wasm32 buildability without browser integration
+      - name: Test fail-closed WASM identity evidence
+        run: python3 web-client/crypto/argon2id-provider/scripts/test_build_wasm_evidence.py
+
+      - name: Build wasm32 core without browser integration
         run: |
           rustup target add wasm32-unknown-unknown
-          cargo check \
+          cargo build \
             --manifest-path web-client/crypto/argon2id-provider/Cargo.toml \
             --target wasm32-unknown-unknown
+
+      - name: Generate exact build-only WASM identity evidence
+        env:
+          GOREEVAULT_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 web-client/crypto/argon2id-provider/scripts/build_wasm_evidence.py \
+            --wasm web-client/crypto/argon2id-provider/target/wasm32-unknown-unknown/debug/goreevault_web_argon2id_core.wasm \
+            --source-revision "$GOREEVAULT_SOURCE_REVISION" \
+            --output web-client/crypto/argon2id-provider/target/wasm-evidence.json
+          cat web-client/crypto/argon2id-provider/target/wasm-evidence.json
+          grep -F '"runtimeIntegrationApproved": false' web-client/crypto/argon2id-provider/target/wasm-evidence.json
+          grep -F '"credentialProcessingApproved": false' web-client/crypto/argon2id-provider/target/wasm-evidence.json
