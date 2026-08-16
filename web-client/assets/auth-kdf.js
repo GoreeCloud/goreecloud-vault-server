@@ -21,6 +21,11 @@ function requirePassword(password) {
   return password;
 }
 
+function requireSalt(salt) {
+  if (typeof salt !== 'string' || salt.length === 0) throw new TypeError('KDF salt must be a non-empty string.');
+  return salt;
+}
+
 function requirePbkdf2Iterations(iterations) {
   if (!Number.isInteger(iterations) || iterations < PBKDF2_MIN_ITERATIONS) {
     throw new RangeError(`PBKDF2 iterations must be at least ${PBKDF2_MIN_ITERATIONS}.`);
@@ -58,17 +63,24 @@ export function assertSupportedKdf(metadata) {
   throw new Error('Unsupported GoreeVault KDF type.');
 }
 
-export async function deriveMasterKeyPbkdf2(password, accountIdentifier, iterations, { subtle } = {}) {
-  const normalizedPassword = requirePassword(password);
-  const email = normalizeAccountIdentifier(accountIdentifier);
+export async function derivePbkdf2KeyMaterial(secret, salt, iterations, { subtle } = {}) {
+  const normalizedSecret = requirePassword(secret);
+  const normalizedSalt = requireSalt(salt);
   const rounds = requirePbkdf2Iterations(iterations);
-  const cryptoSubtle = requireSubtle(subtle);
-
   return pbkdf2Sha256(
-    encoder.encode(normalizedPassword),
-    encoder.encode(email),
+    encoder.encode(normalizedSecret),
+    encoder.encode(normalizedSalt),
     rounds,
-    cryptoSubtle,
+    requireSubtle(subtle),
+  );
+}
+
+export async function deriveMasterKeyPbkdf2(password, accountIdentifier, iterations, options = {}) {
+  return derivePbkdf2KeyMaterial(
+    requirePassword(password),
+    normalizeAccountIdentifier(accountIdentifier),
+    iterations,
+    options,
   );
 }
 
