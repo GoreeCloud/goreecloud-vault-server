@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = ROOT / "dist"
 RELEASE_FILES = (
     "index.html",
+    "assets/account-crypto.js",
     "assets/aes-cbc-hmac.js",
     "assets/api-client.js",
     "assets/api-errors.js",
