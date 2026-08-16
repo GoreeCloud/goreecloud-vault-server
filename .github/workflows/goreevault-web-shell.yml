@@ -37,6 +37,8 @@ jobs:
       - name: Validate source syntax
         run: |
           python3 -m py_compile web-client/tests/validate_web_shell.py
+          python3 -m py_compile web-client/scripts/build_release.py
+          python3 -m py_compile web-client/tests/test_build_release.py
           node --check web-client/assets/theme-init.js
           node --check web-client/assets/app.js
           node --check web-client/assets/runtime-config.js
@@ -47,13 +49,37 @@ jobs:
           node --check web-client/assets/auth-protocol.js
           node --check web-client/assets/auth-state.js
           node --check web-client/assets/auth-request.js
+          node --check web-client/assets/server-config.js
+          node --check web-client/assets/sync-protocol.js
+          node --check web-client/assets/vault-state.js
           node --check web-client/tests/api-client.test.js
           node --check web-client/tests/auth-protocol.test.js
           node --check web-client/tests/auth-state.test.js
+          node --check web-client/tests/prelogin-ui.test.js
+          node --check web-client/tests/server-config.test.js
+          node --check web-client/tests/sync-boundary.test.js
 
       - name: Run protocol and client-boundary unit tests
         working-directory: web-client
         run: npm test
+
+      - name: Validate deterministic release builder
+        run: |
+          python3 -m unittest web-client/tests/test_build_release.py
+          python3 web-client/scripts/build_release.py \
+            --out "${RUNNER_TEMP}/goreevault-web" \
+            --source-revision "${GITHUB_SHA}"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = json.loads((Path(os.environ['RUNNER_TEMP']) / 'goreevault-web' / 'release-manifest.json').read_text())
+          assert manifest['sourceRevision'] == os.environ['GITHUB_SHA']
+          assert manifest['runtimeDependencies'] == []
+          assert manifest['files']
+          print(f"Validated deterministic manifest for {len(manifest['files'])} browser files.")
+          PY
 
       - name: Validate Glaze UI, accessibility, privacy, and client safety contracts
         run: python3 web-client/tests/validate_web_shell.py
