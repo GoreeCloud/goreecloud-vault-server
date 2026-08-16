@@ -85,9 +85,15 @@ def validate_javascript() -> None:
         "assets/auth-request.js",
         "assets/auth-kdf.js",
         "assets/identity-protocol.js",
+        "assets/token-state.js",
+        "assets/authenticated-api.js",
         "assets/server-config.js",
         "assets/sync-protocol.js",
         "assets/vault-state.js",
+        "assets/sync-client.js",
+        "assets/master-key-crypto.js",
+        "assets/aes-cbc-hmac.js",
+        "assets/enc-string.js",
     ]
     combined = "\n".join(read(path) for path in files)
     require("goreevault-web-appearance" in combined, "appearance preference key is required")
@@ -109,6 +115,12 @@ def validate_javascript() -> None:
     require("Argon2id authentication remains unavailable" in combined,
             "Argon2id must stay fail-closed until a reviewed local implementation exists")
     require("masterKey.fill(0)" in combined, "temporary PBKDF2 master key material must be cleared after hash derivation")
+    require("HKDF-Expand-SHA256" in combined and "'enc'" in combined and "'mac'" in combined,
+            "Bitwarden master-key stretching boundary is required")
+    require("Encrypted value integrity check failed" in combined,
+            "AES-CBC-HMAC must verify integrity before decryption")
+    require("Only Bitwarden type-2 encrypted strings are supported" in combined,
+            "type-2 authenticated EncString boundary is required")
     require("TwoFactorProviders" in combined and "Two factor required." in combined,
             "compatible two-factor challenge shape must be modeled explicitly")
     require("PASSWORD_SCOPE = 'api offline_access'" in combined, "password grant scope must match the compatible server")
@@ -122,11 +134,20 @@ def validate_javascript() -> None:
     require("Identity token exchange is disabled" in combined, "identity network exchange must remain fail-closed")
     require("tokenType !== TOKEN_TYPE" in combined, "identity token type validation is required")
     require("scope.split" in combined, "identity token scope validation is required")
+    require("storage: 'memory-only'" in combined, "authentication tokens must remain memory-only")
+    require("Refresh token did not rotate; session invalidated" in combined,
+            "non-rotating refresh responses must invalidate the session")
+    require("Stale refresh response rejected" in combined and "Refresh-token replay rejected" in combined,
+            "refresh replay/staleness protections are required")
+    require("Authorization" in combined and "No usable access token exists for the selected account" in combined,
+            "account-scoped authenticated API transport is required")
     require("persistentTokenStorageEnabled: false" in combined, "persistent token storage must remain disabled")
     require("refreshRotationRequired: true" in combined, "refresh-token rotation requirement must remain explicit")
     require("replayRejectionRequired: true" in combined, "refresh-token replay rejection requirement must remain explicit")
     require("/api/config" in combined, "server configuration verification endpoint is required")
     require("/api/sync" in combined, "compatible sync endpoint boundary is required")
+    require("Vault scope does not match the selected account" in combined,
+            "authenticated sync must remain account scoped")
     require("credentials: 'same-origin'" in combined, "API requests must not broaden credential scope")
     require("cache: 'no-store'" in combined, "API requests must not use general browser caching")
     require("redirect: 'error'" in combined, "API requests must reject redirects")
@@ -170,9 +191,15 @@ def validate_test_harness() -> None:
         read("tests/auth-state.test.js"),
         read("tests/auth-kdf.test.js"),
         read("tests/identity-protocol.test.js"),
+        read("tests/token-state.test.js"),
+        read("tests/authenticated-api.test.js"),
         read("tests/prelogin-ui.test.js"),
         read("tests/server-config.test.js"),
         read("tests/sync-boundary.test.js"),
+        read("tests/sync-client.test.js"),
+        read("tests/master-key-crypto.test.js"),
+        read("tests/aes-cbc-hmac.test.js"),
+        read("tests/enc-string.test.js"),
     ])
     for token in [
         "same-origin credential scope",
@@ -183,6 +210,12 @@ def validate_test_harness() -> None:
         "Argon2id remains fail-closed",
         "identity form uses the compatible x-www-form-urlencoded shape",
         "network token exchange stays fail-closed",
+        "non-rotating refresh token invalidates the session",
+        "401 invalidates the memory-only token session",
+        "stale in-flight sync response",
+        "master-key stretching matches the Bitwarden SDK HKDF-Expand vector",
+        "AES-256-CBC-HMAC-SHA256 decryption matches the Bitwarden SDK vector",
+        "serialized type-2 EncString decrypts the Bitwarden SDK vector",
         "cross-account",
     ]:
         require(token in tests, f"missing protocol/security regression coverage: {token}")
@@ -236,9 +269,15 @@ def main() -> int:
         "assets/auth-request.js",
         "assets/auth-kdf.js",
         "assets/identity-protocol.js",
+        "assets/token-state.js",
+        "assets/authenticated-api.js",
         "assets/server-config.js",
         "assets/sync-protocol.js",
         "assets/vault-state.js",
+        "assets/sync-client.js",
+        "assets/master-key-crypto.js",
+        "assets/aes-cbc-hmac.js",
+        "assets/enc-string.js",
         "assets/goreevault-mark.svg",
         "docs/SECURITY-BOUNDARY.md",
         "scripts/build_release.py",
@@ -248,9 +287,15 @@ def main() -> int:
         "tests/auth-state.test.js",
         "tests/auth-kdf.test.js",
         "tests/identity-protocol.test.js",
+        "tests/token-state.test.js",
+        "tests/authenticated-api.test.js",
         "tests/prelogin-ui.test.js",
         "tests/server-config.test.js",
         "tests/sync-boundary.test.js",
+        "tests/sync-client.test.js",
+        "tests/master-key-crypto.test.js",
+        "tests/aes-cbc-hmac.test.js",
+        "tests/enc-string.test.js",
     ]
     try:
         for path in required_files:
@@ -266,7 +311,7 @@ def main() -> int:
         print(f"GoreeVault Web validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault Web Glaze UI, protocol, KDF, identity, release, privacy, and client-safety validation passed.")
+    print("GoreeVault Web Glaze UI, protocol, KDF, authenticated transport, crypto primitives, release, privacy, and client-safety validation passed.")
     return 0
 
 
