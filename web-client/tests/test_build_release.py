@@ -46,11 +46,13 @@ class ReleaseBuildTests(unittest.TestCase):
             self.assertNotIn("tests/auth-protocol.test.js", paths)
             self.assertTrue((output / "release-manifest.json").is_file())
 
-    def test_release_contains_security_runtime_modules(self) -> None:
+    def test_release_contains_security_runtime_and_glaze_feedback(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             manifest = MODULE.build(Path(temp_dir), "abc123")
             paths = {entry["path"] for entry in manifest["files"]}
             self.assertTrue(SECURITY_RUNTIME_FILES.issubset(paths))
+            self.assertIn("assets/feedback.css", paths)
+            self.assertIn("assets/glaze.css", paths)
 
     def test_manifest_records_sha256_and_size(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
