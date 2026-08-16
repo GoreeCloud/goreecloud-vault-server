@@ -37,6 +37,7 @@ RELEASE_FILES = (
     "assets/sync-protocol.js",
     "assets/theme-init.js",
     "assets/token-state.js",
+    "assets/unlock-coordinator.js",
     "assets/vault-state.js",
 )
 
