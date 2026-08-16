@@ -13,20 +13,28 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = ROOT / "dist"
 RELEASE_FILES = (
     "index.html",
+    "assets/aes-cbc-hmac.js",
     "assets/api-client.js",
     "assets/api-errors.js",
     "assets/app.js",
+    "assets/auth-kdf.js",
     "assets/auth-protocol.js",
     "assets/auth-request.js",
     "assets/auth-state.js",
+    "assets/authenticated-api.js",
     "assets/crypto-boundary.js",
+    "assets/enc-string.js",
     "assets/glaze.css",
     "assets/goreevault-mark.svg",
+    "assets/identity-protocol.js",
+    "assets/master-key-crypto.js",
     "assets/runtime-config.js",
     "assets/server-config.js",
     "assets/session-state.js",
+    "assets/sync-client.js",
     "assets/sync-protocol.js",
     "assets/theme-init.js",
+    "assets/token-state.js",
     "assets/vault-state.js",
 )
 
