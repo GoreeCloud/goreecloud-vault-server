@@ -42,26 +42,16 @@ pub fn derive_argon2id(
     memory_kib: u32,
     parallelism: u32,
 ) -> Result<[u8; OUTPUT_BYTES], ProviderError> {
-    if iterations < MIN_ITERATIONS
-        || memory_kib < MIN_MEMORY_KIB
-        || parallelism < MIN_PARALLELISM
-    {
+    if iterations < MIN_ITERATIONS || memory_kib < MIN_MEMORY_KIB || parallelism < MIN_PARALLELISM {
         return Err(ProviderError::InsufficientParameters);
     }
 
-    let params = Params::new(
-        memory_kib,
-        iterations,
-        parallelism,
-        Some(OUTPUT_BYTES),
-    )
-    .map_err(|_| ProviderError::InvalidParameters)?;
+    let params = Params::new(memory_kib, iterations, parallelism, Some(OUTPUT_BYTES))
+        .map_err(|_| ProviderError::InvalidParameters)?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut output = [0_u8; OUTPUT_BYTES];
 
-    argon2
-        .hash_password_into(secret, salt_sha256, &mut output)
-        .map_err(|_| ProviderError::DerivationFailed)?;
+    argon2.hash_password_into(secret, salt_sha256, &mut output).map_err(|_| ProviderError::DerivationFailed)?;
 
     clear_argon2_stack_residue();
     Ok(output)
@@ -79,24 +69,18 @@ mod tests {
     use super::*;
 
     const BITWARDEN_TEST_SALT_SHA256: [u8; OUTPUT_BYTES] = [
-        146, 72, 142, 30, 62, 238, 205, 249, 159, 62, 210, 206, 89, 35, 62, 251,
-        75, 79, 182, 18, 213, 101, 92, 12, 233, 234, 82, 181, 165, 2, 230, 85,
+        146, 72, 142, 30, 62, 238, 205, 249, 159, 62, 210, 206, 89, 35, 62, 251, 75, 79, 182, 18, 213, 101, 92, 12,
+        233, 234, 82, 181, 165, 2, 230, 85,
     ];
 
     const BITWARDEN_EXPECTED: [u8; OUTPUT_BYTES] = [
-        207, 240, 225, 177, 162, 19, 163, 76, 98, 106, 179, 175, 224, 9, 17, 240,
-        20, 147, 237, 47, 246, 150, 141, 184, 62, 225, 131, 242, 51, 53, 225, 242,
+        207, 240, 225, 177, 162, 19, 163, 76, 98, 106, 179, 175, 224, 9, 17, 240, 20, 147, 237, 47, 246, 150, 141, 184,
+        62, 225, 131, 242, 51, 53, 225, 242,
     ];
 
     #[test]
     fn bitwarden_argon2id_vector_matches() {
-        let derived = derive_argon2id(
-            b"67t9b5g67$%Dh89n",
-            &BITWARDEN_TEST_SALT_SHA256,
-            4,
-            32 * 1024,
-            2,
-        );
+        let derived = derive_argon2id(b"67t9b5g67$%Dh89n", &BITWARDEN_TEST_SALT_SHA256, 4, 32 * 1024, 2);
 
         assert_eq!(derived, Ok(BITWARDEN_EXPECTED));
     }
