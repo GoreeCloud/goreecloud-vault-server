@@ -42,9 +42,9 @@
     <aside class="sidebar glaze-surface" aria-label="Vault navigation">
       <nav>
         <a class="nav-item active" href="#vault" aria-current="page"><span aria-hidden="true">▣</span><span>Vault</span></a>
-        <a class="nav-item" href="#favorites"><span aria-hidden="true">☆</span><span>Favorites</span></a>
-        <a class="nav-item" href="#organizations"><span aria-hidden="true">◇</span><span>Organizations</span></a>
-        <a class="nav-item" href="#send"><span aria-hidden="true">↗</span><span>Send</span></a>
+        <a class="nav-item" href="#favorites" aria-disabled="true" data-prealpha-disabled="true" title="Favorites is not available in this pre-alpha build"><span aria-hidden="true">☆</span><span>Favorites</span></a>
+        <a class="nav-item" href="#organizations" aria-disabled="true" data-prealpha-disabled="true" title="Organizations is not available in this pre-alpha build"><span aria-hidden="true">◇</span><span>Organizations</span></a>
+        <a class="nav-item" href="#send" aria-disabled="true" data-prealpha-disabled="true" title="Send is not available in this pre-alpha build"><span aria-hidden="true">↗</span><span>Send</span></a>
       </nav>
       <div class="sidebar-footer">
         <span class="status-dot" aria-hidden="true"></span>
@@ -131,5 +131,6 @@
     </main>
   </div>
   <div class="sr-only" aria-live="polite" id="appearance-status"></div>
+  <div class="sr-only" aria-live="polite" id="navigation-status"></div>
 </body>
 </html>
