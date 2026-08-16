@@ -69,25 +69,26 @@ jobs:
 
       - name: Generate isolated Node.js ABI bindings
         run: |
-          rm -rf web-client/crypto/argon2id-provider/target/wasm-bindgen-node
+          BINDINGS_DIR="$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node"
+          rm -rf "$BINDINGS_DIR"
           wasm-bindgen \
             --target nodejs \
-            --out-dir web-client/crypto/argon2id-provider/target/wasm-bindgen-node \
+            --out-dir "$BINDINGS_DIR" \
             web-client/crypto/argon2id-provider/target/wasm32-unknown-unknown/debug/goreevault_web_argon2id_core.wasm
-          find web-client/crypto/argon2id-provider/target/wasm-bindgen-node -maxdepth 1 -type f -printf '%f\n' | sort
-          sha256sum web-client/crypto/argon2id-provider/target/wasm-bindgen-node/* | sort
+          find "$BINDINGS_DIR" -maxdepth 1 -type f -printf '%f\n' | sort
+          sha256sum "$BINDINGS_DIR"/* | sort
 
       - name: Run Bitwarden vector through actual WASM ABI
         run: |
           node web-client/crypto/argon2id-provider/tests/test-wasm-abi.cjs \
-            web-client/crypto/argon2id-provider/target/wasm-bindgen-node/goreevault_web_argon2id_core.js
+            "$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node/goreevault_web_argon2id_core.js"
 
       - name: Generate exact fail-closed binding evidence
         env:
           GOREEVAULT_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           python3 web-client/crypto/argon2id-provider/scripts/build_binding_evidence.py \
-            --bindings web-client/crypto/argon2id-provider/target/wasm-bindgen-node \
+            --bindings "$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node" \
             --source-revision "$GOREEVAULT_SOURCE_REVISION" \
             --wasm-bindgen-version 0.2.126 \
             --output web-client/crypto/argon2id-provider/target/binding-evidence.json
