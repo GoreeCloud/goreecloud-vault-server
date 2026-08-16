@@ -15,6 +15,7 @@
   <link rel="icon" href="assets/goreevault-mark.svg" type="image/svg+xml">
   <script src="assets/theme-init.js"></script>
   <link rel="stylesheet" href="assets/glaze.css">
+  <link rel="stylesheet" href="assets/feedback.css">
   <script type="module" src="assets/app.js"></script>
 </head>
 <body>
@@ -42,9 +43,9 @@
     <aside class="sidebar glaze-surface" aria-label="Vault navigation">
       <nav>
         <a class="nav-item active" href="#vault" aria-current="page"><span aria-hidden="true">▣</span><span>Vault</span></a>
-        <a class="nav-item" href="#favorites" aria-disabled="true" data-prealpha-disabled="true" title="Favorites is not available in this pre-alpha build"><span aria-hidden="true">☆</span><span>Favorites</span></a>
-        <a class="nav-item" href="#organizations" aria-disabled="true" data-prealpha-disabled="true" title="Organizations is not available in this pre-alpha build"><span aria-hidden="true">◇</span><span>Organizations</span></a>
-        <a class="nav-item" href="#send" aria-disabled="true" data-prealpha-disabled="true" title="Send is not available in this pre-alpha build"><span aria-hidden="true">↗</span><span>Send</span></a>
+        <a class="nav-item" href="#favorites" aria-disabled="true" data-prealpha-disabled="true"><span aria-hidden="true">☆</span><span>Favorites</span></a>
+        <a class="nav-item" href="#organizations" aria-disabled="true" data-prealpha-disabled="true"><span aria-hidden="true">◇</span><span>Organizations</span></a>
+        <a class="nav-item" href="#send" aria-disabled="true" data-prealpha-disabled="true"><span aria-hidden="true">↗</span><span>Send</span></a>
       </nav>
       <div class="sidebar-footer">
         <span class="status-dot" aria-hidden="true"></span>
@@ -57,7 +58,7 @@
         <div>
           <p class="eyebrow">Secure browser vault</p>
           <h1 id="page-title">Your vault, under your control.</h1>
-          <p class="lede">This pre-alpha shell establishes the GoreeVault Web interface and security boundary. Authentication, encryption, sync, and real vault data remain intentionally disabled until the compatible client protocol is implemented.</p>
+          <p class="lede">GoreeVault Web now includes verified server discovery, safe prelogin, memory-only authentication and sync boundaries, and vector-tested cryptographic primitives. Real credential entry and decrypted vault use remain disabled until the end-to-end crypto and interoperability gates pass.</p>
         </div>
         <div class="hero-actions">
           <a class="primary-button" href="#sign-in">Prepare sign-in</a>
@@ -73,7 +74,7 @@
           </div>
           <span class="pill">No password entry</span>
         </div>
-        <p class="lede">Enter only the GoreeVault account email. GoreeVault Web will request the account's KDF settings from the configured GoreeVault Server and stop before password processing, token issuance, or vault unlock.</p>
+        <p class="lede">Enter only the GoreeVault account email. GoreeVault Web verifies the configured server and requests the account's KDF settings, then stops before password processing, token issuance, or vault unlock.</p>
         <form class="toolbar" id="prelogin-form" novalidate>
           <label class="search-field" for="account-email">
             <span aria-hidden="true">@</span>
@@ -108,28 +109,39 @@
           <div class="empty-state">
             <div class="empty-icon" aria-hidden="true">⌾</div>
             <h3>No vault data is loaded</h3>
-            <p>Real credential handling stays disabled until client-side key derivation, encryption, session handling, and server compatibility are implemented and reviewed.</p>
+            <p>The account, token, authenticated-sync, and low-level crypto foundations are being validated behind a locked client boundary. No decrypted vault material is displayed or persisted in this build.</p>
           </div>
         </article>
 
         <aside class="readiness-panel glaze-surface" id="readiness" aria-labelledby="readiness-title">
           <p class="eyebrow">Build status</p>
           <h2 id="readiness-title">Foundation readiness</h2>
+          <p class="readiness-summary">Green checks represent implemented, automated foundations—not authorization for production credentials.</p>
           <ul class="check-list">
-            <li><span class="check" aria-hidden="true">✓</span><span>GoreeVault identity</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>Glaze UI application shell</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>System / Light / Dark appearance</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>Keyboard, contrast, motion fallbacks</span></li>
-            <li><span class="check" aria-hidden="true">✓</span><span>Prelogin and KDF metadata boundary</span></li>
-            <li><span class="pending" aria-hidden="true">○</span><span>Password authentication and client cryptography</span></li>
-            <li><span class="pending" aria-hidden="true">○</span><span>Vault sync and item workflows</span></li>
-            <li><span class="pending" aria-hidden="true">○</span><span>Real browser acceptance</span></li>
+            <li><span class="check" aria-hidden="true">✓</span><span>GoreeVault identity and Glaze UI shell</span></li>
+            <li><span class="check" aria-hidden="true">✓</span><span>System / Light / Dark and accessibility fallbacks</span></li>
+            <li><span class="check" aria-hidden="true">✓</span><span>Server verification and prelogin/KDF metadata</span></li>
+            <li><span class="check" aria-hidden="true">✓</span><span>PBKDF2, token-state, and authenticated-sync foundations</span></li>
+            <li><span class="check" aria-hidden="true">✓</span><span>HKDF, AES-CBC-HMAC, and type-2 EncString primitives</span></li>
+            <li><span class="pending" aria-hidden="true">○</span><span>Argon2id and reviewed end-to-end vault crypto</span></li>
+            <li><span class="pending" aria-hidden="true">○</span><span>Real sign-in, decrypted vault, and item workflows</span></li>
+            <li><span class="pending" aria-hidden="true">○</span><span>Real browser/device acceptance and Stable evidence</span></li>
           </ul>
           <p class="privacy-note">No analytics. No remote fonts. No third-party presentation scripts.</p>
         </aside>
       </section>
     </main>
   </div>
+
+  <div class="app-toast glaze-surface" id="app-toast" role="status" aria-live="polite" aria-atomic="true" hidden>
+    <span class="app-toast-icon" aria-hidden="true">i</span>
+    <span class="app-toast-copy">
+      <strong id="app-toast-title">Section unavailable</strong>
+      <span id="app-toast-message">This section is not available yet.</span>
+    </span>
+    <button class="app-toast-dismiss" id="app-toast-dismiss" type="button" aria-label="Dismiss notification">×</button>
+  </div>
+
   <div class="sr-only" aria-live="polite" id="appearance-status"></div>
   <div class="sr-only" aria-live="polite" id="navigation-status"></div>
 </body>
