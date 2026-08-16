@@ -27,6 +27,7 @@ RELEASE_FILES = (
     "assets/auth-request.js",
     "assets/auth-state.js",
     "assets/authenticated-api.js",
+    "assets/client-sdk.js",
     "assets/crypto-boundary.js",
     "assets/enc-string.js",
     "assets/feedback.css",
