@@ -11,12 +11,17 @@ import {
 import {
   argon2idProviderBoundary,
   createArgon2idProvider,
+  deriveArgon2idSalt,
   normalizeArgon2idMetadata,
 } from '../assets/argon2id-provider.js';
 
 const authoritativeMasterKeyVector = new Uint8Array([
   31, 79, 104, 226, 150, 71, 177, 90, 194, 80, 172, 209, 17, 129, 132, 81,
   138, 167, 69, 167, 254, 149, 2, 27, 39, 197, 64, 42, 22, 195, 86, 75,
+]);
+const normalizedEmailSha256 = new Uint8Array([
+  150, 76, 72, 244, 143, 81, 217, 127, 203, 220, 24, 133, 13, 122, 88, 106,
+  61, 85, 225, 171, 26, 32, 139, 77, 61, 116, 143, 113, 37, 10, 211, 63,
 ]);
 const argon2idMetadata = Object.freeze({
   kdf: 1,
@@ -68,21 +73,33 @@ test('PBKDF2 rejects parameters below the Bitwarden SDK minimum', () => {
 test('Argon2id remains fail-closed when no provider is explicitly registered', () => {
   assert.equal(argon2idProviderBoundary.builtInImplementationAvailable, false);
   assert.equal(argon2idProviderBoundary.fallbackAllowed, false);
+  assert.equal(argon2idProviderBoundary.version, 0x13);
+  assert.equal(argon2idProviderBoundary.minimumIterations, 2);
+  assert.equal(argon2idProviderBoundary.minimumMemoryMiB, 16);
+  assert.equal(argon2idProviderBoundary.minimumParallelism, 1);
+  assert.equal(argon2idProviderBoundary.saltTransform, 'SHA-256(normalized-account-identifier)');
   assert.throws(
     () => assertSupportedKdf(argon2idMetadata),
     /reviewed local provider is explicitly registered/,
   );
 });
 
-test('Argon2id metadata requires iterations, memory, and parallelism', () => {
+test('Argon2id metadata mirrors Bitwarden minimums and converts MiB to KiB', () => {
   assert.deepEqual(normalizeArgon2idMetadata(argon2idMetadata), {
     type: 'argon2id',
+    version: 0x13,
     iterations: 4,
-    memory: 32,
+    memoryMiB: 32,
+    memoryKiB: 32768,
     parallelism: 2,
+    outputBytes: 32,
   });
   assert.throws(
-    () => normalizeArgon2idMetadata({ ...argon2idMetadata, kdfMemory: null }),
+    () => normalizeArgon2idMetadata({ ...argon2idMetadata, kdfIterations: 1 }),
+    /Invalid kdfIterations value/,
+  );
+  assert.throws(
+    () => normalizeArgon2idMetadata({ ...argon2idMetadata, kdfMemory: 15 }),
     /Invalid kdfMemory value/,
   );
   assert.throws(
@@ -91,7 +108,13 @@ test('Argon2id metadata requires iterations, memory, and parallelism', () => {
   );
 });
 
-test('registered Argon2id provider receives normalized memory-only inputs and its master key is cleared', async () => {
+test('Argon2id salt is SHA-256 of the normalized account identifier', async () => {
+  const salt = await deriveArgon2idSalt(' TEST@bitwarden.com ');
+  assert.deepEqual(salt, normalizedEmailSha256);
+  salt.fill(0);
+});
+
+test('registered Argon2id provider receives Bitwarden-compatible parameters and cleared memory-only inputs', async () => {
   const masterKeyVector = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
   const expectedMasterKey = new Uint8Array(masterKeyVector);
   const expectedHash = await deriveServerAuthorizationHash(expectedMasterKey, 'asdfasdf');
@@ -100,6 +123,8 @@ test('registered Argon2id provider receives normalized memory-only inputs and it
   let retainedSecret;
   let retainedSalt;
   let retainedMasterKey;
+  let observedSecret;
+  let observedSalt;
   let observedParams;
   const provider = createArgon2idProvider({
     implementationId: 'test-only-provider',
@@ -107,9 +132,13 @@ test('registered Argon2id provider receives normalized memory-only inputs and it
     deriveKey: async (request) => {
       retainedSecret = request.secretBytes;
       retainedSalt = request.saltBytes;
+      observedSecret = new Uint8Array(request.secretBytes);
+      observedSalt = new Uint8Array(request.saltBytes);
       observedParams = {
+        algorithm: request.algorithm,
+        version: request.version,
         iterations: request.iterations,
-        memory: request.memory,
+        memoryKiB: request.memoryKiB,
         parallelism: request.parallelism,
         outputBytes: request.outputBytes,
       };
@@ -125,9 +154,18 @@ test('registered Argon2id provider receives normalized memory-only inputs and it
   }, { argon2idProvider: provider });
 
   assert.deepEqual(result, { passwordHash: expectedHash, kdf: 'argon2id' });
-  assert.equal(new TextDecoder().decode(retainedSalt), '\0'.repeat('test@bitwarden.com'.length));
-  assert.equal(new TextDecoder().decode(retainedSecret), '\0'.repeat('asdfasdf'.length));
-  assert.deepEqual(observedParams, { iterations: 4, memory: 32, parallelism: 2, outputBytes: 32 });
+  assert.equal(new TextDecoder().decode(observedSecret), 'asdfasdf');
+  assert.deepEqual(observedSalt, normalizedEmailSha256);
+  assert.deepEqual(observedParams, {
+    algorithm: 'argon2id',
+    version: 0x13,
+    iterations: 4,
+    memoryKiB: 32768,
+    parallelism: 2,
+    outputBytes: 32,
+  });
+  assert.deepEqual(retainedSecret, new Uint8Array('asdfasdf'.length));
+  assert.deepEqual(retainedSalt, new Uint8Array(32));
   assert.deepEqual(retainedMasterKey, new Uint8Array(32));
 });
 
