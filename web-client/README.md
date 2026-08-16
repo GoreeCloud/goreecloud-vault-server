@@ -47,8 +47,9 @@ The third slice establishes the protocol-facing authentication foundation while 
 - compatible non-secret password-grant envelope modeling with `client_id=web`, `scope=api offline_access`, and explicit browser-device metadata;
 - compatible two-factor challenge modeling without accepting or transmitting a two-factor secret;
 - account-scoped authentication phases and request epochs that reject stale prelogin responses after account changes;
-- an explicit token lifecycle contract requiring refresh-token rotation and replay rejection while persistent token storage remains disabled;
-- token acceptance, refresh exchange, revocation, password processing, KDF execution, sign-in submission, and vault unlock remain intentionally unavailable.
+- vector-tested PBKDF2-SHA256 master-key derivation and server-authorization hashing for the reviewed PBKDF2 compatibility path;
+- memory-only token lifecycle modeling with expiry checks, refresh generations, stale-response rejection, refresh-token rotation, and replay rejection;
+- real password-grant transmission, production token exchange/refresh, and two-factor completion remain intentionally unavailable while credential processing is disabled.
 
 The fourth slice adds a functional Glaze UI prelogin-only experience and server capability verification:
 
@@ -61,10 +62,11 @@ The fourth slice adds a functional Glaze UI prelogin-only experience and server 
 The fifth slice establishes sync and release-engineering boundaries without enabling private-data use:
 
 - structural validation of the compatible `/api/sync` envelope containing profile, folders, collections, policies, ciphers, domains, sends, and user-decryption metadata;
-- opaque sync data held only in account-scoped memory;
+- account-scoped authenticated sync composition from an already accepted in-memory token through `/api/sync` into opaque memory-only vault state;
 - stale-epoch and cross-account sync rejection;
-- authenticated sync transport, persistent encrypted cache, and decryption remain disabled;
-- a zero-dependency Node test harness for transport, authentication, account isolation, prelogin UI, server-config, and sync boundaries;
+- vector-tested master-key stretching, AES-256-CBC-HMAC-SHA256 integrity/decryption, type-2 `EncString` parsing, composite user-key unwrap, and scoped user-key clearing;
+- the public end-to-end vault cryptography adapter remains unavailable, and persistent encrypted cache plus decrypted vault presentation remain disabled;
+- a zero-dependency Node test harness for transport, authentication, account isolation, prelogin UI, server-config, sync, and cryptographic boundary tests;
 - a deterministic static release builder with an explicit production-file allowlist, SHA-256 file identities, source-revision binding, and an explicit empty runtime-dependency inventory.
 
 The sixth slice strengthens browser release evidence without changing credential handling:
