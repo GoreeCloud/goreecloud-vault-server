@@ -9,6 +9,14 @@ function requireInteger(value, field, { min = 1, allowNull = false } = {}) {
   return value;
 }
 
+function normalizeProviderId(value) {
+  const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+  if (!Number.isInteger(numeric) || numeric < 0 || numeric > 255) {
+    throw new TypeError('Invalid two-factor provider identifier.');
+  }
+  return numeric;
+}
+
 export function normalizeAccountIdentifier(value) {
   if (typeof value !== 'string') throw new TypeError('Account identifier must be a string.');
   const normalized = value.trim().toLowerCase();
@@ -29,6 +37,38 @@ export function normalizePreloginMetadata(payload) {
     kdfIterations: requireInteger(payload.kdfIterations, 'kdfIterations'),
     kdfMemory: requireInteger(payload.kdfMemory, 'kdfMemory', { allowNull: true }),
     kdfParallelism: requireInteger(payload.kdfParallelism, 'kdfParallelism', { allowNull: true }),
+  });
+}
+
+export function normalizeTwoFactorChallenge(payload) {
+  if (!payload || typeof payload !== 'object') throw new TypeError('Invalid authentication challenge.');
+  if (payload.error !== 'invalid_grant' || payload.error_description !== 'Two factor required.') {
+    throw new TypeError('Response is not a supported two-factor challenge.');
+  }
+
+  if (!Array.isArray(payload.TwoFactorProviders) || payload.TwoFactorProviders.length === 0) {
+    throw new TypeError('Two-factor challenge has no providers.');
+  }
+
+  const providers = payload.TwoFactorProviders.map(normalizeProviderId);
+  const sourceMetadata = payload.TwoFactorProviders2;
+  if (sourceMetadata !== undefined && (sourceMetadata === null || typeof sourceMetadata !== 'object' || Array.isArray(sourceMetadata))) {
+    throw new TypeError('Invalid two-factor provider metadata.');
+  }
+
+  const providerMetadata = {};
+  for (const provider of providers) {
+    const metadata = sourceMetadata?.[String(provider)] ?? null;
+    if (metadata !== null && (typeof metadata !== 'object' || Array.isArray(metadata))) {
+      throw new TypeError('Invalid two-factor provider metadata entry.');
+    }
+    providerMetadata[String(provider)] = metadata === null ? null : Object.freeze({ ...metadata });
+  }
+
+  return Object.freeze({
+    kind: 'two-factor-required',
+    providers: Object.freeze(providers),
+    providerMetadata: Object.freeze(providerMetadata),
   });
 }
 
