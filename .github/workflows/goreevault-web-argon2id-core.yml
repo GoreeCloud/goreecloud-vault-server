@@ -22,9 +22,9 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate Rust Argon2id provider core
+    name: Validate Rust Argon2id provider core and WASM ABI
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout GoreeVault
@@ -40,6 +40,7 @@ jobs:
           cargo generate-lockfile --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
           sha256sum web-client/crypto/argon2id-provider/Cargo.lock
           cat web-client/crypto/argon2id-provider/Cargo.lock
+          git diff --exit-code -- web-client/crypto/argon2id-provider/Cargo.lock
 
       - name: Validate formatting
         run: cargo fmt --manifest-path web-client/crypto/argon2id-provider/Cargo.toml -- --check
@@ -47,18 +48,37 @@ jobs:
       - name: Lint native targets
         run: cargo clippy --manifest-path web-client/crypto/argon2id-provider/Cargo.toml --all-targets -- -D warnings
 
-      - name: Run Bitwarden interoperability tests
+      - name: Run native Bitwarden interoperability tests
         run: cargo test --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
 
       - name: Test fail-closed WASM identity evidence
         run: python3 web-client/crypto/argon2id-provider/scripts/test_build_wasm_evidence.py
 
-      - name: Build wasm32 core without browser integration
+      - name: Build wasm32 ABI
         run: |
           rustup target add wasm32-unknown-unknown
           cargo build \
+            --locked \
             --manifest-path web-client/crypto/argon2id-provider/Cargo.toml \
             --target wasm32-unknown-unknown
+
+      - name: Install exact wasm-bindgen CLI
+        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+
+      - name: Generate isolated Node.js ABI bindings
+        run: |
+          rm -rf web-client/crypto/argon2id-provider/target/wasm-bindgen-node
+          wasm-bindgen \
+            --target nodejs \
+            --out-dir web-client/crypto/argon2id-provider/target/wasm-bindgen-node \
+            web-client/crypto/argon2id-provider/target/wasm32-unknown-unknown/debug/goreevault_web_argon2id_core.wasm
+          find web-client/crypto/argon2id-provider/target/wasm-bindgen-node -maxdepth 1 -type f -printf '%f\n' | sort
+          sha256sum web-client/crypto/argon2id-provider/target/wasm-bindgen-node/* | sort
+
+      - name: Run Bitwarden vector through actual WASM ABI
+        run: |
+          node web-client/crypto/argon2id-provider/tests/test-wasm-abi.cjs \
+            web-client/crypto/argon2id-provider/target/wasm-bindgen-node/goreevault_web_argon2id_core.js
 
       - name: Generate exact build-only WASM identity evidence
         env:
