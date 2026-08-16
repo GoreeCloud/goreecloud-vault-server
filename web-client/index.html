@@ -60,9 +60,30 @@
           <p class="lede">This pre-alpha shell establishes the GoreeVault Web interface and security boundary. Authentication, encryption, sync, and real vault data remain intentionally disabled until the compatible client protocol is implemented.</p>
         </div>
         <div class="hero-actions">
-          <button class="primary-button" type="button" disabled>Sign in</button>
+          <a class="primary-button" href="#sign-in">Prepare sign-in</a>
           <a class="secondary-button" href="#readiness">View readiness</a>
         </div>
+      </section>
+
+      <section class="vault-panel glaze-surface" id="sign-in" aria-labelledby="sign-in-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Prelogin</p>
+            <h2 id="sign-in-title">Prepare this account safely</h2>
+          </div>
+          <span class="pill">No password entry</span>
+        </div>
+        <p class="lede">Enter only the GoreeVault account email. GoreeVault Web will request the account's KDF settings from the configured GoreeVault Server and stop before password processing, token issuance, or vault unlock.</p>
+        <form class="toolbar" id="prelogin-form" novalidate>
+          <label class="search-field" for="account-email">
+            <span aria-hidden="true">@</span>
+            <span class="sr-only">GoreeVault account email</span>
+            <input id="account-email" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="name@example.com" maxlength="254" required aria-describedby="prelogin-help prelogin-result">
+          </label>
+          <button class="primary-button" id="prelogin-submit" type="submit">Check account</button>
+        </form>
+        <p class="privacy-note" id="prelogin-help">This step sends only the normalized account email needed by the compatible prelogin endpoint. Do not enter a master password in this pre-alpha build.</p>
+        <p class="privacy-note" id="prelogin-result" aria-live="polite">No account has been checked yet.</p>
       </section>
 
       <section class="toolbar" aria-label="Vault tools">
@@ -99,7 +120,8 @@
             <li><span class="check" aria-hidden="true">✓</span><span>Glaze UI application shell</span></li>
             <li><span class="check" aria-hidden="true">✓</span><span>System / Light / Dark appearance</span></li>
             <li><span class="check" aria-hidden="true">✓</span><span>Keyboard, contrast, motion fallbacks</span></li>
-            <li><span class="pending" aria-hidden="true">○</span><span>Authentication and client cryptography</span></li>
+            <li><span class="check" aria-hidden="true">✓</span><span>Prelogin and KDF metadata boundary</span></li>
+            <li><span class="pending" aria-hidden="true">○</span><span>Password authentication and client cryptography</span></li>
             <li><span class="pending" aria-hidden="true">○</span><span>Vault sync and item workflows</span></li>
             <li><span class="pending" aria-hidden="true">○</span><span>Real browser acceptance</span></li>
           </ul>
