@@ -2,6 +2,7 @@ import { runtimeConfig, resolveServerOrigin } from './runtime-config.js';
 import { getSessionSnapshot, subscribeSession } from './session-state.js';
 import { cryptoBoundary } from './crypto-boundary.js';
 import { requestPreloginMetadata, normalizeAccountIdentifier } from './auth-protocol.js';
+import { requestServerConfig } from './server-config.js';
 import {
   acceptPrelogin,
   beginPrelogin,
@@ -11,6 +12,7 @@ import {
 
 const APPEARANCE_KEY = 'goreevault-web-appearance';
 const MODES = ['system', 'light', 'dark'];
+let verifiedServerConfig = null;
 
 function safeStore(mode) {
   try {
@@ -81,12 +83,13 @@ function renderAuthState(snapshot) {
   if (!result) return;
 
   if (snapshot.phase === 'prelogin-pending') {
-    result.textContent = 'Checking the account KDF settings. No password is being requested or processed.';
+    result.textContent = 'Verifying the GoreeVault Server and checking account KDF settings. No password is being requested or processed.';
     return;
   }
   if (snapshot.phase === 'prelogin-ready' && snapshot.prelogin) {
     const kdfName = snapshot.prelogin.kdf === 0 ? 'PBKDF2' : 'Argon2id';
-    result.textContent = `Account preparation succeeded. Server KDF: ${kdfName}. Password entry and cryptographic unlock remain disabled.`;
+    const server = verifiedServerConfig ? `GoreeVault Server ${verifiedServerConfig.version}. ` : '';
+    result.textContent = `${server}Account preparation succeeded. Server KDF: ${kdfName}. Password entry and cryptographic unlock remain disabled.`;
     return;
   }
   if (snapshot.phase === 'authentication-error') {
@@ -120,8 +123,10 @@ function bindPrelogin() {
     const pending = beginPrelogin({ accountId: email, emailHint: email });
     submit.disabled = true;
     input.setAttribute('aria-busy', 'true');
+    verifiedServerConfig = null;
 
     try {
+      verifiedServerConfig = await requestServerConfig();
       const metadata = await requestPreloginMetadata(email);
       acceptPrelogin(metadata, pending.requestEpoch);
     } catch (error) {
