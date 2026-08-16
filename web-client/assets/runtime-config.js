@@ -4,19 +4,23 @@ const DEVELOPMENT_ORIGINS = new Set([
   'http://localhost:8080',
 ]);
 
+function defaultLocationOrigin() {
+  return globalThis.location?.origin ?? PRODUCTION_ORIGIN;
+}
+
 function normalizeOrigin(value) {
   const url = new URL(value);
   return url.origin;
 }
 
-export function resolveServerOrigin(locationOrigin = window.location.origin) {
+export function resolveServerOrigin(locationOrigin = defaultLocationOrigin()) {
   const current = normalizeOrigin(locationOrigin);
   if (current === PRODUCTION_ORIGIN) return PRODUCTION_ORIGIN;
   if (DEVELOPMENT_ORIGINS.has(current)) return current;
   return PRODUCTION_ORIGIN;
 }
 
-export function buildApiUrl(path, locationOrigin = window.location.origin) {
+export function buildApiUrl(path, locationOrigin = defaultLocationOrigin()) {
   if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) {
     throw new TypeError('API paths must be absolute application paths.');
   }
