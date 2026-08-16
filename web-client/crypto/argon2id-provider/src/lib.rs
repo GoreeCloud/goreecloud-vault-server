@@ -1,12 +1,17 @@
 #![forbid(unsafe_code)]
 
-//! `GoreeVault` Web's pre-alpha Argon2id provider core.
+//! `GoreeVault` Web's pre-alpha Argon2id provider core and narrow WebAssembly ABI.
 //!
-//! This crate intentionally contains no JavaScript/WASM binding. It proves the
-//! Bitwarden-compatible Argon2id primitive and its wasm32 buildability before a
-//! separate browser ABI is approved.
+//! The native core reproduces the reviewed Bitwarden-compatible primitive. On
+//! `wasm32`, a single `wasm-bindgen` export exposes that primitive for isolated
+//! interoperability testing. Browser runtime registration remains a separate,
+//! explicit approval step.
 
 use argon2::{Algorithm, Argon2, Params, Version};
+use zeroize::Zeroize;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 /// Bitwarden-compatible Argon2id version 1.3.
 pub const ARGON2ID_VERSION: u32 = 0x13;
@@ -28,6 +33,18 @@ pub enum ProviderError {
     InvalidParameters,
     /// Argon2id derivation failed.
     DerivationFailed,
+}
+
+impl ProviderError {
+    /// Return a stable, non-secret ABI error code.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::InsufficientParameters => "insufficient-parameters",
+            Self::InvalidParameters => "invalid-parameters",
+            Self::DerivationFailed => "derivation-failed",
+        }
+    }
 }
 
 /// Derive exactly 32 bytes using Bitwarden-compatible Argon2id semantics.
@@ -58,10 +75,46 @@ pub fn derive_argon2id(
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut output = [0_u8; OUTPUT_BYTES];
 
-    argon2.hash_password_into(secret, salt_sha256, &mut output).map_err(|_| ProviderError::DerivationFailed)?;
+    argon2
+        .hash_password_into(secret, salt_sha256, &mut output)
+        .map_err(|_| ProviderError::DerivationFailed)?;
 
     clear_argon2_stack_residue();
     Ok(output)
+}
+
+/// Narrow browser ABI for the reviewed Argon2id primitive.
+///
+/// JavaScript supplies already encoded password bytes and the already hashed
+/// 32-byte account salt. `wasm-bindgen` owns transfer across the Wasm boundary;
+/// this function clears its Rust-owned input copies before returning.
+///
+/// # Errors
+///
+/// Returns a stable non-secret JavaScript error string when the salt length is
+/// not exactly 32 bytes or the core rejects the requested KDF parameters.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn derive_argon2id_wasm(
+    mut secret: Vec<u8>,
+    mut salt_sha256: Vec<u8>,
+    iterations: u32,
+    memory_kib: u32,
+    parallelism: u32,
+) -> Result<Vec<u8>, JsValue> {
+    let result = if salt_sha256.len() == OUTPUT_BYTES {
+        let mut salt = [0_u8; OUTPUT_BYTES];
+        salt.copy_from_slice(&salt_sha256);
+        let derived = derive_argon2id(&secret, &salt, iterations, memory_kib, parallelism);
+        salt.zeroize();
+        derived.map(Vec::from).map_err(|error| JsValue::from_str(error.code()))
+    } else {
+        Err(JsValue::from_str("invalid-salt-length"))
+    };
+
+    secret.zeroize();
+    salt_sha256.zeroize();
+    result
 }
 
 /// Force overwrite of a stack region after Argon2id, mirroring Bitwarden's
@@ -115,5 +168,12 @@ mod tests {
         assert_eq!(MIN_ITERATIONS, 2);
         assert_eq!(MIN_MEMORY_KIB, 16 * 1024);
         assert_eq!(MIN_PARALLELISM, 1);
+    }
+
+    #[test]
+    fn provider_errors_have_stable_non_secret_codes() {
+        assert_eq!(ProviderError::InsufficientParameters.code(), "insufficient-parameters");
+        assert_eq!(ProviderError::InvalidParameters.code(), "invalid-parameters");
+        assert_eq!(ProviderError::DerivationFailed.code(), "derivation-failed");
     }
 }
