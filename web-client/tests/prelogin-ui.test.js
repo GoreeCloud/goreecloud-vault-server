@@ -27,3 +27,20 @@ test('prelogin UI wiring stops after KDF metadata and keeps credential processin
   assert.doesNotMatch(app, /buildSecretBearingPasswordGrant/);
   assert.match(config, /credentialProcessingEnabled: false/);
 });
+
+test('unfinished vault navigation is explicitly disabled and cannot become the active view', async () => {
+  const html = await source('index.html');
+  const app = await source('assets/app.js');
+
+  for (const route of ['favorites', 'organizations', 'send']) {
+    assert.match(
+      html,
+      new RegExp(`href="#${route}"[^>]*aria-disabled="true"[^>]*data-prealpha-disabled="true"`),
+    );
+  }
+
+  assert.match(app, /PREALPHA_DISABLED_ROUTES/);
+  assert.match(app, /event\.preventDefault\(\)/);
+  assert.match(app, /history\.replaceState\(null, '', '#vault'\)/);
+  assert.match(html, /id="navigation-status"/);
+});
