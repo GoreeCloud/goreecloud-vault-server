@@ -83,6 +83,7 @@ def validate_javascript() -> None:
         "assets/auth-protocol.js",
         "assets/auth-state.js",
         "assets/auth-request.js",
+        "assets/argon2id-provider.js",
         "assets/auth-kdf.js",
         "assets/identity-protocol.js",
         "assets/token-state.js",
@@ -114,7 +115,15 @@ def validate_javascript() -> None:
     require("SERVER_AUTHORIZATION_PURPOSE = 1" in combined, "server authorization hash purpose must remain explicit")
     require("Argon2id authentication remains unavailable" in combined,
             "Argon2id must stay fail-closed until a reviewed local implementation exists")
-    require("masterKey.fill(0)" in combined, "temporary PBKDF2 master key material must be cleared after hash derivation")
+    require("builtInImplementationAvailable: false" in combined and "fallbackAllowed: false" in combined,
+            "Argon2id must have no built-in implementation or PBKDF2 fallback")
+    require("credentialProcessingEnabledByRegistration: false" in combined,
+            "Argon2id provider registration must not enable production credential processing")
+    require("requireArgon2idProvider" in combined,
+            "Argon2id KDF use must require an explicitly registered GoreeVault provider")
+    require("secretBytes.fill(0)" in combined and "saltBytes.fill(0)" in combined,
+            "Argon2id provider password and salt byte inputs must be cleared")
+    require("masterKey.fill(0)" in combined, "temporary authentication master key material must be cleared after hash derivation")
     require("HKDF-Expand-SHA256" in combined and "'enc'" in combined and "'mac'" in combined,
             "Bitwarden master-key stretching boundary is required")
     require("Encrypted value integrity check failed" in combined,
@@ -208,6 +217,7 @@ def validate_test_harness() -> None:
         "two-factor challenges",
         "PBKDF2 master-key derivation matches the Bitwarden SDK vector",
         "Argon2id remains fail-closed",
+        "without PBKDF2 fallback",
         "identity form uses the compatible x-www-form-urlencoded shape",
         "network token exchange stays fail-closed",
         "non-rotating refresh token invalidates the session",
@@ -225,6 +235,8 @@ def validate_release_builder() -> None:
     builder = read("scripts/build_release.py")
     builder_tests = read("tests/test_build_release.py")
     require("RELEASE_FILES" in builder, "release builder must use an explicit file allowlist")
+    require('"assets/argon2id-provider.js"' in builder,
+            "Argon2id provider boundary must be included in deterministic release evidence")
     require("sha256" in builder and "sourceRevision" in builder, "release manifest identity is required")
     require('"runtimeDependencies": []' in builder, "runtime dependency inventory must remain explicit")
     require("deterministic" in builder_tests.lower(), "deterministic release behavior must be tested")
@@ -233,6 +245,7 @@ def validate_release_builder() -> None:
 def validate_security_docs() -> None:
     readme = read("README.md")
     security = read("docs/SECURITY-BOUNDARY.md")
+    argon2id = read("docs/ARGON2ID-PROVIDER-BOUNDARY.md")
     require("not approved for production use" in readme, "README must preserve pre-production state")
     require("must move to its own GoreeCloud-owned repository" in readme, "standalone repository requirement must remain explicit")
     require("Do not invent cryptographic primitives" in security, "security boundary must prohibit invented cryptography")
@@ -243,6 +256,12 @@ def validate_security_docs() -> None:
     require("Prelogin" in security and "KDF metadata" in security, "prelogin protocol scope must be documented")
     require("password entry remains disabled" in security, "password-processing prohibition must remain explicit")
     require("opaque sync" in security.lower(), "opaque sync limitation must remain documented")
+    require("no built-in Argon2id implementation is approved or enabled" in argon2id,
+            "Argon2id provider documentation must preserve the no-implementation boundary")
+    require("no PBKDF2 fallback is permitted" in argon2id,
+            "Argon2id provider documentation must prohibit PBKDF2 fallback")
+    require("does not implement the Argon2id algorithm" in argon2id,
+            "Argon2id provider documentation must distinguish interface from implementation")
 
 
 def validate_svg() -> None:
@@ -267,6 +286,7 @@ def main() -> int:
         "assets/auth-protocol.js",
         "assets/auth-state.js",
         "assets/auth-request.js",
+        "assets/argon2id-provider.js",
         "assets/auth-kdf.js",
         "assets/identity-protocol.js",
         "assets/token-state.js",
@@ -280,6 +300,7 @@ def main() -> int:
         "assets/enc-string.js",
         "assets/goreevault-mark.svg",
         "docs/SECURITY-BOUNDARY.md",
+        "docs/ARGON2ID-PROVIDER-BOUNDARY.md",
         "scripts/build_release.py",
         "tests/test_build_release.py",
         "tests/api-client.test.js",
@@ -311,7 +332,7 @@ def main() -> int:
         print(f"GoreeVault Web validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault Web Glaze UI, protocol, KDF, authenticated transport, crypto primitives, release, privacy, and client-safety validation passed.")
+    print("GoreeVault Web Glaze UI, protocol, KDF, Argon2id provider, authenticated transport, crypto primitives, release, privacy, and client-safety validation passed.")
     return 0
 
 
