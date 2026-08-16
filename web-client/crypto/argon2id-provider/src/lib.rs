@@ -8,10 +8,11 @@
 //! explicit approval step.
 
 use argon2::{Algorithm, Argon2, Params, Version};
-use zeroize::Zeroize;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use zeroize::Zeroize;
 
 /// Bitwarden-compatible Argon2id version 1.3.
 pub const ARGON2ID_VERSION: u32 = 0x13;
