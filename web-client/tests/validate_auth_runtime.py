@@ -9,11 +9,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 MODULES = {
+    "assets/argon2id-provider.js": [
+        "builtInImplementationAvailable: false",
+        "fallbackAllowed: false",
+        "credentialProcessingEnabledByRegistration: false",
+        "Argon2id authentication remains unavailable",
+        "secretBytes.fill(0)",
+        "saltBytes.fill(0)",
+        "exactly ${MASTER_KEY_BYTES} bytes",
+        "independent buffer",
+    ],
     "assets/auth-kdf.js": [
         "PBKDF2_MIN_ITERATIONS = 5000",
         "hash: 'SHA-256'",
         "SERVER_AUTHORIZATION_PURPOSE = 1",
-        "Argon2id authentication remains unavailable",
+        "requireArgon2idProvider",
         "masterKey.fill(0)",
     ],
     "assets/identity-protocol.js": [
@@ -86,6 +96,7 @@ def main() -> int:
         for required in [
             "Bitwarden SDK vector",
             "Argon2id remains fail-closed",
+            "no PBKDF2 fallback",
             "network token exchange stays fail-closed",
             "non-rotating refresh token invalidates the session",
             "401 invalidates the memory-only token session",
@@ -103,7 +114,7 @@ def main() -> int:
         print(f"GoreeVault Web authentication runtime validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault Web KDF, identity, token rotation, authenticated transport, and sync runtime validation passed.")
+    print("GoreeVault Web KDF, Argon2id provider, identity, token rotation, authenticated transport, and sync runtime validation passed.")
     return 0
 
 
