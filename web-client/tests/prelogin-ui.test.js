@@ -28,9 +28,10 @@ test('prelogin UI wiring stops after KDF metadata and keeps credential processin
   assert.match(config, /credentialProcessingEnabled: false/);
 });
 
-test('unfinished vault navigation is explicitly disabled and cannot become the active view', async () => {
+test('unfinished vault navigation stays on vault and uses in-app Glaze feedback', async () => {
   const html = await source('index.html');
   const app = await source('assets/app.js');
+  const feedback = await source('assets/feedback.css');
 
   for (const route of ['favorites', 'organizations', 'send']) {
     assert.match(
@@ -39,8 +40,20 @@ test('unfinished vault navigation is explicitly disabled and cannot become the a
     );
   }
 
-  assert.match(app, /PREALPHA_DISABLED_ROUTES/);
+  assert.doesNotMatch(html, /title="(?:Favorites|Organizations|Send) is not available/);
+  assert.match(html, /id="app-toast"[^>]*role="status"/);
+  assert.match(html, /id="app-toast-dismiss"/);
+  assert.match(app, /showToast/);
+  assert.match(app, /TOAST_DURATION_MS/);
   assert.match(app, /event\.preventDefault\(\)/);
   assert.match(app, /history\.replaceState\(null, '', '#vault'\)/);
-  assert.match(html, /id="navigation-status"/);
+  assert.match(feedback, /\.app-toast/);
+});
+
+test('readiness copy distinguishes proven foundations from production approval', async () => {
+  const html = await source('index.html');
+  assert.match(html, /PBKDF2, token-state, and authenticated-sync foundations/);
+  assert.match(html, /HKDF, AES-CBC-HMAC, and type-2 EncString primitives/);
+  assert.match(html, /Argon2id and reviewed end-to-end vault crypto/);
+  assert.match(html, /implemented, automated foundations—not authorization for production credentials/);
 });
