@@ -13,7 +13,9 @@ import {
 const APPEARANCE_KEY = 'goreevault-web-appearance';
 const MODES = ['system', 'light', 'dark'];
 const PREALPHA_DISABLED_ROUTES = new Set(['favorites', 'organizations', 'send']);
+const TOAST_DURATION_MS = 5000;
 let verifiedServerConfig = null;
+let toastTimer = null;
 
 function safeStore(mode) {
   try {
@@ -63,11 +65,38 @@ function routeFromHash() {
   return window.location.hash.replace(/^#/, '').trim().toLowerCase();
 }
 
-function announceUnavailableRoute(label) {
-  const status = document.querySelector('#navigation-status');
-  if (status) {
-    status.textContent = `${label} is not available in this pre-alpha build. The vault remains locked and no private data is loaded.`;
+function hideToast() {
+  const toast = document.querySelector('#app-toast');
+  if (!(toast instanceof HTMLElement)) return;
+  toast.hidden = true;
+  if (toastTimer !== null) {
+    window.clearTimeout(toastTimer);
+    toastTimer = null;
   }
+}
+
+function showToast(title, message) {
+  const toast = document.querySelector('#app-toast');
+  const heading = document.querySelector('#app-toast-title');
+  const detail = document.querySelector('#app-toast-message');
+  if (!(toast instanceof HTMLElement) || !heading || !detail) return;
+
+  heading.textContent = title;
+  detail.textContent = message;
+  toast.hidden = false;
+
+  const status = document.querySelector('#navigation-status');
+  if (status) status.textContent = `${title}. ${message}`;
+
+  if (toastTimer !== null) window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(hideToast, TOAST_DURATION_MS);
+}
+
+function announceUnavailableRoute(label) {
+  showToast(
+    `${label} is coming later`,
+    'This section is not available in the current pre-alpha build. Vault remains selected and no private data is loaded.',
+  );
 }
 
 function renderNavigationState() {
@@ -99,6 +128,9 @@ function bindNavigation() {
       announceUnavailableRoute(item.textContent?.trim() || 'This section');
     });
   });
+
+  const dismiss = document.querySelector('#app-toast-dismiss');
+  if (dismiss instanceof HTMLButtonElement) dismiss.addEventListener('click', hideToast);
 
   window.addEventListener('hashchange', renderNavigationState);
   renderNavigationState();
