@@ -74,13 +74,14 @@ test('development readiness is available without dominating the vault workspace'
   const feedback = await source('assets/feedback.css');
 
   assert.match(html, /<details class="readiness-panel glaze-surface readiness-details" id="readiness">/);
-  assert.match(html, /5 foundations ready/);
+  assert.match(html, /6 foundations ready/);
   assert.match(feedback, /\.readiness-details/);
   assert.match(feedback, /\.content-grid-vault/);
 });
 
 test('readiness copy distinguishes proven foundations from production approval', async () => {
   const html = await source('index.html');
+  assert.match(html, /GoreeVault client SDK boundary and SDK-backed prelogin orchestration/);
   assert.match(html, /PBKDF2, token-state, and authenticated-sync foundations/);
   assert.match(html, /HKDF, AES-CBC-HMAC, and type-2 EncString primitives/);
   assert.match(html, /Argon2id and reviewed end-to-end vault crypto/);
