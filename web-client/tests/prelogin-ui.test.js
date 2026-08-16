@@ -50,11 +50,15 @@ test('unfinished vault navigation stays on vault and uses in-app Glaze feedback'
   assert.match(feedback, /\.app-toast/);
 });
 
-test('locked vault tools explain why privileged actions are unavailable', async () => {
+test('locked vault controls remain focusable and explain why actions are unavailable', async () => {
   const html = await source('index.html');
   const app = await source('assets/app.js');
 
+  assert.match(html, /class="account-button"[^>]*aria-disabled="true"[^>]*data-prealpha-action="Account menu"/);
+  assert.match(html, /class="search-field locked-tool locked-search"[^>]*aria-disabled="true"[^>]*data-prealpha-action="Search vault"/);
   assert.match(html, /data-prealpha-action="New item"/);
+  assert.doesNotMatch(html, /placeholder="Search vault" disabled/);
+  assert.doesNotMatch(html, /<kbd[^>]*>\/</);
   assert.match(html, /Search and item creation become available after an approved vault unlock/);
   assert.match(app, /announceLockedAction/);
   assert.match(app, /requires an unlocked vault/);
