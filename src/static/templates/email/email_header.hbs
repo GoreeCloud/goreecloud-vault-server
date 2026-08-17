@@ -1,94 +1,120 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns="http://www.w3.org/1999/xhtml" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0;">
+<html xmlns="http://www.w3.org/1999/xhtml" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #172033; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0;">
    <head>
       <meta name="viewport" content="width=device-width" />
       <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-      <title>Vaultwarden</title>
-   </head>
-   <body style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; height: 100%; line-height: 25px; width: 100% !important;" bgcolor="#f6f6f6">
+      <meta name="color-scheme" content="light dark" />
+      <meta name="supported-color-schemes" content="light dark" />
+      <title>GoreeVault</title>
       <style type="text/css">
-         body {
-         margin: 0;
-         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-         box-sizing: border-box;
-         font-size: 16px;
-         color: #333;
-         line-height: 25px;
-         -webkit-font-smoothing: antialiased;
-         -webkit-text-size-adjust: none;
-         }
+         body,
          body * {
-         margin: 0;
-         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-         box-sizing: border-box;
-         font-size: 16px;
-         color: #333;
-         line-height: 25px;
-         -webkit-font-smoothing: antialiased;
-         -webkit-text-size-adjust: none;
-         }
-         img {
-         max-width: 100%;
-         border: none;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -webkit-text-size-adjust: none;
          }
          body {
-         -webkit-font-smoothing: antialiased;
-         -webkit-text-size-adjust: none;
-         width: 100% !important;
-         height: 100%;
-         line-height: 25px;
+            background: #f3f5f9;
+            color: #172033;
+            height: 100%;
+            line-height: 25px;
+            margin: 0;
+            width: 100% !important;
          }
-         body {
-         background-color: #f6f6f6;
+         a {
+            color: #3157d5;
+         }
+         .gv-wordmark {
+            color: #172033;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            line-height: 30px;
+            text-decoration: none;
+         }
+         .gv-kicker {
+            color: #667085;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            line-height: 18px;
+            text-transform: uppercase;
          }
          @media only screen and (max-width: 600px) {
-         body {
-         padding: 0 !important;
+            body {
+               padding: 0 !important;
+            }
+            .container,
+            .container-table {
+               padding: 0 !important;
+               width: 100% !important;
+            }
+            .content {
+               padding: 0 0 10px 0 !important;
+            }
+            .content-wrap {
+               padding: 20px !important;
+            }
+            .main {
+               border-left: none !important;
+               border-radius: 0 !important;
+               border-right: none !important;
+            }
+            .logo {
+               padding-top: 18px !important;
+            }
+            .footer {
+               margin-top: 10px !important;
+            }
+            .indented {
+               padding-left: 10px;
+            }
          }
-         .container {
-         padding: 0 !important;
-         width: 100% !important;
-         }
-         .container-table {
-         padding: 0 !important;
-         width: 100% !important;
-         }
-         .content {
-         padding: 0 0 10px 0 !important;
-         }
-         .content-wrap {
-         padding: 10px !important;
-         }
-         .invoice {
-         width: 100% !important;
-         }
-         .main {
-         border-right: none !important;
-         border-left: none !important;
-         border-radius: 0 !important;
-         }
-         .logo {
-         padding-top: 10px !important;
-         }
-         .footer {
-         margin-top: 10px !important;
-         }
-         .indented {
-         padding-left: 10px;
-         }
+         @media (prefers-color-scheme: dark) {
+            body,
+            .body-wrap {
+               background: #111522 !important;
+               color: #eef2ff !important;
+            }
+            .main {
+               background: #1a2030 !important;
+               border-color: #343d52 !important;
+            }
+            .content-wrap,
+            .content-wrap p,
+            .content-wrap span,
+            .content-wrap strong,
+            .content-wrap td {
+               color: #eef2ff !important;
+            }
+            .gv-wordmark {
+               color: #f7f8ff !important;
+            }
+            .gv-kicker,
+            .footer,
+            .footer td {
+               color: #aeb8ce !important;
+            }
+            a {
+               color: #9fb4ff !important;
+            }
          }
       </style>
-      <table class="body-wrap" cellpadding="0" cellspacing="0" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0; width: 100%;" bgcolor="#f6f6f6">
-         <tr style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0;">
-            <td valign="middle" class="aligncenter middle logo" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0; padding: 20px 0 10px;" align="center">
-                <img src="{{img_src}}logo-gray.png" alt="Vaultwarden" width="190" height="39" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; border: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0; max-width: 100%;" />
+   </head>
+   <body bgcolor="#f3f5f9" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; background: #f3f5f9; color: #172033; height: 100%; line-height: 25px; margin: 0; width: 100% !important;">
+      <table class="body-wrap" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background: #f3f5f9; border-collapse: collapse; margin: 0; width: 100%;" bgcolor="#f3f5f9">
+         <tr>
+            <td valign="middle" class="aligncenter middle logo" align="center" style="margin: 0; padding: 24px 16px 14px;">
+               <div class="gv-wordmark" style="color: #172033; font-size: 24px; font-weight: 700; letter-spacing: -0.4px; line-height: 30px;">GoreeVault</div>
+               <div class="gv-kicker" style="color: #667085; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 18px; text-transform: uppercase;">GoreeCloud secure vault</div>
             </td>
          </tr>
-         <tr style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0;">
-            <td class="container" align="center" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; clear: both !important; color: #333; display: block !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0 auto; max-width: 600px !important; width: 600px;" valign="top">
-               <table cellpadding="0" cellspacing="0" class="container-table" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; clear: both !important; color: #333; display: block !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0 auto; max-width: 600px !important; width: max-content;">
-                  <tr style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0;">
-                     <td class="content" align="center" style="-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; display: block; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 0; line-height: 0; margin: 0 auto; max-width: 600px; padding-bottom: 20px;" valign="top">
-                        <table class="main" width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 16px; color: #333; line-height: 25px; -webkit-font-smoothing: antialiased; margin: 0; -webkit-text-size-adjust: none; border: 1px solid #e9e9e9; border-radius: 3px;" bgcolor="white">
-                           <tr style="margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 16px; color: #333; line-height: 25px; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none;">
-                              <td class="content-wrap" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 16px; color: #333; line-height: 25px; margin: 0; -webkit-font-smoothing: antialiased; padding: 20px; -webkit-text-size-adjust: none;" valign="top">
+         <tr>
+            <td class="container" align="center" valign="top" style="clear: both !important; display: block !important; margin: 0 auto; max-width: 600px !important; width: 600px;">
+               <table cellpadding="0" cellspacing="0" class="container-table" role="presentation" style="border-collapse: collapse; margin: 0 auto; max-width: 600px !important; width: 600px;">
+                  <tr>
+                     <td class="content" align="center" valign="top" style="display: block; margin: 0 auto; max-width: 600px; padding: 0 16px 20px;">
+                        <table class="main" width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#ffffff" style="background: #ffffff; border: 1px solid #dde3ee; border-collapse: separate; border-radius: 18px; overflow: hidden; width: 100%;">
+                           <tr>
+                              <td class="content-wrap" valign="top" style="color: #172033; font-size: 16px; line-height: 25px; padding: 28px;">

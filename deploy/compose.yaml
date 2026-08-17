@@ -16,6 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 5s
+    stop_grace_period: 30s
     networks:
       - goreevault-backend
 
@@ -28,6 +30,10 @@ services:
     image: goreecloud/goreevault-server:dev
     container_name: goreevault-server
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,6 +58,12 @@ services:
       - goreevault-data:/data
     ports:
       - "127.0.0.1:8080:80"
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     networks:
       - goreevault-backend
       - goreevault-edge

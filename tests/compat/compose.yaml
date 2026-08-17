@@ -6,12 +6,14 @@ services:
     environment:
       POSTGRES_DB: goreevault_compat
       POSTGRES_USER: goreevault_compat
-      POSTGRES_PASSWORD: goreevault_compat_only
+      POSTGRES_PASSWORD: goreevault_compat_0123456789abcdef0123456789abcdef
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U goreevault_compat -d goreevault_compat"]
       interval: 2s
       timeout: 3s
       retries: 30
+      start_period: 3s
+    stop_grace_period: 30s
     tmpfs:
       - /var/lib/postgresql/data
     networks:
@@ -24,12 +26,16 @@ services:
       args:
         DB: postgresql
     image: goreevault-server:compat
+    init: true
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DOMAIN: http://127.0.0.1:18080
-      DATABASE_URL: postgresql://goreevault_compat:goreevault_compat_only@postgres:5432/goreevault_compat
+      DOMAIN: ${DOMAIN:-http://127.0.0.1:18080}
+      DATABASE_URL: postgresql://goreevault_compat:goreevault_compat_0123456789abcdef0123456789abcdef@postgres:5432/goreevault_compat
       SIGNUPS_ALLOWED: ${SIGNUPS_ALLOWED:-false}
       INVITATIONS_ALLOWED: "false"
       WEB_VAULT_ENABLED: "false"
@@ -37,6 +43,12 @@ services:
       LOG_LEVEL: warn
       JOB_POLL_INTERVAL_MS: "0"
       ADMIN_TOKEN: ""
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
     tmpfs:
       - /data
     ports:

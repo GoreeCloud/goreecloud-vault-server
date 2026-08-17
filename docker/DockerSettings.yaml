@@ -6,14 +6,16 @@ vault_image_digest: "sha256:ba8bab66d4330ab9dbafa8f245bcbe99cf6ee3f2c8ce9b5fbb10
 # https://github.com/tonistiigi/xx | https://hub.docker.com/r/tonistiigi/xx/tags
 xx_image_digest: "sha256:c64defb9ed5a91eacb37f96ccc3d4cd72521c4bd18d5442905b95e2226b0e707"
 rust_version: 1.97.1 # Rust version to be used
+rust_image_digest: "sha256:8e8cf8f7fd54a2d23d5a743b3a03f56e26b6c774276c33fa0595111704ebb15c" # rust:1.97.1-slim-trixie OCI index
 debian_version: trixie # Debian release name to be used
+debian_image_digest: "sha256:3a39a0592364683e6bab97937b72cad5a8fa6dcbbee90edb3bb48c7f8e94f258" # debian:trixie-slim OCI index
 alpine_version: "3.24" # Alpine version to be used
 # For which platforms/architectures will we try to build images
 platforms: ["linux/amd64", "linux/arm64", "linux/arm/v7", "linux/arm/v6"]
 # Determine the build images per OS/Arch
 build_stage_image:
   debian:
-    image: "docker.io/library/rust:{{rust_version}}-slim-{{debian_version}}"
+    image: "docker.io/library/rust:{{rust_version}}-slim-{{debian_version}}@{{rust_image_digest}}"
     platform: "$BUILDPLATFORM"
   alpine:
     image: "build_${TARGETARCH}${TARGETVARIANT}"
@@ -24,5 +26,5 @@ build_stage_image:
       armv6: "ghcr.io/blackdex/rust-musl:arm-musleabi-stable-{{rust_version}}"
 # The final image which will be used to distribute the container images
 runtime_stage_image:
-  debian: "docker.io/library/debian:{{debian_version}}-slim"
+  debian: "docker.io/library/debian:{{debian_version}}-slim@{{debian_image_digest}}"
   alpine: "docker.io/library/alpine:{{alpine_version}}"

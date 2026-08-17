@@ -1,0 +1,135 @@
+name: GoreeVault Web Shell
+
+on:
+  pull_request:
+    paths:
+      - 'web-client/**'
+      - '.github/workflows/goreevault-web-shell.yml'
+      - '.github/CODEOWNERS'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - 'web-client/**'
+      - '.github/workflows/goreevault-web-shell.yml'
+      - '.github/CODEOWNERS'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-web-shell-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Glaze UI browser shell
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate source syntax
+        run: |
+          python3 -m py_compile web-client/tests/validate_web_shell.py
+          python3 -m py_compile web-client/tests/validate_auth_runtime.py
+          python3 -m py_compile web-client/scripts/build_release.py
+          python3 -m py_compile web-client/scripts/validate_cutover_evidence.py
+          python3 -m py_compile web-client/tests/test_build_release.py
+          python3 -m py_compile web-client/tests/test_cutover_evidence.py
+          node --check web-client/assets/theme-init.js
+          node --check web-client/assets/app.js
+          node --check web-client/assets/runtime-config.js
+          node --check web-client/assets/session-state.js
+          node --check web-client/assets/crypto-boundary.js
+          node --check web-client/assets/api-errors.js
+          node --check web-client/assets/api-client.js
+          node --check web-client/assets/auth-protocol.js
+          node --check web-client/assets/auth-state.js
+          node --check web-client/assets/auth-request.js
+          node --check web-client/assets/argon2id-provider.js
+          node --check web-client/assets/auth-kdf.js
+          node --check web-client/assets/identity-protocol.js
+          node --check web-client/assets/token-state.js
+          node --check web-client/assets/authenticated-api.js
+          node --check web-client/assets/server-config.js
+          node --check web-client/assets/sync-protocol.js
+          node --check web-client/assets/vault-state.js
+          node --check web-client/assets/sync-client.js
+          node --check web-client/assets/client-sdk.js
+          node --check web-client/assets/master-key-crypto.js
+          node --check web-client/assets/aes-cbc-hmac.js
+          node --check web-client/assets/enc-string.js
+          node --check web-client/assets/account-crypto.js
+          node --check web-client/assets/unlock-coordinator.js
+          node --check web-client/tests/api-client.test.js
+          node --check web-client/tests/auth-protocol.test.js
+          node --check web-client/tests/auth-state.test.js
+          node --check web-client/tests/auth-kdf.test.js
+          node --check web-client/tests/identity-protocol.test.js
+          node --check web-client/tests/token-state.test.js
+          node --check web-client/tests/authenticated-api.test.js
+          node --check web-client/tests/prelogin-ui.test.js
+          node --check web-client/tests/server-config.test.js
+          node --check web-client/tests/sync-boundary.test.js
+          node --check web-client/tests/sync-client.test.js
+          node --check web-client/tests/client-sdk.test.js
+          node --check web-client/tests/master-key-crypto.test.js
+          node --check web-client/tests/aes-cbc-hmac.test.js
+          node --check web-client/tests/enc-string.test.js
+          node --check web-client/tests/account-crypto.test.js
+          node --check web-client/tests/unlock-coordinator.test.js
+
+      - name: Run protocol, KDF, identity, token, crypto, authenticated-transport, and client-boundary unit tests
+        working-directory: web-client
+        run: npm test
+
+      - name: Validate authentication/runtime fail-closed boundaries
+        run: python3 web-client/tests/validate_auth_runtime.py
+
+      - name: Validate browser cutover evidence contract
+        run: |
+          python3 -m unittest web-client/tests/test_cutover_evidence.py
+          python3 web-client/scripts/validate_cutover_evidence.py \
+            web-client/migration/cutover-evidence.template.json \
+            --allow-template
+
+      - name: Validate deterministic release builder and SPDX evidence
+        run: |
+          python3 -m unittest web-client/tests/test_build_release.py
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${GITHUB_SHA}")"
+          python3 web-client/scripts/build_release.py --out "${RUNNER_TEMP}/goreevault-web" --source-revision "${GITHUB_SHA}" --source-date-epoch "${SOURCE_DATE_EPOCH}"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'goreevault-web'
+          manifest = json.loads((root / 'release-manifest.json').read_text())
+          sbom_path = root / manifest['sbom']['path']
+          sbom = json.loads(sbom_path.read_text())
+          sbom_sha256 = hashlib.sha256(sbom_path.read_bytes()).hexdigest()
+
+          assert manifest['sourceRevision'] == os.environ['GITHUB_SHA']
+          assert manifest['runtimeDependencies'] == []
+          assert manifest['files']
+          assert manifest['sbom']['format'] == 'SPDX-2.3'
+          assert manifest['sbom']['sha256'] == sbom_sha256
+          assert sbom['spdxVersion'] == 'SPDX-2.3'
+          assert sbom['dataLicense'] == 'CC0-1.0'
+          assert len(sbom['files']) == len(manifest['files'])
+          assert sbom['packages'][0]['filesAnalyzed'] is True
+          print(
+              f"Validated deterministic manifest and SPDX SBOM for "
+              f"{len(manifest['files'])} browser files."
+          )
+          PY
+
+      - name: Validate Glaze UI, accessibility, privacy, and client safety contracts
+        run: python3 web-client/tests/validate_web_shell.py

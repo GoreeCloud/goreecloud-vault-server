@@ -15,15 +15,32 @@ concurrency:
 jobs:
   api-compatibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 80
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Show Docker versions
         run: |
           docker version
           docker compose version
 
-      - name: Run isolated GoreeVault compatibility harness
-        run: bash scripts/compat.sh
+      - name: Build compatibility image once
+        run: docker compose -f tests/compat/compose.yaml build server
+
+      - name: Closed-registration compatibility
+        run: bash scripts/compat.sh closed
+
+      - name: Authenticated CRUD and attachment compatibility
+        run: bash scripts/compat.sh full
+
+      - name: Restricted organization membership compatibility
+        run: bash scripts/compat.sh org-members
+
+      - name: TOTP authentication and recovery compatibility
+        run: bash scripts/compat.sh totp
+
+      - name: WebAuthn challenge and rejection compatibility
+        run: bash scripts/compat.sh webauthn

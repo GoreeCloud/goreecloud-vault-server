@@ -1,0 +1,109 @@
+name: GoreeVault Web Argon2id Core
+
+on:
+  pull_request:
+    paths:
+      - 'web-client/crypto/argon2id-provider/**'
+      - '.github/workflows/goreevault-web-argon2id-core.yml'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - 'web-client/crypto/argon2id-provider/**'
+      - '.github/workflows/goreevault-web-argon2id-core.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-web-argon2id-core-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Rust Argon2id provider core and WASM ABI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show Rust toolchain
+        run: rustc --version && cargo --version
+
+      - name: Generate dependency lock evidence
+        run: |
+          cargo generate-lockfile --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
+          sha256sum web-client/crypto/argon2id-provider/Cargo.lock
+          cat web-client/crypto/argon2id-provider/Cargo.lock
+          git diff --exit-code -- web-client/crypto/argon2id-provider/Cargo.lock
+
+      - name: Validate formatting
+        run: cargo fmt --manifest-path web-client/crypto/argon2id-provider/Cargo.toml -- --check
+
+      - name: Lint native targets
+        run: cargo clippy --manifest-path web-client/crypto/argon2id-provider/Cargo.toml --all-targets -- -D warnings
+
+      - name: Run native Bitwarden interoperability tests
+        run: cargo test --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
+
+      - name: Test fail-closed WASM and binding evidence
+        run: |
+          python3 web-client/crypto/argon2id-provider/scripts/test_build_wasm_evidence.py
+          python3 web-client/crypto/argon2id-provider/scripts/test_build_binding_evidence.py
+
+      - name: Build wasm32 ABI
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo build \
+            --locked \
+            --manifest-path web-client/crypto/argon2id-provider/Cargo.toml \
+            --target wasm32-unknown-unknown
+
+      - name: Install exact wasm-bindgen CLI
+        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+
+      - name: Generate isolated Node.js ABI bindings
+        run: |
+          BINDINGS_DIR="$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node"
+          rm -rf "$BINDINGS_DIR"
+          wasm-bindgen \
+            --target nodejs \
+            --out-dir "$BINDINGS_DIR" \
+            web-client/crypto/argon2id-provider/target/wasm32-unknown-unknown/debug/goreevault_web_argon2id_core.wasm
+          find "$BINDINGS_DIR" -maxdepth 1 -type f -printf '%f\n' | sort
+          sha256sum "$BINDINGS_DIR"/* | sort
+
+      - name: Run Bitwarden vector through actual WASM ABI
+        run: |
+          node web-client/crypto/argon2id-provider/tests/test-wasm-abi.cjs \
+            "$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node/goreevault_web_argon2id_core.js"
+
+      - name: Generate exact fail-closed binding evidence
+        env:
+          GOREEVAULT_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 web-client/crypto/argon2id-provider/scripts/build_binding_evidence.py \
+            --bindings "$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node" \
+            --source-revision "$GOREEVAULT_SOURCE_REVISION" \
+            --wasm-bindgen-version 0.2.126 \
+            --output web-client/crypto/argon2id-provider/target/binding-evidence.json
+          cat web-client/crypto/argon2id-provider/target/binding-evidence.json
+          grep -F '"runtimeIntegrationApproved": false' web-client/crypto/argon2id-provider/target/binding-evidence.json
+          grep -F '"credentialProcessingApproved": false' web-client/crypto/argon2id-provider/target/binding-evidence.json
+
+      - name: Generate exact build-only WASM identity evidence
+        env:
+          GOREEVAULT_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 web-client/crypto/argon2id-provider/scripts/build_wasm_evidence.py \
+            --wasm web-client/crypto/argon2id-provider/target/wasm32-unknown-unknown/debug/goreevault_web_argon2id_core.wasm \
+            --source-revision "$GOREEVAULT_SOURCE_REVISION" \
+            --output web-client/crypto/argon2id-provider/target/wasm-evidence.json
+          cat web-client/crypto/argon2id-provider/target/wasm-evidence.json
+          grep -F '"runtimeIntegrationApproved": false' web-client/crypto/argon2id-provider/target/wasm-evidence.json
+          grep -F '"credentialProcessingApproved": false' web-client/crypto/argon2id-provider/target/wasm-evidence.json

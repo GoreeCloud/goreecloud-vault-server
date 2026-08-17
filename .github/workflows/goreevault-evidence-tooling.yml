@@ -1,0 +1,60 @@
+name: GoreeVault Evidence Tooling
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'agent/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-evidence-tooling-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-tooling:
+    name: Validate evidence contracts and tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile \
+            scripts/assemble-stable-evidence.py \
+            scripts/collect-target-evidence.py \
+            scripts/validate-evidence-tooling.py \
+            scripts/validate-stable-evidence.py \
+            tests/test_assemble_stable_evidence.py \
+            tests/test_collect_target_evidence.py
+
+      - name: Run target evidence collector unit tests
+        run: python3 tests/test_collect_target_evidence.py
+
+      - name: Run Stable evidence assembler unit tests
+        run: python3 tests/test_assemble_stable_evidence.py
+
+      - name: Validate target, client, RC, Web, and assembly contracts
+        run: python3 scripts/validate-evidence-tooling.py
+
+      - name: Verify collector fails closed without required inputs
+        run: |
+          if python3 scripts/collect-target-evidence.py; then
+            echo 'collector unexpectedly succeeded without required production evidence inputs' >&2
+            exit 1
+          fi
+
+      - name: Verify assembler fails closed without required inputs
+        run: |
+          if python3 scripts/assemble-stable-evidence.py; then
+            echo 'assembler unexpectedly succeeded without required exact-RC evidence inputs' >&2
+            exit 1
+          fi

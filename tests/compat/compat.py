@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GoreeVault black-box compatibility smoke tests.
+"""GoreeVault black-box compatibility tests.
 
 The harness deliberately treats encrypted vault values as opaque strings. That
 matches the server's responsibility: clients perform vault encryption and the
@@ -9,8 +9,10 @@ server stores/synchronizes ciphertext without decrypting it.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -22,6 +24,10 @@ BASE_URL = "http://127.0.0.1:18080"
 EMAIL = "compat-user@example.invalid"
 PASSWORD_HASH = "goreevault-compat-client-auth-hash-v1"
 DEVICE_ID = "11111111-2222-4333-8444-555555555555"
+OUTSIDER_EMAIL = "compat-outsider@example.invalid"
+OUTSIDER_PASSWORD_HASH = "goreevault-compat-outsider-auth-hash-v1"
+OUTSIDER_DEVICE_ID = "66666666-7777-4888-8999-aaaaaaaaaaaa"
+ATTACHMENT_BYTES = b"goreevault-compat-encrypted-attachment-payload-v1\x00\x01\xff"
 
 
 @dataclass
@@ -39,14 +45,19 @@ class Response:
         return self.body.decode("utf-8", errors="replace")
 
 
-def request(
+def request_url(
     method: str,
-    path: str,
+    url: str,
     *,
     json_body: Any | None = None,
     form: dict[str, str] | None = None,
+    raw_body: bytes | None = None,
+    content_type: str | None = None,
     token: str | None = None,
 ) -> Response:
+    body_count = sum(value is not None for value in (json_body, form, raw_body))
+    require(body_count <= 1, "request may contain only one body type")
+
     headers = {"User-Agent": "GoreeVault-Compatibility-Harness/0.2"}
     data = None
     if json_body is not None:
@@ -55,15 +66,62 @@ def request(
     elif form is not None:
         data = urllib.parse.urlencode(form).encode("utf-8")
         headers["Content-Type"] = "application/x-www-form-urlencoded"
+    elif raw_body is not None:
+        data = raw_body
+        if content_type:
+            headers["Content-Type"] = content_type
+
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    req = urllib.request.Request(BASE_URL + path, data=data, headers=headers, method=method)
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return Response(resp.status, resp.read(), resp.headers)
     except urllib.error.HTTPError as exc:
         return Response(exc.code, exc.read(), exc.headers)
+
+
+def request(
+    method: str,
+    path: str,
+    *,
+    json_body: Any | None = None,
+    form: dict[str, str] | None = None,
+    raw_body: bytes | None = None,
+    content_type: str | None = None,
+    token: str | None = None,
+) -> Response:
+    return request_url(
+        method,
+        BASE_URL + path,
+        json_body=json_body,
+        form=form,
+        raw_body=raw_body,
+        content_type=content_type,
+        token=token,
+    )
+
+
+def multipart_file_request(path: str, *, filename: str, content: bytes, token: str) -> Response:
+    boundary = "----GoreeVaultCompatBoundaryA1B2C3D4E5F6"
+    body = b"".join(
+        [
+            f"--{boundary}\r\n".encode(),
+            f'Content-Disposition: form-data; name="data"; filename="{filename}"\r\n'.encode(),
+            b"Content-Type: application/octet-stream\r\n\r\n",
+            content,
+            b"\r\n",
+            f"--{boundary}--\r\n".encode(),
+        ]
+    )
+    return request(
+        "POST",
+        path,
+        raw_body=body,
+        content_type=f"multipart/form-data; boundary={boundary}",
+        token=token,
+    )
 
 
 def require(condition: bool, message: str) -> None:
@@ -73,6 +131,10 @@ def require(condition: bool, message: str) -> None:
 
 def require_success(resp: Response, label: str) -> None:
     require(200 <= resp.status < 300, f"{label}: HTTP {resp.status}: {resp.text()}")
+
+
+def require_denied(resp: Response, label: str) -> None:
+    require(resp.status in (401, 403, 404), f"{label}: expected access denial, got HTTP {resp.status}: {resp.text()}")
 
 
 def wait_for_server(timeout: int = 180) -> None:
@@ -92,6 +154,52 @@ def wait_for_server(timeout: int = 180) -> None:
     raise AssertionError(f"GoreeVault did not become healthy: {last}")
 
 
+def health_contract() -> None:
+    resp = request("HEAD", "/alive")
+    require_success(resp, "HEAD /alive")
+    print("PASS  HEAD /alive")
+
+    resp = request("GET", "/api/alive")
+    require_success(resp, "/api/alive")
+    require(resp.body, "/api/alive returned an empty body")
+    print("PASS  database-backed /api/alive")
+
+
+def config_contract(*, registration_disabled: bool) -> None:
+    resp = request("GET", "/api/config")
+    require_success(resp, "config")
+    body = resp.json()
+    require(isinstance(body, dict), "config did not return an object")
+    require(body.get("object") == "config", "config object marker changed")
+
+    server = body.get("server")
+    require(isinstance(server, dict), "config did not return server metadata")
+    require(server.get("name") == "GoreeVault", f"unexpected server name: {server}")
+    require(
+        server.get("url") == "https://github.com/GoreeCloud/goreevault-server",
+        f"unexpected GoreeVault source URL: {server}",
+    )
+
+    settings = body.get("settings")
+    require(isinstance(settings, dict), "config did not return settings")
+    require(
+        settings.get("disableUserRegistration") is registration_disabled,
+        "config registration policy does not match runtime policy",
+    )
+
+    environment = body.get("environment")
+    require(isinstance(environment, dict), "config did not return environment URLs")
+    require(str(environment.get("api", "")).endswith("/api"), "config API URL is invalid")
+    require(str(environment.get("identity", "")).endswith("/identity"), "config identity URL is invalid")
+    print("PASS  GoreeVault config and server identity")
+
+
+def unauthenticated_sync_denied() -> None:
+    resp = request("GET", "/api/sync")
+    require(resp.status in (401, 403), f"unauthenticated sync returned HTTP {resp.status}: {resp.text()}")
+    print("PASS  unauthenticated vault sync denied")
+
+
 def kdf() -> dict[str, Any]:
     return {
         "kdf": 0,
@@ -101,25 +209,34 @@ def kdf() -> dict[str, Any]:
     }
 
 
-def registration_payload() -> dict[str, Any]:
+def registration_payload_for(email: str, password_hash: str, name: str, key_prefix: str) -> dict[str, Any]:
     return {
-        "email": EMAIL,
-        "name": "GoreeVault Compatibility User",
+        "email": email,
+        "name": name,
         "masterPasswordAuthentication": {
             "kdf": kdf(),
-            "salt": EMAIL,
-            "hash": PASSWORD_HASH,
+            "salt": email,
+            "hash": password_hash,
         },
         "masterPasswordUnlock": {
             "kdf": kdf(),
-            "salt": EMAIL,
-            "key": "2.compat-encrypted-user-key",
+            "salt": email,
+            "key": f"2.{key_prefix}-encrypted-user-key",
         },
         "keys": {
-            "encryptedPrivateKey": "2.compat-encrypted-private-key",
-            "publicKey": "compat-public-key",
+            "encryptedPrivateKey": f"2.{key_prefix}-encrypted-private-key",
+            "publicKey": f"{key_prefix}-public-key",
         },
     }
+
+
+def registration_payload() -> dict[str, Any]:
+    return registration_payload_for(
+        EMAIL,
+        PASSWORD_HASH,
+        "GoreeVault Compatibility User",
+        "compat",
+    )
 
 
 def prelogin() -> None:
@@ -127,11 +244,16 @@ def prelogin() -> None:
     require_success(resp, "prelogin")
     body = resp.json()
     require(isinstance(body, dict), "prelogin did not return an object")
+    require("kdf" in body, "prelogin response is missing kdf")
+    require("kdfIterations" in body, "prelogin response is missing kdfIterations")
     print("PASS  prelogin API contract")
 
 
 def closed_registration_test() -> None:
     wait_for_server()
+    health_contract()
+    config_contract(registration_disabled=True)
+    unauthenticated_sync_denied()
     prelogin()
     resp = request("POST", "/identity/accounts/register", json_body=registration_payload())
     require(400 <= resp.status < 500, f"closed registration unexpectedly returned HTTP {resp.status}")
@@ -142,13 +264,26 @@ def closed_registration_test() -> None:
     print("PASS  public registration disabled")
 
 
+def register_account(email: str, password_hash: str, name: str, key_prefix: str) -> None:
+    resp = request(
+        "POST",
+        "/identity/accounts/register",
+        json_body=registration_payload_for(email, password_hash, name, key_prefix),
+    )
+    require_success(resp, f"register {email}")
+    print(f"PASS  isolated test-account registration ({email})")
+
+
 def register() -> None:
-    resp = request("POST", "/identity/accounts/register", json_body=registration_payload())
-    require_success(resp, "register")
-    print("PASS  isolated test-account registration")
+    register_account(EMAIL, PASSWORD_HASH, "GoreeVault Compatibility User", "compat")
 
 
-def login() -> tuple[str, str]:
+def login_account(
+    email: str,
+    password_hash: str,
+    device_id: str,
+    device_name: str,
+) -> tuple[str, str]:
     resp = request(
         "POST",
         "/identity/connect/token",
@@ -156,25 +291,29 @@ def login() -> tuple[str, str]:
             "grant_type": "password",
             "client_id": "web",
             "scope": "api offline_access",
-            "username": EMAIL,
-            "password": PASSWORD_HASH,
-            "device_identifier": DEVICE_ID,
-            "device_name": "GoreeVault Compatibility Harness",
+            "username": email,
+            "password": password_hash,
+            "device_identifier": device_id,
+            "device_name": device_name,
             "device_type": "14",
         },
     )
-    require_success(resp, "login")
+    require_success(resp, f"login {email}")
     body = resp.json()
     require(isinstance(body, dict), "login did not return an object")
     access = body.get("access_token")
     refresh = body.get("refresh_token")
     require(isinstance(access, str) and access, "login did not return access_token")
     require(isinstance(refresh, str) and refresh, "login did not return refresh_token")
-    print("PASS  password login")
+    print(f"PASS  password login ({email})")
     return access, refresh
 
 
-def refresh_login(refresh_token: str) -> str:
+def login() -> tuple[str, str]:
+    return login_account(EMAIL, PASSWORD_HASH, DEVICE_ID, "GoreeVault Compatibility Harness")
+
+
+def refresh_login(refresh_token: str) -> tuple[str, str]:
     resp = request(
         "POST",
         "/identity/connect/token",
@@ -187,9 +326,73 @@ def refresh_login(refresh_token: str) -> str:
     require_success(resp, "refresh token")
     body = resp.json()
     access = body.get("access_token") if isinstance(body, dict) else None
+    new_refresh = body.get("refresh_token") if isinstance(body, dict) else None
     require(isinstance(access, str) and access, "refresh did not return access_token")
+    require(isinstance(new_refresh, str) and new_refresh, "refresh did not return refresh_token")
+    require(new_refresh != refresh_token, "refresh token was not rotated")
     print("PASS  refresh-token rotation")
-    return access
+    return access, new_refresh
+
+
+def refresh_replay_rejected(old_refresh_token: str) -> None:
+    resp = request(
+        "POST",
+        "/identity/connect/token",
+        form={
+            "grant_type": "refresh_token",
+            "client_id": "web",
+            "refresh_token": old_refresh_token,
+        },
+    )
+    require(resp.status == 400, f"replayed refresh token returned HTTP {resp.status}: {resp.text()}")
+    body = resp.json()
+    require(isinstance(body, dict) and body.get("error") == "invalid_grant", "refresh replay was not invalid_grant")
+    print("PASS  rotated refresh-token replay rejected")
+
+
+def concurrent_refresh_single_winner() -> None:
+    _access, original_refresh = login()
+    workers = 16
+    barrier = threading.Barrier(workers)
+
+    def attempt_refresh(_: int) -> Response:
+        barrier.wait(timeout=10)
+        return request(
+            "POST",
+            "/identity/connect/token",
+            form={
+                "grant_type": "refresh_token",
+                "client_id": "web",
+                "refresh_token": original_refresh,
+            },
+        )
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        responses = list(pool.map(attempt_refresh, range(workers)))
+
+    successes = [resp for resp in responses if 200 <= resp.status < 300]
+    failures = [resp for resp in responses if not (200 <= resp.status < 300)]
+    require(len(successes) == 1, f"concurrent refresh expected one winner, got {len(successes)}")
+    require(len(failures) == workers - 1, f"concurrent refresh expected {workers - 1} losers, got {len(failures)}")
+
+    for resp in failures:
+        require(resp.status == 400, f"concurrent refresh loser returned HTTP {resp.status}: {resp.text()}")
+        body = resp.json()
+        require(
+            isinstance(body, dict) and body.get("error") == "invalid_grant",
+            f"concurrent refresh loser was not invalid_grant: {resp.text()}",
+        )
+
+    winner_body = successes[0].json()
+    require(isinstance(winner_body, dict), "concurrent refresh winner did not return an object")
+    winner_refresh = winner_body.get("refresh_token")
+    require(isinstance(winner_refresh, str) and winner_refresh, "concurrent refresh winner omitted refresh_token")
+    require(winner_refresh != original_refresh, "concurrent refresh winner did not rotate refresh token")
+
+    _winner_access, successor_refresh = refresh_login(winner_refresh)
+    require(successor_refresh != winner_refresh, "winner refresh token was not consumable exactly once")
+    refresh_replay_rejected(original_refresh)
+    print("PASS  concurrent refresh-token consume has exactly one winner")
 
 
 def sync(token: str) -> dict[str, Any]:
@@ -220,8 +423,157 @@ def cipher_payload(name: str) -> dict[str, Any]:
 
 def get_id(body: dict[str, Any]) -> str:
     value = body.get("id") or body.get("Id")
-    require(isinstance(value, str) and value, f"cipher response missing id: {body}")
+    require(isinstance(value, str) and value, f"response missing id: {body}")
     return value
+
+
+def response_ids(body: Any) -> set[str]:
+    require(isinstance(body, dict), f"list response was not an object: {body}")
+    data = body.get("data")
+    require(isinstance(data, list), f"list response did not contain data: {body}")
+    return {
+        value
+        for item in data
+        if isinstance(item, dict)
+        for value in (item.get("id") or item.get("Id"),)
+        if isinstance(value, str) and value
+    }
+
+
+def organization_isolation(owner_token: str, outsider_token: str) -> None:
+    resp = request(
+        "POST",
+        "/api/organizations",
+        json_body={
+            "billingEmail": EMAIL,
+            "collectionName": "GoreeVault Compatibility Default Collection",
+            "key": "2.compat-encrypted-organization-key",
+            "name": "GoreeVault Compatibility Organization",
+            "keys": {
+                "encryptedPrivateKey": "2.compat-encrypted-organization-private-key",
+                "publicKey": "compat-organization-public-key",
+            },
+            "planType": 0,
+        },
+        token=owner_token,
+    )
+    require_success(resp, "create organization")
+    organization = resp.json()
+    require(isinstance(organization, dict), "organization create did not return an object")
+    org_id = get_id(organization)
+    print("PASS  organization owner create")
+
+    resp = request("GET", f"/api/organizations/{org_id}", token=owner_token)
+    require_success(resp, "owner read organization")
+    owner_org = resp.json()
+    require(isinstance(owner_org, dict) and get_id(owner_org) == org_id, "owner organization read mismatch")
+    print("PASS  organization owner read")
+
+    resp = request("GET", f"/api/organizations/{org_id}", token=outsider_token)
+    require_denied(resp, "outsider read organization")
+    print("PASS  outsider organization read denied")
+
+    org_collections_path = f"/api/organizations/{org_id}/collections"
+    resp = request("GET", org_collections_path, token=owner_token)
+    require_success(resp, "owner list organization collections")
+    initial_collection_ids = response_ids(resp.json())
+    require(initial_collection_ids, "new organization did not contain its default collection")
+    print("PASS  organization owner collection list")
+
+    resp = request("GET", org_collections_path, token=outsider_token)
+    require_denied(resp, "outsider list organization collections")
+    print("PASS  outsider organization collection list denied")
+
+    collection_payload = {
+        "name": "GoreeVault Compatibility Secondary Collection",
+        "groups": [],
+        "users": [],
+        "externalId": None,
+    }
+    resp = request("POST", org_collections_path, json_body=collection_payload, token=owner_token)
+    require_success(resp, "owner create organization collection")
+    collection = resp.json()
+    require(isinstance(collection, dict), "collection create did not return an object")
+    collection_id = get_id(collection)
+    print("PASS  organization owner collection create")
+
+    resp = request("POST", org_collections_path, json_body=collection_payload, token=outsider_token)
+    require_denied(resp, "outsider create organization collection")
+    print("PASS  outsider organization collection create denied")
+
+    resp = request("GET", "/api/collections", token=owner_token)
+    require_success(resp, "owner user-collection list")
+    owner_collection_ids = response_ids(resp.json())
+    require(collection_id in owner_collection_ids, "owner user-collection list omitted created collection")
+    require(initial_collection_ids.issubset(owner_collection_ids), "owner user-collection list omitted default collection")
+
+    resp = request("GET", "/api/collections", token=outsider_token)
+    require_success(resp, "outsider user-collection list")
+    outsider_collection_ids = response_ids(resp.json())
+    require(collection_id not in outsider_collection_ids, "outsider could see owner's created collection")
+    require(initial_collection_ids.isdisjoint(outsider_collection_ids), "outsider could see owner's default collection")
+    print("PASS  organization collections isolated across accounts")
+
+
+def attachment_lifecycle(token: str, cipher_id: str) -> None:
+    encrypted_filename = "2.compat-encrypted-attachment-filename"
+    encrypted_key = "2.compat-encrypted-attachment-key"
+
+    resp = request(
+        "POST",
+        f"/api/ciphers/{cipher_id}/attachment/v2",
+        json_body={
+            "key": encrypted_key,
+            "fileName": encrypted_filename,
+            "fileSize": len(ATTACHMENT_BYTES),
+        },
+        token=token,
+    )
+    require_success(resp, "create attachment metadata")
+    body = resp.json()
+    require(isinstance(body, dict), "attachment create did not return an object")
+    attachment_id = body.get("attachmentId")
+    upload_url = body.get("url")
+    require(isinstance(attachment_id, str) and attachment_id, "attachment create did not return attachmentId")
+    require(isinstance(upload_url, str) and upload_url.startswith("/ciphers/"), "attachment upload URL changed")
+    print("PASS  attachment metadata create")
+
+    resp = multipart_file_request(
+        "/api" + upload_url,
+        filename=encrypted_filename,
+        content=ATTACHMENT_BYTES,
+        token=token,
+    )
+    require_success(resp, "upload attachment data")
+    print("PASS  attachment upload")
+
+    metadata_path = f"/api/ciphers/{cipher_id}/attachment/{attachment_id}"
+    resp = request("GET", metadata_path, token=token)
+    require_success(resp, "read attachment metadata")
+    metadata = resp.json()
+    require(isinstance(metadata, dict), "attachment metadata did not return an object")
+    require(metadata.get("id") == attachment_id, "attachment metadata id mismatch")
+    require(metadata.get("fileName") == encrypted_filename, "attachment encrypted filename changed")
+    require(metadata.get("key") == encrypted_key, "attachment encrypted key changed")
+    require(metadata.get("size") == str(len(ATTACHMENT_BYTES)), "attachment size mismatch")
+    download_url = metadata.get("url")
+    require(isinstance(download_url, str) and download_url.startswith(BASE_URL + "/attachments/"), "attachment download URL invalid")
+    print("PASS  attachment metadata read")
+
+    resp = request_url("GET", download_url)
+    require_success(resp, "download attachment data")
+    require(resp.body == ATTACHMENT_BYTES, "attachment download bytes changed")
+    print("PASS  attachment download integrity")
+
+    resp = request("DELETE", metadata_path, token=token)
+    require_success(resp, "delete attachment")
+    print("PASS  attachment delete")
+
+    resp = request("GET", metadata_path, token=token)
+    require(400 <= resp.status < 500, f"deleted attachment metadata remained accessible: HTTP {resp.status}")
+    resp = request_url("GET", download_url)
+    require(400 <= resp.status < 500, f"deleted attachment file remained accessible: HTTP {resp.status}")
+    print("PASS  attachment deletion removes metadata and stored file")
 
 
 def cipher_crud(token: str) -> None:
@@ -256,6 +608,8 @@ def cipher_crud(token: str) -> None:
     require(synced_name == updated_name, "sync did not contain updated cipher")
     print("PASS  vault sync after update")
 
+    attachment_lifecycle(token, cipher_id)
+
     resp = request("DELETE", f"/api/ciphers/{cipher_id}", token=token)
     require_success(resp, "delete cipher")
     print("PASS  cipher delete")
@@ -270,13 +624,32 @@ def cipher_crud(token: str) -> None:
 
 def full_test() -> None:
     wait_for_server()
+    health_contract()
+    config_contract(registration_disabled=False)
+    unauthenticated_sync_denied()
     prelogin()
     register()
     access, refresh = login()
     first_sync = sync(access)
     require(first_sync["ciphers"] == [], "new account unexpectedly contained ciphers")
     print("PASS  clean-account initial sync")
-    access = refresh_login(refresh)
+    access, _new_refresh = refresh_login(refresh)
+    refresh_replay_rejected(refresh)
+    concurrent_refresh_single_winner()
+
+    register_account(
+        OUTSIDER_EMAIL,
+        OUTSIDER_PASSWORD_HASH,
+        "GoreeVault Compatibility Outsider",
+        "compat-outsider",
+    )
+    outsider_access, _outsider_refresh = login_account(
+        OUTSIDER_EMAIL,
+        OUTSIDER_PASSWORD_HASH,
+        OUTSIDER_DEVICE_ID,
+        "GoreeVault Compatibility Outsider Harness",
+    )
+    organization_isolation(access, outsider_access)
     cipher_crud(access)
 
 

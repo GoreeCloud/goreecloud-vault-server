@@ -1,0 +1,186 @@
+name: GoreeVault Stable Evidence
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/goreevault-release.yml'
+      - '.github/workflows/goreevault-stable-evidence.yml'
+      - 'docs/STABLE-EVIDENCE.md'
+      - 'docs/stable-evidence.example.json'
+      - 'scripts/validate-stable-evidence.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate fail-closed Stable evidence gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Python syntax
+        run: python3 -m py_compile scripts/validate-stable-evidence.py
+
+      - name: Validate canonical evidence example
+        env:
+          SOURCE_SHA: '1111111111111111111111111111111111111111'
+          RC_TAG: 'v0.3.0-rc.1'
+          MANIFEST_DIGEST: 'sha256:2222222222222222222222222222222222222222222222222222222222222222'
+        run: |
+          set -euo pipefail
+          python3 scripts/validate-stable-evidence.py \
+            docs/stable-evidence.example.json \
+            --expected-source-sha "${SOURCE_SHA}" \
+            --expected-rc-tag "${RC_TAG}" \
+            --expected-manifest-digest "${MANIFEST_DIGEST}" \
+            --allow-placeholders
+
+      - name: Prove template placeholders fail closed for Stable use
+        run: |
+          set -euo pipefail
+          if python3 scripts/validate-stable-evidence.py docs/stable-evidence.example.json; then
+            echo "Stable evidence validator accepted unresolved template placeholders." >&2
+            exit 1
+          fi
+
+      - name: Prove mismatched artifact evidence is rejected
+        env:
+          SOURCE_SHA: '1111111111111111111111111111111111111111'
+          RC_TAG: 'v0.3.0-rc.1'
+          WRONG_DIGEST: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        run: |
+          set -euo pipefail
+          if python3 scripts/validate-stable-evidence.py \
+            docs/stable-evidence.example.json \
+            --expected-source-sha "${SOURCE_SHA}" \
+            --expected-rc-tag "${RC_TAG}" \
+            --expected-manifest-digest "${WRONG_DIGEST}" \
+            --allow-placeholders; then
+            echo "Stable evidence validator accepted a mismatched manifest digest." >&2
+            exit 1
+          fi
+
+      - name: Prove malformed immutable artifact references are rejected
+        run: |
+          set -euo pipefail
+
+          BAD_POSTGRES="${RUNNER_TEMP}/bad-postgres.json"
+          jq '.rc.postgres_image = "postgres:latest"' \
+            docs/stable-evidence.example.json > "${BAD_POSTGRES}"
+          if python3 scripts/validate-stable-evidence.py "${BAD_POSTGRES}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a mutable PostgreSQL image reference." >&2
+            exit 1
+          fi
+
+          BAD_BROWSER="${RUNNER_TEMP}/bad-browser-asset.json"
+          jq '.rc.browser_vault_asset = "goreevault-web-v0.3.0"' \
+            docs/stable-evidence.example.json > "${BAD_BROWSER}"
+          if python3 scripts/validate-stable-evidence.py "${BAD_BROWSER}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a browser asset without an immutable SHA-256 identity." >&2
+            exit 1
+          fi
+
+          BAD_PREVIOUS="${RUNNER_TEMP}/bad-previous-image.json"
+          jq '.target_environment.previous_known_good_image = "goreevault-server@sha256:short"' \
+            docs/stable-evidence.example.json > "${BAD_PREVIOUS}"
+          if python3 scripts/validate-stable-evidence.py "${BAD_PREVIOUS}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a malformed previous-known-good image reference." >&2
+            exit 1
+          fi
+
+      - name: Prove artifact identities cannot be silently reused
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/reused-artifact-digests.json"
+          jq '
+            .rc.browser_vault_asset = ("goreevault-web@" + .rc.manifest_digest) |
+            .target_environment.previous_known_good_image = ("goreevault-server@" + .rc.manifest_digest)
+          ' docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted distinct artifacts reusing the server manifest digest." >&2
+            exit 1
+          fi
+
+      - name: Prove unknown evidence fields are rejected
+        run: |
+          set -euo pipefail
+
+          EXTRA_ROOT="${RUNNER_TEMP}/extra-root-field.json"
+          jq '.unexpected_secret = "must-not-be-stored-here"' \
+            docs/stable-evidence.example.json > "${EXTRA_ROOT}"
+          if python3 scripts/validate-stable-evidence.py "${EXTRA_ROOT}" --allow-placeholders; then
+            echo "Stable evidence validator accepted an unknown top-level field." >&2
+            exit 1
+          fi
+
+          EXTRA_CLIENT="${RUNNER_TEMP}/extra-client-field.json"
+          jq '.clients[0].checks.unexpected_check = true' \
+            docs/stable-evidence.example.json > "${EXTRA_CLIENT}"
+          if python3 scripts/validate-stable-evidence.py "${EXTRA_CLIENT}" --allow-placeholders; then
+            echo "Stable evidence validator accepted an unknown nested client check." >&2
+            exit 1
+          fi
+
+      - name: Prove duplicate JSON keys are rejected
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/duplicate-key-evidence.json"
+          python3 - "${TMP_EVIDENCE}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          source = Path("docs/stable-evidence.example.json").read_text(encoding="utf-8")
+          needle = '  "schema_version": 2,'
+          replacement = '  "schema_version": 2,\n  "schema_version": 2,'
+          if needle not in source:
+              raise SystemExit("canonical schema_version line not found")
+          Path(sys.argv[1]).write_text(source.replace(needle, replacement, 1), encoding="utf-8")
+          PY
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted an ambiguous duplicate JSON key." >&2
+            exit 1
+          fi
+
+      - name: Prove incomplete client evidence is rejected
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-client-evidence.json"
+          jq 'del(.clients[] | select(.kind == "android"))' \
+            docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted an incomplete client matrix." >&2
+            exit 1
+          fi
+
+      - name: Prove incomplete multi-user evidence is rejected
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-multi-user-evidence.json"
+          jq '.multi_user.private_vault_isolation = false' \
+            docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted failed multi-user isolation." >&2
+            exit 1
+          fi
+
+      - name: Prove incomplete Glaze UI evidence is rejected
+        run: |
+          set -euo pipefail
+          TMP_EVIDENCE="${RUNNER_TEMP}/incomplete-glaze-evidence.json"
+          jq '.glaze_ui.primary_browser_vault_goreecloud_owned = false' \
+            docs/stable-evidence.example.json > "${TMP_EVIDENCE}"
+
+          if python3 scripts/validate-stable-evidence.py "${TMP_EVIDENCE}" --allow-placeholders; then
+            echo "Stable evidence validator accepted a non-GoreeCloud-owned primary browser vault." >&2
+            exit 1
+          fi

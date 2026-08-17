@@ -1,0 +1,92 @@
+name: goreevault-migration
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: goreevault_migration
+      POSTGRES_USER: goreevault_migration
+      POSTGRES_PASSWORD: goreevault_migration_0123456789abcdef0123456789abcdef
+    volumes:
+      - migration-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goreevault_migration -d goreevault_migration"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+    stop_grace_period: 30s
+    networks:
+      - backend
+
+  upstream:
+    image: vaultwarden-baseline:migration
+    init: true
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOMAIN: http://127.0.0.1:18082
+      DATABASE_URL: postgresql://goreevault_migration:goreevault_migration_0123456789abcdef0123456789abcdef@postgres:5432/goreevault_migration
+      SIGNUPS_ALLOWED: "true"
+      INVITATIONS_ALLOWED: "false"
+      WEB_VAULT_ENABLED: "false"
+      ENABLE_WEBSOCKET: "false"
+      LOG_LEVEL: warn
+      JOB_POLL_INTERVAL_MS: "0"
+      ADMIN_TOKEN: ""
+    volumes:
+      - migration-data:/data
+    ports:
+      - "127.0.0.1:18082:80"
+    networks:
+      - backend
+      - edge
+
+  goreevault:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.debian
+      args:
+        DB: postgresql
+    image: goreevault-server:migration
+    init: true
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOMAIN: http://127.0.0.1:18082
+      DATABASE_URL: postgresql://goreevault_migration:goreevault_migration_0123456789abcdef0123456789abcdef@postgres:5432/goreevault_migration
+      SIGNUPS_ALLOWED: "false"
+      INVITATIONS_ALLOWED: "false"
+      WEB_VAULT_ENABLED: "false"
+      ENABLE_WEBSOCKET: "false"
+      LOG_LEVEL: warn
+      JOB_POLL_INTERVAL_MS: "0"
+      ADMIN_TOKEN: ""
+    volumes:
+      - migration-data:/data
+    ports:
+      - "127.0.0.1:18082:80"
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks:
+      - backend
+      - edge
+
+volumes:
+  migration-postgres:
+  migration-data:
+
+networks:
+  backend:
+    internal: true
+  edge:

@@ -1,6 +1,39 @@
-/.github @dani-garcia @BlackDex
-/.github/** @dani-garcia @BlackDex
-/.github/CODEOWNERS @dani-garcia @BlackDex
-/.github/ISSUE_TEMPLATE/** @dani-garcia @BlackDex
-/.github/workflows/** @dani-garcia @BlackDex
-/SECURITY.md @dani-garcia @BlackDex
+# GoreeVault review ownership
+#
+# GoreeVault is maintained by GoreeCloud. Upstream Vaultwarden maintainers are
+# not automatically responsible for reviewing GoreeVault-specific changes.
+
+# Repository automation, policy, release, security, and public project identity
+/.github/** @GoreeCloud
+/README.md @GoreeCloud
+/SECURITY.md @GoreeCloud
+/CONTRIBUTING.md @GoreeCloud
+/GOREVAULT.md @GoreeCloud
+/.trivyignore.yaml @GoreeCloud
+/docs/** @GoreeCloud
+
+# Dependency and build inputs
+/Cargo.toml @GoreeCloud
+/Cargo.lock @GoreeCloud
+/rust-toolchain.toml @GoreeCloud
+/build.rs @GoreeCloud
+/Dockerfile @GoreeCloud
+/Dockerfile.j2 @GoreeCloud
+/DockerSettings.yaml @GoreeCloud
+/docker/** @GoreeCloud
+/deploy/** @GoreeCloud
+
+# All GoreeVault runtime source, including authentication, cryptography,
+# authorization, persistence, SSO, rate limiting, configuration, and the
+# GoreeVault-owned Glaze UI presentation layer.
+/src/** @GoreeCloud
+/migrations/** @GoreeCloud
+
+# Temporary GoreeVault Web incubation application boundary. This directory must
+# move to the dedicated GoreeVault Web repository before Stable promotion.
+/web-client/** @GoreeCloud
+
+# Release-blocking compatibility, recovery, migration, deployment, security,
+# repository-readiness, and Glaze UI conformance harnesses.
+/tests/** @GoreeCloud
+/scripts/** @GoreeCloud

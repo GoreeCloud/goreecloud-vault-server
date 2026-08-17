@@ -1,0 +1,68 @@
+name: GoreeVault Repository Readiness
+
+on:
+  pull_request:
+    paths:
+      - '.github/CODEOWNERS'
+      - '.github/workflows/goreevault-repository-readiness.yml'
+      - 'README.md'
+      - 'GOREVAULT.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'deploy/**'
+      - 'docs/**'
+      - 'scripts/validate-repository-readiness.py'
+      - 'scripts/validate-stable-evidence.py'
+      - 'tests/test_validate_repository_readiness.py'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - '.github/CODEOWNERS'
+      - '.github/workflows/goreevault-repository-readiness.yml'
+      - 'README.md'
+      - 'GOREVAULT.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'deploy/**'
+      - 'docs/**'
+      - 'scripts/validate-repository-readiness.py'
+      - 'scripts/validate-stable-evidence.py'
+      - 'tests/test_validate_repository_readiness.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-repository-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate GoreeVault repository contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      # This checkout is read-only by design; repository readiness never needs
+      # a reusable Git credential after source retrieval.
+      - name: Checkout exact pull-request source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile \
+            scripts/validate-repository-readiness.py \
+            scripts/validate-stable-evidence.py \
+            tests/test_validate_repository_readiness.py
+
+      - name: Run repository-readiness policy tests
+        run: python3 -m unittest -v tests/test_validate_repository_readiness.py
+
+      # Unit tests exercise negative and boundary cases; this final step checks
+      # the actual repository tree so Stable gates cannot be satisfied by fixtures.
+      - name: Validate repository readiness
+        run: python3 scripts/validate-repository-readiness.py

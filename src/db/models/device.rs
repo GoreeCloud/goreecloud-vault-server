@@ -224,6 +224,42 @@ impl Device {
             .await
     }
 
+    pub async fn rotate_refresh_token_if_matches(
+        &mut self,
+        expected_refresh_token: &str,
+        conn: &DbConn,
+    ) -> Result<bool, crate::error::Error> {
+        let uuid = self.uuid.clone();
+        let user_uuid = self.user_uuid.clone();
+        let expected_refresh_token = expected_refresh_token.to_owned();
+        let new_refresh_token = Self::generate_refresh_token();
+        let new_refresh_token_for_update = new_refresh_token.clone();
+        let updated_at = Utc::now().naive_utc();
+
+        let updated = conn
+            .run(move |conn| {
+                let result = diesel::update(devices::table)
+                    .filter(devices::uuid.eq(uuid))
+                    .filter(devices::user_uuid.eq(user_uuid))
+                    .filter(devices::refresh_token.eq(expected_refresh_token))
+                    .set((devices::refresh_token.eq(new_refresh_token_for_update), devices::updated_at.eq(updated_at)))
+                    .execute(conn);
+                <Result<usize, diesel::result::Error> as MapResult<usize>>::map_res(
+                    result,
+                    "Error consuming device refresh token",
+                )
+            })
+            .await?;
+
+        if updated == 1 {
+            self.refresh_token = new_refresh_token;
+            self.updated_at = updated_at;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub async fn find_latest_active_by_user(user_uuid: &UserId, conn: &DbConn) -> Option<Self> {
         conn.run(move |conn| {
             devices::table

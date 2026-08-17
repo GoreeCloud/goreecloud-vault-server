@@ -1,24 +1,45 @@
 <main class="container-xxl">
-    {{#if error}}
-    <div class="align-items-center p-3 mb-3 text-opacity-50 text-dark bg-warning rounded shadow">
-        <div>
-            <h6 class="mb-0 text-dark">{{error}}</h6>
-        </div>
-    </div>
-    {{/if}}
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8 col-xl-6">
+            {{#if error}}
+            <div class="alert alert-danger" role="alert" aria-live="polite">
+                <h2 class="h6 mb-1">Sign-in failed</h2>
+                <p class="mb-0">{{error}}</p>
+            </div>
+            {{/if}}
 
-    <div class="align-items-center p-3 mb-3 text-opacity-75 text-light bg-danger rounded shadow">
-        <div>
-            <h6 class="mb-0 text-light">Authentication key needed to continue</h6>
-            <small>Please provide it below:</small>
+            <section class="card gv-auth-card" aria-labelledby="gv-admin-signin-title">
+                <div class="card-body p-4 p-md-5">
+                    <p class="text-uppercase text-body-secondary small fw-bold mb-2">Private administration</p>
+                    <h1 id="gv-admin-signin-title" class="h3 mb-2">Sign in to GoreeVault Admin</h1>
+                    <p class="text-body-secondary mb-4">
+                        Enter the configured administrator token to continue. Production deployments keep this interface disabled unless administrative access is explicitly enabled and network-restricted.
+                    </p>
 
-            <form class="form-inline" method="post" action="{{urlpath}}/admin">
-                <input type="password" autocomplete="password" class="form-control w-50 mr-2" name="token" placeholder="Enter admin token" autofocus="autofocus">
-                {{#if redirect}}
-                <input type="hidden" id="redirect" name="redirect" value="/{{redirect}}">
-                {{/if}}
-                <button type="submit" class="btn btn-primary mt-2">Enter</button>
-            </form>
+                    <form method="post" action="{{urlpath}}/admin">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="gv-admin-token">Administrator token</label>
+                            <input
+                                id="gv-admin-token"
+                                type="password"
+                                autocomplete="current-password"
+                                class="form-control"
+                                name="token"
+                                placeholder="Enter administrator token"
+                                required
+                                autofocus
+                                aria-describedby="gv-admin-token-help" />
+                            <div id="gv-admin-token-help" class="form-text">
+                                This credential is processed only by the GoreeVault administration endpoint.
+                            </div>
+                        </div>
+                        {{#if redirect}}
+                        <input type="hidden" id="redirect" name="redirect" value="/{{redirect}}" />
+                        {{/if}}
+                        <button type="submit" class="btn btn-primary w-100">Continue</button>
+                    </form>
+                </div>
+            </section>
         </div>
     </div>
 </main>

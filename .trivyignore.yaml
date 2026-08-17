@@ -1,0 +1,20 @@
+vulnerabilities:
+  - id: CVE-2024-55225
+    expired_at: 2026-09-30
+    statement: >-
+      Trivy identifies the inherited Cargo package metadata as vaultwarden 1.0.0,
+      but GoreeVault contains the upstream auth-request impersonation fixes.
+      Current password login resolves the request for the same user and validates
+      approval, expiry, request IP, and access code before authentication.
+  - id: CVE-2026-27802
+    expired_at: 2026-09-30
+    statement: >-
+      Trivy identifies the inherited Cargo package metadata as vaultwarden 1.0.0,
+      but GoreeVault contains the fixed bulk collection authorization path and
+      revalidates manage permission for each collection before changing access.
+  - id: CVE-2026-27803
+    expired_at: 2026-09-30
+    statement: >-
+      Trivy identifies the inherited Cargo package metadata as vaultwarden 1.0.0,
+      but GoreeVault ManagerHeaders authorizes collection management with
+      is_coll_manageable_by_user rather than collection visibility alone.
