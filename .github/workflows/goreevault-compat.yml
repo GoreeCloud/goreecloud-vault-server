@@ -39,6 +39,9 @@ jobs:
       - name: Restricted organization membership compatibility
         run: bash scripts/compat.sh org-members
 
+      - name: Import and export compatibility
+        run: bash scripts/compat.sh import-export
+
       - name: TOTP authentication and recovery compatibility
         run: bash scripts/compat.sh totp
 
