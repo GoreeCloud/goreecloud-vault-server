@@ -3,6 +3,10 @@ import { webcrypto } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
+import {
+  derivePasswordAuthenticationMaterial,
+  deriveServerAuthorizationHash,
+} from '../../../assets/auth-kdf.js';
 import { createValidationOnlyWasmArgon2idProvider } from '../../../validation/argon2id-wasm-adapter.js';
 
 const modulePath = process.argv[2];
@@ -12,6 +16,12 @@ const require = createRequire(import.meta.url);
 const wasmModule = require(resolve(modulePath));
 const password = 'asdfasdf';
 const accountIdentifier = 'test@bitwarden.com';
+const kdfMetadata = Object.freeze({
+  kdf: 1,
+  kdfIterations: 4,
+  kdfMemory: 32,
+  kdfParallelism: 2,
+});
 const normalizedEmailSha256 = new Uint8Array([
   150, 76, 72, 244, 143, 81, 217, 127, 203, 220, 24, 133, 13, 122, 88, 106,
   61, 85, 225, 171, 26, 32, 139, 77, 61, 116, 143, 113, 37, 10, 211, 63,
@@ -35,17 +45,29 @@ try {
   providerOutput = await provider.deriveMasterKey({
     password,
     accountIdentifier,
-    kdfMetadata: {
-      kdf: 1,
-      kdfIterations: 4,
-      kdfMemory: 32,
-      kdfParallelism: 2,
-    },
+    kdfMetadata,
   });
 
   assert.deepEqual(providerOutput, directOutput);
   assert.notEqual(providerOutput.buffer, directOutput.buffer);
-  console.log('GoreeVault validation-only Argon2id WASM runtime adapter passed the generated binding equivalence check.');
+
+  const expectedPasswordHash = await deriveServerAuthorizationHash(directOutput, password, {
+    subtle: webcrypto.subtle,
+  });
+  const authenticationMaterial = await derivePasswordAuthenticationMaterial({
+    password,
+    accountIdentifier,
+    kdfMetadata,
+  }, {
+    argon2idProvider: provider,
+    subtle: webcrypto.subtle,
+  });
+
+  assert.deepEqual(authenticationMaterial, {
+    passwordHash: expectedPasswordHash,
+    kdf: 'argon2id',
+  });
+  console.log('GoreeVault validation-only Argon2id WASM runtime adapter passed generated binding and authentication-material equivalence checks.');
 } finally {
   secret.fill(0);
   normalizedEmailSha256.fill(0);
