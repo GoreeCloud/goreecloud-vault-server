@@ -41,7 +41,8 @@ FROM --platform=linux/amd64 docker.io/vaultwarden/web-vault@{{ vault_image_diges
 
 {% if base == "debian" %}
 ########################## Cross Compile Docker Helper Scripts ##########################
-## We use the linux/amd64 no matter which Build Platform, since there is no difference between the different platform scripts
+## We use the linux/amd64 no matter which Build Platform, since these are all bash scripts
+## And these bash scripts do not have any significant difference if at all
 FROM --platform=linux/amd64 docker.io/tonistiigi/xx@{{ xx_image_digest }} AS xx
 {% elif base == "alpine" %}
 ########################## ALPINE BUILD IMAGES ##########################
@@ -196,9 +197,11 @@ ENV ROCKET_PROFILE="release" \
     SSL_CERT_DIR=/etc/ssl/certs
 {% endif %}
 
-# Create data folder and install needed libraries. Explicitly request the util-linux
-# runtime family so Debian upgrades the vulnerable packages already present in the
-# immutable base layer whenever a fixed candidate is available in the release repository.
+# Create data folder and Install needed libraries
+{% if base == "debian" %}
+# Explicitly request the util-linux runtime family so Debian upgrades vulnerable packages
+# already present in the immutable base layer whenever fixed release candidates are available.
+{% endif %}
 RUN mkdir /data && \
 {% if base == "debian" %}
     apt-get update && apt-get install -y \
