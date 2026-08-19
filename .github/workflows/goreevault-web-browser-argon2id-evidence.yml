@@ -1,0 +1,46 @@
+name: GoreeVault Web Browser Argon2id Evidence
+
+on:
+  pull_request:
+    paths:
+      - 'web-client/scripts/validate_browser_argon2id_evidence.py'
+      - 'web-client/scripts/test_validate_browser_argon2id_evidence.py'
+      - 'web-client/docs/ARGON2ID-REAL-BROWSER-EVIDENCE.md'
+      - '.github/workflows/goreevault-web-browser-argon2id-evidence.yml'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - 'web-client/scripts/validate_browser_argon2id_evidence.py'
+      - 'web-client/scripts/test_validate_browser_argon2id_evidence.py'
+      - 'web-client/docs/ARGON2ID-REAL-BROWSER-EVIDENCE.md'
+      - '.github/workflows/goreevault-web-browser-argon2id-evidence.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-web-browser-argon2id-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate fail-closed browser evidence tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run browser evidence validator regression tests
+        run: python3 web-client/scripts/test_validate_browser_argon2id_evidence.py
+
+      - name: Verify CI cannot manufacture production approval
+        run: |
+          grep -F 'credentialProcessingApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
+          grep -F 'productionReleaseApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
+          grep -F 'stablePromotionApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
+          grep -F 'realBrowserExecuted") is True' web-client/scripts/validate_browser_argon2id_evidence.py
