@@ -43,4 +43,5 @@ jobs:
           grep -F 'credentialProcessingApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
           grep -F 'productionReleaseApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
           grep -F 'stablePromotionApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
-          grep -F 'realBrowserExecuted") is True' web-client/scripts/validate_browser_argon2id_evidence.py
+          grep -F '"realBrowserExecuted",' web-client/scripts/validate_browser_argon2id_evidence.py
+          grep -F 'require(execution.get(field) is True' web-client/scripts/validate_browser_argon2id_evidence.py
