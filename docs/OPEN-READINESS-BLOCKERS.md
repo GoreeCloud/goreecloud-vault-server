@@ -10,9 +10,9 @@ It is an implementation tracker, not authorization to bypass `docs/PRODUCTION-RE
 
 **Status:** Stable blocked
 
-**Recorded:** August 16, 2026
+**Recorded:** August 19, 2026
 
-The current server stabilization chain has strong automated compatibility, security, recovery, migration, deployment, release-image, Stable-evidence, Glaze UI, repository-readiness, and evidence-tooling source checks. GoreeVault Web also has a Glaze UI incubation shell, deterministic release/SBOM evidence, a client SDK boundary, fail-closed prelogin/authentication architecture, a reviewed Rust Argon2id core, build-only WebAssembly identity evidence, and an isolated WebAssembly ABI/binding validation path. None of those source milestones substitutes for the real-world gates below.
+The current server stabilization chain has strong automated compatibility, security, recovery, migration, deployment, release-image, Stable-evidence, Glaze UI, repository-readiness, and evidence-tooling source checks. GoreeVault Web also has a Glaze UI incubation shell, deterministic release/SBOM evidence, a client SDK boundary, fail-closed prelogin/authentication architecture, a reviewed Rust Argon2id core, build-only WebAssembly identity evidence, an isolated WebAssembly ABI/binding validation path, and a validation-only JavaScript runtime adapter exercised against the actual generated bindings and GoreeVault authentication-material derivation. None of those source milestones substitutes for the real-world gates below.
 
 ## Blocker 1 — GitHub repository governance
 
@@ -20,7 +20,7 @@ The current server stabilization chain has strong automated compatibility, secur
 
 - GitHub repository rulesets endpoint returns no rulesets.
 - GitHub Actions environments endpoint returns no environments.
-- Classic `main` branch protection cannot be read through the current integration and remains unverified.
+- `main` is currently reported by GitHub as unprotected.
 - Default GitHub Actions token permission state cannot be read through the current integration.
 - Dependabot vulnerability-alert state cannot be read through the current integration.
 
@@ -94,14 +94,15 @@ The approved current path is GoreeVault Web as defined in `docs/ROADMAP.md`.
 
 `docs/WEB-CLIENT-CONTRACT.md` defines the GoreeVault Web Role and Purpose, server/client ownership boundary, client-side zero-knowledge rules, multi-user browser isolation, browser storage policy, compatible workflow baseline, Glaze UI requirements, accessibility acceptance, CSP/dependency direction, privacy/telemetry rules, immutable release evidence, and reversible migration/fallback requirements.
 
-The temporary `web-client/` incubation boundary now includes a GoreeVault-owned Glaze UI application shell, deterministic static release/SPDX evidence, a GoreeVault client SDK facade, SDK-backed email-only prelogin, account-scoped memory-only session/sync foundations, reviewed PBKDF2 and low-level vault-cryptography primitives, a fail-closed Argon2id provider contract, a pinned RustCrypto Argon2id core, exact build-only WebAssembly identity evidence, and an isolated pinned `wasm-bindgen` ABI path with deterministic generated-binding evidence. The ABI remains validation-only and is not registered for production credential processing.
+The temporary `web-client/` incubation boundary now includes a GoreeVault-owned Glaze UI application shell, deterministic static release/SPDX evidence, a GoreeVault client SDK facade, SDK-backed email-only prelogin, account-scoped memory-only session/sync foundations, reviewed PBKDF2 and low-level vault-cryptography primitives, a fail-closed Argon2id provider contract, a pinned RustCrypto Argon2id core, exact build-only WebAssembly identity evidence, an isolated pinned `wasm-bindgen` ABI path with deterministic generated-binding evidence, and a validation-only JavaScript runtime adapter. The adapter copies and clears caller-controlled secret/salt buffers, clears controllable generated-binding output after copying it into independent memory, propagates failures without PBKDF2 fallback, and is continuously exercised against the actual generated `wasm-bindgen` module and GoreeVault authentication-material derivation. Production registration, browser-bundle inclusion, and credential processing remain explicitly unapproved.
 
 The planned standalone `GoreeCloud/goreevault-web` repository has not yet been created. The current GitHub connector cannot create repositories, so this source-separation requirement remains open rather than being simulated inside the server repository.
 
 Remaining completion evidence includes:
 
 - standalone GoreeCloud-owned browser-vault repository and independent release lifecycle;
-- reviewed browser runtime registration of the Argon2id provider with caller-owned secret cleanup and no fallback;
+- reviewed production browser loading and runtime registration of the Argon2id provider;
+- immutable browser release/SBOM coverage for the final WebAssembly module and generated glue;
 - real browser performance, memory, CSP, and compatibility evidence for the generated WebAssembly path;
 - complete supported sign-in, two-factor, token refresh/rotation, logout, and session invalidation;
 - end-to-end user/account key unwrap and supported vault encryption/decryption workflows;
