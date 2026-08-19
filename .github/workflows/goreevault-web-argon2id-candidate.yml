@@ -1,0 +1,82 @@
+name: GoreeVault Web Argon2id Candidate Evidence
+
+on:
+  pull_request:
+    paths:
+      - 'web-client/crypto/argon2id-provider/**'
+      - 'web-client/scripts/build_release.py'
+      - '.github/workflows/goreevault-web-argon2id-candidate.yml'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - 'web-client/crypto/argon2id-provider/**'
+      - 'web-client/scripts/build_release.py'
+      - '.github/workflows/goreevault-web-argon2id-candidate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreevault-web-argon2id-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate-evidence:
+    name: Build validation-only browser crypto candidate evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout GoreeVault
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Test candidate evidence builder
+        working-directory: web-client/crypto/argon2id-provider/scripts
+        run: python3 test_build_browser_candidate_evidence.py
+
+      - name: Build exact wasm32 ABI
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo build \
+            --locked \
+            --manifest-path web-client/crypto/argon2id-provider/Cargo.toml \
+            --target wasm32-unknown-unknown
+
+      - name: Install exact wasm-bindgen CLI
+        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+
+      - name: Generate isolated browser bindings
+        run: |
+          BINDINGS_DIR="$RUNNER_TEMP/goreevault-argon2id-browser-bindings"
+          rm -rf "$BINDINGS_DIR"
+          wasm-bindgen \
+            --target web \
+            --out-dir "$BINDINGS_DIR" \
+            web-client/crypto/argon2id-provider/target/wasm32-unknown-unknown/debug/goreevault_web_argon2id_core.wasm
+          find "$BINDINGS_DIR" -maxdepth 1 -type f -printf '%f\n' | sort
+
+      - name: Build immutable validation-only candidate and SPDX evidence
+        env:
+          GOREEVAULT_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          CANDIDATE_DIR="$RUNNER_TEMP/goreevault-argon2id-browser-candidate"
+          python3 web-client/crypto/argon2id-provider/scripts/build_browser_candidate_evidence.py \
+            --bindings "$RUNNER_TEMP/goreevault-argon2id-browser-bindings" \
+            --output "$CANDIDATE_DIR" \
+            --source-revision "$GOREEVAULT_SOURCE_REVISION" \
+            --wasm-bindgen-version 0.2.126
+          cat "$CANDIDATE_DIR/candidate-manifest.json"
+          sha256sum "$CANDIDATE_DIR"/* | sort
+          grep -F '"runtimeIntegrationApproved": false' "$CANDIDATE_DIR/candidate-manifest.json"
+          grep -F '"credentialProcessingApproved": false' "$CANDIDATE_DIR/candidate-manifest.json"
+          grep -F '"productionReleaseInclusionApproved": false' "$CANDIDATE_DIR/candidate-manifest.json"
+          grep -F '"spdxVersion": "SPDX-2.3"' "$CANDIDATE_DIR/sbom.spdx.json"
+
+      - name: Verify candidate remains outside production GoreeVault Web release
+        run: |
+          ! grep -F 'goreevault_web_argon2id_core.js' web-client/scripts/build_release.py
+          ! grep -F 'goreevault_web_argon2id_core_bg.wasm' web-client/scripts/build_release.py
