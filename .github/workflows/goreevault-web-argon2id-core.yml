@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'web-client/crypto/argon2id-provider/**'
+      - 'web-client/validation/argon2id-wasm-adapter.js'
+      - 'web-client/tests/argon2id-wasm-adapter.test.js'
       - '.github/workflows/goreevault-web-argon2id-core.yml'
   push:
     branches:
@@ -11,6 +13,8 @@ on:
       - 'agent/**'
     paths:
       - 'web-client/crypto/argon2id-provider/**'
+      - 'web-client/validation/argon2id-wasm-adapter.js'
+      - 'web-client/tests/argon2id-wasm-adapter.test.js'
       - '.github/workflows/goreevault-web-argon2id-core.yml'
 
 permissions:
@@ -51,6 +55,10 @@ jobs:
       - name: Run native Bitwarden interoperability tests
         run: cargo test --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
 
+      - name: Test validation-only JavaScript adapter
+        working-directory: web-client
+        run: node --test tests/argon2id-wasm-adapter.test.js
+
       - name: Test fail-closed WASM and binding evidence
         run: |
           python3 web-client/crypto/argon2id-provider/scripts/test_build_wasm_evidence.py
@@ -81,6 +89,11 @@ jobs:
       - name: Run Bitwarden vector through actual WASM ABI
         run: |
           node web-client/crypto/argon2id-provider/tests/test-wasm-abi.cjs \
+            "$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node/goreevault_web_argon2id_core.js"
+
+      - name: Run validation-only runtime adapter through actual WASM bindings
+        run: |
+          node web-client/crypto/argon2id-provider/tests/test-wasm-runtime-adapter.mjs \
             "$RUNNER_TEMP/goreevault-argon2id-wasm-bindgen-node/goreevault_web_argon2id_core.js"
 
       - name: Generate exact fail-closed binding evidence
