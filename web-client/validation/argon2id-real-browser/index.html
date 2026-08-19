@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; require-trusted-types-for 'script'">
+  <title>GoreeVault Argon2id Browser Acceptance Harness</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 880px; margin: 0 auto; padding: 2rem; line-height: 1.5; }
+    button, input { font: inherit; }
+    input { width: 100%; box-sizing: border-box; margin: .25rem 0 1rem; }
+    pre { overflow: auto; padding: 1rem; border: 1px solid currentColor; border-radius: .75rem; }
+    .warning { font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>GoreeVault Argon2id Browser Acceptance Harness</h1>
+    <p class="warning">Validation only. Use synthetic interoperability material only. Do not enter a real master password or production account data.</p>
+    <p>This page must be served from HTTPS and loads only same-origin generated Argon2id JavaScript/WASM candidate artifacts.</p>
+
+    <label>Generated JavaScript path
+      <input id="javascriptPath" value="./goreevault_web_argon2id_core.js" autocomplete="off" spellcheck="false">
+    </label>
+    <label>Candidate manifest SHA-256
+      <input id="candidateManifestSha256" placeholder="64 lowercase hex characters" autocomplete="off" spellcheck="false">
+    </label>
+    <label>Source revision
+      <input id="sourceRevision" placeholder="40 lowercase hex characters" autocomplete="off" spellcheck="false">
+    </label>
+
+    <button id="run" type="button">Run synthetic browser acceptance</button>
+    <button id="download" type="button" disabled>Download evidence JSON</button>
+
+    <h2>Status</h2>
+    <pre id="status">Not run.</pre>
+    <h2>Evidence preview</h2>
+    <pre id="evidence">No evidence collected.</pre>
+  </main>
+  <script type="module" src="./runner.js"></script>
+</body>
+</html>
