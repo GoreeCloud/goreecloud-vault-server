@@ -6,6 +6,8 @@ on:
       - 'web-client/scripts/validate_browser_argon2id_evidence.py'
       - 'web-client/scripts/test_validate_browser_argon2id_evidence.py'
       - 'web-client/docs/ARGON2ID-REAL-BROWSER-EVIDENCE.md'
+      - 'web-client/validation/argon2id-real-browser/**'
+      - 'web-client/tests/argon2id-real-browser-harness.test.js'
       - '.github/workflows/goreevault-web-browser-argon2id-evidence.yml'
   push:
     branches:
@@ -15,6 +17,8 @@ on:
       - 'web-client/scripts/validate_browser_argon2id_evidence.py'
       - 'web-client/scripts/test_validate_browser_argon2id_evidence.py'
       - 'web-client/docs/ARGON2ID-REAL-BROWSER-EVIDENCE.md'
+      - 'web-client/validation/argon2id-real-browser/**'
+      - 'web-client/tests/argon2id-real-browser-harness.test.js'
       - '.github/workflows/goreevault-web-browser-argon2id-evidence.yml'
 
 permissions:
@@ -38,6 +42,10 @@ jobs:
       - name: Run browser evidence validator regression tests
         run: python3 web-client/scripts/test_validate_browser_argon2id_evidence.py
 
+      - name: Run browser harness safety contract tests
+        working-directory: web-client
+        run: npm test
+
       - name: Verify CI cannot manufacture production approval
         run: |
           grep -F 'credentialProcessingApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
@@ -45,3 +53,5 @@ jobs:
           grep -F 'stablePromotionApproved") is False' web-client/scripts/validate_browser_argon2id_evidence.py
           grep -F '"realBrowserExecuted",' web-client/scripts/validate_browser_argon2id_evidence.py
           grep -F 'require(execution.get(field) is True' web-client/scripts/validate_browser_argon2id_evidence.py
+          grep -F 'providerRegistrationWasExplicit: false' web-client/validation/argon2id-real-browser/runner.js
+          grep -F 'accepted: false' web-client/validation/argon2id-real-browser/runner.js
