@@ -5,7 +5,10 @@ on:
     paths:
       - 'web-client/crypto/argon2id-provider/**'
       - 'web-client/validation/argon2id-wasm-adapter.js'
+      - 'web-client/validation/argon2id-browser-runtime.js'
       - 'web-client/tests/argon2id-wasm-adapter.test.js'
+      - 'web-client/tests/argon2id-browser-runtime.test.js'
+      - 'web-client/docs/ARGON2ID-BROWSER-RUNTIME-REGISTRATION.md'
       - '.github/workflows/goreevault-web-argon2id-core.yml'
   push:
     branches:
@@ -14,7 +17,10 @@ on:
     paths:
       - 'web-client/crypto/argon2id-provider/**'
       - 'web-client/validation/argon2id-wasm-adapter.js'
+      - 'web-client/validation/argon2id-browser-runtime.js'
       - 'web-client/tests/argon2id-wasm-adapter.test.js'
+      - 'web-client/tests/argon2id-browser-runtime.test.js'
+      - 'web-client/docs/ARGON2ID-BROWSER-RUNTIME-REGISTRATION.md'
       - '.github/workflows/goreevault-web-argon2id-core.yml'
 
 permissions:
@@ -55,9 +61,9 @@ jobs:
       - name: Run native Bitwarden interoperability tests
         run: cargo test --manifest-path web-client/crypto/argon2id-provider/Cargo.toml
 
-      - name: Test validation-only JavaScript adapter
+      - name: Test validation-only JavaScript adapter and browser loader
         working-directory: web-client
-        run: node --test tests/argon2id-wasm-adapter.test.js
+        run: node --test tests/argon2id-wasm-adapter.test.js tests/argon2id-browser-runtime.test.js
 
       - name: Test fail-closed WASM and binding evidence
         run: |
@@ -133,13 +139,15 @@ jobs:
           grep -F '"runtimeIntegrationApproved": false' web-client/crypto/argon2id-provider/target/browser-binding-evidence.json
           grep -F '"credentialProcessingApproved": false' web-client/crypto/argon2id-provider/target/browser-binding-evidence.json
 
-      - name: Verify browser artifacts remain outside production release allowlist
+      - name: Verify browser runtime remains outside production release allowlist
         run: |
           ! grep -F 'goreevault_web_argon2id_core.js' web-client/scripts/build_release.py
           ! grep -F 'goreevault_web_argon2id_core_bg.wasm' web-client/scripts/build_release.py
           ! grep -F 'argon2id-wasm-adapter.js' web-client/scripts/build_release.py
+          ! grep -F 'argon2id-browser-runtime.js' web-client/scripts/build_release.py
           ! grep -F 'goreevault_web_argon2id_core' web-client/index.html
           ! grep -F 'argon2id-wasm-adapter.js' web-client/index.html
+          ! grep -F 'argon2id-browser-runtime.js' web-client/index.html
 
       - name: Generate exact build-only WASM identity evidence
         env:
