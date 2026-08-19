@@ -158,9 +158,9 @@ ENV ROCKET_PROFILE="release" \
     ROCKET_PORT=80 \
     DEBIAN_FRONTEND=noninteractive
 
-# Create data folder and install needed libraries. Explicitly request the util-linux
-# runtime family so Debian upgrades the vulnerable packages already present in the
-# immutable base layer whenever a fixed candidate is available in the release repository.
+# Create data folder and Install needed libraries
+# Explicitly request the util-linux runtime family so Debian upgrades vulnerable packages
+# already present in the immutable base layer whenever fixed release candidates are available.
 RUN mkdir /data && \
     apt-get update && apt-get install -y \
         --no-install-recommends \
