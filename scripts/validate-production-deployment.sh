@@ -14,9 +14,10 @@ trap 'rm -f "${ENV_FILE}" "${MODEL_FILE}"' EXIT
 grep -Fxq 'GOREVAULT_DOMAIN=https://vault.goreecloud.com' "${EXAMPLE_ENV}"
 grep -Fxq 'SIGNUPS_ALLOWED=false' "${EXAMPLE_ENV}"
 grep -Fxq 'ADMIN_TOKEN=' "${EXAMPLE_ENV}"
+grep -Eq '^GOREVAULT_IMAGE=ghcr\.io/goreecloud/goreecloud-vault-server@sha256:' "${EXAMPLE_ENV}"
 
 cat > "${ENV_FILE}" <<'EOF'
-GOREVAULT_IMAGE=ghcr.io/goreecloud/goreevault-server@sha256:1111111111111111111111111111111111111111111111111111111111111111
+GOREVAULT_IMAGE=ghcr.io/goreecloud/goreecloud-vault-server@sha256:1111111111111111111111111111111111111111111111111111111111111111
 POSTGRES_IMAGE=docker.io/library/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222
 GOREVAULT_UID=10001
 GOREVAULT_GID=10001
@@ -59,7 +60,11 @@ for name, service in (("server", server), ("data-init", data_init), ("postgres",
     assert immutable.search(image), f"{name} image must resolve to an immutable sha256 digest: {image!r}"
     assert "build" not in service, f"{name} must not build source in production"
 
-assert server["image"] == data_init["image"], "data-init must use the exact GoreeVault server image digest"
+canonical_server_image = re.compile(r"^ghcr\.io/goreecloud/goreecloud-vault-server@sha256:[0-9a-f]{64}$")
+assert canonical_server_image.fullmatch(server["image"]), (
+    "server must use the canonical GoreeCloud Vault Server GHCR repository and an immutable digest"
+)
+assert server["image"] == data_init["image"], "data-init must use the exact GoreeCloud Vault Server image digest"
 
 networks = model.get("networks", {})
 backend = networks.get("goreevault-backend", {})
@@ -87,7 +92,7 @@ assert server.get("tmpfs"), "server requires explicit writable tmpfs instead of 
 assert int(server.get("pids_limit", 0)) == 256, "server must retain the bounded PID limit"
 
 env = server.get("environment", {})
-assert env.get("DOMAIN") == "https://vault.goreecloud.com", "production DOMAIN must be the canonical GoreeVault origin"
+assert env.get("DOMAIN") == "https://vault.goreecloud.com", "production DOMAIN must be the canonical GoreeCloud Vault Server origin"
 assert env.get("SIGNUPS_ALLOWED") == "false", "production registration must default closed"
 assert env.get("ADMIN_TOKEN") in {None, ""}, "production admin surface must default disabled"
 assert str(env.get("ROCKET_PORT")) == "8080", "Rocket must listen on unprivileged container port 8080"
@@ -119,5 +124,5 @@ assert server_depends.get("postgres", {}).get("condition") == "service_healthy",
     "server must not start before PostgreSQL is healthy"
 )
 
-print("GoreeVault production Compose invariants validated.")
+print("GoreeCloud Vault Server production Compose invariants validated.")
 PY
