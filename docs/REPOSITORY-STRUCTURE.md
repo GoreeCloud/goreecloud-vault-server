@@ -1,10 +1,12 @@
-# GoreeVault Repository Structure
+# GoreeCloud Vault Server Repository Structure
 
 ## Purpose
 
-This document defines the source-control structure of GoreeVault Server and the responsibility boundary of each major repository area.
+This document defines the source-control structure of GoreeCloud Vault Server and the responsibility boundary of each major repository area.
 
 The structure is intended to keep the maintained Vaultwarden compatibility core understandable while making GoreeCloud-owned security, deployment, release, Glaze UI, governance, evidence, and client-boundary work easy to locate and review.
+
+`GoreeVault` remains the broader client-family and historical product identity. Client-family names and compatibility-era internal identifiers are not renamed solely because the canonical server name changed.
 
 ## Structural principles
 
@@ -48,10 +50,11 @@ The root `Dockerfile` and generated Dockerfiles are build inputs, not production
 
 ### `docs/`
 
-GoreeVault implementation, architecture, security, compatibility, operational, release, client-boundary, and governance records.
+GoreeCloud Vault Server implementation, architecture, security, compatibility, operational, release, client-boundary, and governance records.
 
 Important documents include:
 
+- `SERVER-IDENTITY.md` — canonical server identity and naming boundary;
 - `GLAZE-UI.md` — repository Glaze UI implementation contract;
 - `WEB-CLIENT-CONTRACT.md` — future GoreeVault Web zero-knowledge, multi-user, storage, Glaze UI, accessibility, dependency, release, migration, and rollback boundary;
 - `PRODUCTION-READINESS.md` — RC and Stable gates;
@@ -73,7 +76,7 @@ Migration changes are release-critical and require migration, rollback, recovery
 
 ### `scripts/`
 
-GoreeVault-owned and inherited automation used for development, validation, security, compatibility, deployment, release, recovery, and evidence checks.
+GoreeCloud-owned and inherited automation used for development, validation, security, compatibility, deployment, release, recovery, and evidence checks.
 
 Release-blocking scripts should fail closed on missing or malformed required state. A script that only validates source should not silently mutate production state.
 
@@ -83,13 +86,13 @@ Release-blocking scripts should fail closed on missing or malformed required sta
 
 Rust server runtime and server-owned presentation.
 
-This area includes authentication, authorization, persistence, configuration, API behavior, cryptographic integration, rate limiting, server-side templates, and GoreeVault-owned Admin/error presentation.
+This area includes authentication, authorization, persistence, configuration, API behavior, cryptographic integration, rate limiting, server-side templates, and GoreeCloud Vault Server-owned Admin/error presentation.
 
-Internal `vaultwarden` names may remain when renaming them would unnecessarily increase protocol, database, build, or upstream-maintenance risk. User-facing GoreeVault-owned presentation must use GoreeVault identity and Glaze UI.
+Internal `vaultwarden` names may remain when renaming them would unnecessarily increase protocol, database, build, or upstream-maintenance risk. User-facing server-owned presentation must use GoreeCloud Vault Server identity and Glaze UI.
 
 ### `tests/`
 
-Release-blocking regression and compatibility coverage plus dependency-light tests for GoreeVault-owned validation/evidence tooling.
+Release-blocking regression and compatibility coverage plus dependency-light tests for GoreeCloud-owned validation/evidence tooling.
 
 Tests must use synthetic identities and data. Production databases, vault exports, credentials, backups, and private user content are prohibited test fixtures.
 
@@ -99,11 +102,11 @@ Tests must use synthetic identities and data. Production databases, vault export
 
 ### `README.md`
 
-Public entry point for the GoreeVault repository. It must describe GoreeVault, not present the repository as upstream Vaultwarden, and must not recommend mutable production image tags.
+Public entry point for the GoreeCloud Vault Server repository. It must describe GoreeCloud Vault Server, preserve the documented GoreeVault client-family boundary, not present the repository as upstream Vaultwarden, and must not recommend mutable production image tags.
 
 ### `GOREVAULT.md`
 
-Maintained-fork product boundary, provenance, compatibility policy, security policy, and GoreeCloud-specific direction.
+Maintained-fork product-family boundary, provenance, compatibility policy, security policy, and GoreeCloud-specific direction. The filename is retained as a historical compatibility record; its current content must follow the canonical server identity contract.
 
 ### `CONTRIBUTING.md`
 
@@ -123,7 +126,7 @@ Container-build generation inputs and outputs. Follow the generator comments and
 
 ## UI ownership boundary
 
-GoreeVault-owned server UI belongs under the existing server static/template layout rather than a new top-level frontend tree.
+GoreeCloud Vault Server-owned server UI belongs under the existing server static/template layout rather than a new top-level frontend tree.
 
 A future GoreeVault Web client uses a separate application/repository boundary because it owns its own client-side cryptographic lifecycle, dependency graph, browser storage, build pipeline, compatibility matrix, release lifecycle, and full Glaze UI presentation. The server repository defines the implementation contract in `docs/WEB-CLIENT-CONTRACT.md`; that contract does not collapse the client into the server source tree.
 
@@ -131,7 +134,7 @@ Until that client exists and passes its required gates, the bundled upstream-com
 
 ## Multi-user boundary
 
-GoreeVault is a multi-user credential service, not an administrator-only single-user component.
+GoreeCloud Vault Server is a multi-user credential service, not an administrator-only single-user component.
 
 Repository changes must preserve:
 
