@@ -8,11 +8,13 @@ GoreeVault Web is required on the current path to product-wide Stable readiness 
 
 This contract does not authorize a browser-vault cutover and does not claim that a separate GoreeVault Web repository already exists. The planned client remains a distinct application/repository boundary because it will own client-side cryptography, browser storage, dependencies, build artifacts, accessibility behavior, Glaze UI, and its own release lifecycle.
 
+`GoreeVault` remains the client-family product identity. The canonical backend service name is **GoreeCloud Vault Server**.
+
 ## Role and Purpose
 
-**Role:** Primary GoreeCloud-owned browser client for GoreeVault.
+**Role:** Primary GoreeCloud-owned browser client for the GoreeVault client family.
 
-**Purpose:** Provide a secure, privacy-first, multi-user browser experience for storing and using encrypted credentials while preserving the GoreeVault Server zero-knowledge boundary and approved Bitwarden-compatible protocol behavior.
+**Purpose:** Provide a secure, privacy-first, multi-user browser experience for storing and using encrypted credentials while preserving the GoreeCloud Vault Server zero-knowledge boundary and approved Bitwarden-compatible protocol behavior.
 
 GoreeVault Web must never become a server-side decryption layer, a credential-inspection service, or a branding wrapper around the upstream web vault.
 
@@ -26,12 +28,12 @@ GoreeVault Web owns:
 - client-side key lifecycle and lock state;
 - browser-local encrypted state;
 - browser authentication/session handling;
-- GoreeVault Server API integration;
+- GoreeCloud Vault Server API integration;
 - accessibility and responsive behavior;
 - client-side import/export UX;
 - browser release, dependency, and supply-chain controls.
 
-GoreeVault Server owns:
+GoreeCloud Vault Server owns:
 
 - authenticated API behavior;
 - user/account persistence;
@@ -58,11 +60,11 @@ Development environments may use explicitly configured local/test origins. Devel
 
 ## Cryptography and zero-knowledge requirements
 
-GoreeVault Web must preserve the current GoreeVault security policy:
+GoreeVault Web must preserve the current GoreeCloud Vault Server security policy:
 
 1. Do not invent cryptographic primitives.
 2. Do not redesign password hashing, KDF behavior, symmetric/asymmetric encryption, WebAuthn/passkey behavior, token signing, or key derivation merely for GoreeCloud ownership or visual identity.
-3. Use mature, reviewed, interoperable primitives and protocol behavior compatible with the supported GoreeVault Server baseline.
+3. Use mature, reviewed, interoperable primitives and protocol behavior compatible with the supported GoreeCloud Vault Server baseline.
 4. Treat decrypted vault contents and derived keys as short-lived client memory, not general application state.
 5. Persist only encrypted vault material or protocol-required non-secret metadata in browser storage.
 6. Clear decrypted state and key material on lock, logout, account switch, and session invalidation.
@@ -206,7 +208,7 @@ A GoreeVault Web Release Candidate must provide:
 - automated unit/integration/browser tests;
 - dependency/security scanning;
 - Glaze UI and accessibility source gates;
-- server compatibility tests against the exact GoreeVault Server candidate;
+- server compatibility tests against the exact GoreeCloud Vault Server candidate;
 - immutable browser asset/build identity;
 - SBOM or equivalent dependency inventory;
 - documented rollback to the previously accepted browser client;
@@ -222,7 +224,7 @@ Cutover must be reversible. The production change must record:
 
 - previous browser client/version;
 - new GoreeVault Web source and artifact identity;
-- GoreeVault Server artifact identity;
+- GoreeCloud Vault Server artifact identity;
 - compatibility evidence;
 - browser/accessibility evidence;
 - rollback procedure;
@@ -238,7 +240,7 @@ GoreeVault Web closes the current product-wide Glaze UI blocker only when all of
 1. the primary production browser vault is GoreeCloud-owned;
 2. Glaze UI conformance is proven across the controlled browser experience;
 3. zero-knowledge and client-side cryptographic boundaries are preserved;
-4. the supported browser workflow matrix passes against the exact GoreeVault Server candidate;
+4. the supported browser workflow matrix passes against the exact GoreeCloud Vault Server candidate;
 5. accessibility acceptance passes;
 6. release/build artifacts are immutable and traceable;
 7. migration and rollback are proven;
