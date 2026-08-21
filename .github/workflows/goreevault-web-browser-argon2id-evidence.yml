@@ -5,7 +5,10 @@ on:
     paths:
       - 'web-client/scripts/validate_browser_argon2id_evidence.py'
       - 'web-client/scripts/test_validate_browser_argon2id_evidence.py'
+      - 'web-client/scripts/serve_argon2id_browser_harness.py'
+      - 'web-client/scripts/test_serve_argon2id_browser_harness.py'
       - 'web-client/docs/ARGON2ID-REAL-BROWSER-EVIDENCE.md'
+      - 'web-client/docs/ARGON2ID-BROWSER-ORIGIN.md'
       - 'web-client/validation/argon2id-real-browser/**'
       - 'web-client/tests/argon2id-real-browser-harness.test.js'
       - '.github/workflows/goreevault-web-browser-argon2id-evidence.yml'
@@ -16,7 +19,10 @@ on:
     paths:
       - 'web-client/scripts/validate_browser_argon2id_evidence.py'
       - 'web-client/scripts/test_validate_browser_argon2id_evidence.py'
+      - 'web-client/scripts/serve_argon2id_browser_harness.py'
+      - 'web-client/scripts/test_serve_argon2id_browser_harness.py'
       - 'web-client/docs/ARGON2ID-REAL-BROWSER-EVIDENCE.md'
+      - 'web-client/docs/ARGON2ID-BROWSER-ORIGIN.md'
       - 'web-client/validation/argon2id-real-browser/**'
       - 'web-client/tests/argon2id-real-browser-harness.test.js'
       - '.github/workflows/goreevault-web-browser-argon2id-evidence.yml'
@@ -42,6 +48,9 @@ jobs:
       - name: Run browser evidence validator regression tests
         run: python3 web-client/scripts/test_validate_browser_argon2id_evidence.py
 
+      - name: Run browser validation-origin safety tests
+        run: python3 web-client/scripts/test_serve_argon2id_browser_harness.py
+
       - name: Run browser harness safety contract tests
         working-directory: web-client
         run: npm test
@@ -55,3 +64,5 @@ jobs:
           grep -F 'require(execution.get(field) is True' web-client/scripts/validate_browser_argon2id_evidence.py
           grep -F 'providerRegistrationWasExplicit: false' web-client/validation/argon2id-real-browser/runner.js
           grep -F 'accepted: false' web-client/validation/argon2id-real-browser/runner.js
+          grep -F 'Validation server may bind only to a loopback address.' web-client/scripts/serve_argon2id_browser_harness.py
+          grep -F 'Cache-Control", "no-store, max-age=0"' web-client/scripts/serve_argon2id_browser_harness.py
