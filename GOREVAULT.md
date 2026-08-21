@@ -1,20 +1,30 @@
-# GoreeVault Server
+# GoreeCloud Vault Server and GoreeVault Product Family
 
-GoreeVault is GoreeCloud's self-hosted, zero-knowledge credential platform.
+GoreeCloud Vault Server is GoreeCloud's self-hosted, zero-knowledge credential server. GoreeVault remains the broader client-family and historical product identity for GoreeCloud-owned vault clients and compatibility work.
+
+## Naming boundary
+
+The canonical server identity is **GoreeCloud Vault Server**.
+
+Use **GoreeCloud Vault Server** for this repository, the server runtime, server administration surfaces, deployment records, release notes, server-specific documentation, and operational references.
+
+Use **GoreeVault** only where the text intentionally refers to the broader client family, historical project identity, or compatibility-era artifacts that retain that name. This naming split prevents a server rename from silently renaming future GoreeVault Web, Browser, Desktop, or Mobile clients without a separate product decision.
+
+The machine-readable identity contract is recorded in `docs/server-identity.json`, with the human-readable authority in `docs/SERVER-IDENTITY.md`.
 
 ## Product direction
 
 This repository begins as a compatibility-focused derivative of Vaultwarden so GoreeCloud can establish a secure server, migration path, recovery model, deployment contract, and native product identity without inventing a new password-manager protocol or cryptographic system prematurely.
 
-The long-term product is GoreeCloud-owned: GoreeVault Server plus GoreeVault Web, Browser, Desktop, and Mobile clients. Every GoreeVault-controlled user-facing interface uses the GoreeCloud Glaze UI Design Language.
+The long-term product family is GoreeCloud-owned: GoreeCloud Vault Server plus GoreeVault Web, Browser, Desktop, and Mobile clients. Every GoreeCloud-controlled user-facing interface uses the GoreeCloud Glaze UI Design Language.
 
 ## Mandatory GoreeCloud readiness gates
 
-GoreeVault is intended for non-administrative users and is therefore a **multi-user application** under the GoreeCloud software baseline. Production readiness requires all three applicable platform gates:
+GoreeCloud Vault Server is intended for non-administrative users and is therefore a **multi-user application** under the GoreeCloud software baseline. Production readiness requires all three applicable platform gates:
 
 1. **Multi-user readiness** — individual identities, private-data isolation, authorization boundaries, organization/collection controls, and session/device lifecycle behavior are proven.
 2. **Security readiness** — authentication, authorization, zero-knowledge boundaries, secret handling, dependency review, secure network exposure, privacy-conscious logging, recovery, and security testing are proven.
-3. **Glaze UI readiness** — every GoreeVault-controlled user-facing interface conforms to Glaze UI or an explicit material exception has been approved under the GoreeCloud exception standard.
+3. **Glaze UI readiness** — every GoreeCloud-controlled user-facing interface conforms to Glaze UI or an explicit material exception has been approved under the GoreeCloud exception standard.
 
 No semantic version, successful build, compatibility test, or deployment rehearsal can bypass an applicable gate.
 
@@ -22,9 +32,9 @@ No semantic version, successful build, compatibility test, or deployment rehears
 
 The server keeps upstream-compatible cryptographic behavior, Bitwarden Client API behavior, database internals, migrations, and selected internal `vaultwarden` identifiers where those preserve compatibility and upstream maintainability.
 
-GoreeVault-owned server presentation uses GoreeVault identity and Glaze UI. The bundled upstream-compatible web vault is a **temporary development and compatibility dependency** while GoreeVault Web is built. It is not treated as a permanent production exception merely because upstream styling is usable.
+GoreeCloud Vault Server-owned presentation uses the canonical server identity and Glaze UI. The bundled upstream-compatible web vault is a **temporary development and compatibility dependency** while GoreeVault Web is built. It is not treated as a permanent production exception merely because upstream styling is usable.
 
-Under the current GoreeCloud baseline, product-wide Stable readiness remains blocked until the primary browser vault is GoreeVault-owned and Glaze-conformant, or a separately documented material exception is explicitly approved with its reason, impact, compensating controls, review condition, and removal condition. No such production exception is approved by this repository.
+Under the current GoreeCloud baseline, product-wide Stable readiness remains blocked until the primary browser vault is GoreeCloud-owned and Glaze-conformant, or a separately documented material exception is explicitly approved with its reason, impact, compensating controls, review condition, and removal condition. No such production exception is approved by this repository.
 
 The implementation boundary for the future browser client is defined in `docs/WEB-CLIENT-CONTRACT.md`. That contract preserves the separate-client architecture, client-side zero-knowledge responsibility, multi-user isolation, browser-storage controls, Glaze UI requirements, accessibility, immutable release evidence, and reversible cutover requirements without claiming the client already exists.
 
@@ -32,14 +42,14 @@ The implementation boundary for the future browser client is defined in `docs/WE
 
 - Upstream project: Vaultwarden
 - Upstream repository: `dani-garcia/vaultwarden`
-- Initial GoreeVault baseline: `0cefa4cca7c9f2a5579dd290f78193b543818c51`
+- Initial GoreeCloud Vault Server baseline: `0cefa4cca7c9f2a5579dd290f78193b543818c51`
 - License: AGPL-3.0-only
 
 The original `LICENSE.txt`, copyright notices, attribution, and source-availability obligations must remain intact.
 
 ## Compatibility policy
 
-Until GoreeVault owns and supports native clients, server changes must preserve compatibility with the approved Bitwarden client matrix. Compatibility-breaking changes require explicit architectural approval, migration/rollback planning, and client regression evidence.
+Until GoreeCloud owns and supports native clients, server changes must preserve compatibility with the approved Bitwarden client matrix. Compatibility-breaking changes require explicit architectural approval, migration/rollback planning, and client regression evidence.
 
 The compatibility harness treats encrypted vault contents as opaque data because decryption is a client responsibility.
 
@@ -61,8 +71,9 @@ Repository ownership boundaries are documented in `docs/REPOSITORY-STRUCTURE.md`
 
 ## GoreeCloud standards
 
-GoreeVault development follows the repository contracts in:
+GoreeCloud Vault Server development follows the repository contracts in:
 
+- `docs/SERVER-IDENTITY.md` — canonical server naming and product-boundary authority;
 - `docs/GLAZE-UI.md` — GoreeCloud Glaze UI presentation/accessibility/privacy contract;
 - `docs/WEB-CLIENT-CONTRACT.md` — GoreeVault Web zero-knowledge, multi-user, Glaze UI, accessibility, storage, release, migration, and rollback boundary;
 - `docs/SECURITY-MODEL.md` and `SECURITY.md` — zero-knowledge and security boundaries;
