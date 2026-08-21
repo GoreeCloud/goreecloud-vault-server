@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Validate GoreeVault repository identity and production-readiness contracts."""
+"""Validate GoreeCloud Vault Server repository identity and production-readiness contracts."""
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -14,6 +15,8 @@ REQUIRED_FILES = {
     "GOREVAULT.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
+    "docs/SERVER-IDENTITY.md",
+    "docs/server-identity.json",
     "docs/GLAZE-UI.md",
     "docs/OPEN-READINESS-BLOCKERS.md",
     "docs/PRODUCTION-DEPLOYMENT.md",
@@ -28,10 +31,10 @@ REQUIRED_FILES = {
 }
 
 FORBIDDEN_INHERITED_REPOSITORY_UX = {
-    ".github/FUNDING.yml": "upstream maintainer funding links must not be presented as GoreeVault funding",
-    ".github/security-contact.gif": "the inherited upstream security-contact asset must not override GoreeVault reporting",
-    ".github/ISSUE_TEMPLATE/bug_report.yml": "the inherited Vaultwarden bug template is incompatible with GoreeVault issue policy",
-    ".github/ISSUE_TEMPLATE/config.yml": "the inherited Vaultwarden support-routing links are not GoreeVault support paths",
+    ".github/FUNDING.yml": "upstream maintainer funding links must not be presented as GoreeCloud Vault Server funding",
+    ".github/security-contact.gif": "the inherited upstream security-contact asset must not override GoreeCloud reporting",
+    ".github/ISSUE_TEMPLATE/bug_report.yml": "the inherited Vaultwarden bug template is incompatible with GoreeCloud Vault Server issue policy",
+    ".github/ISSUE_TEMPLATE/config.yml": "the inherited Vaultwarden support-routing links are not GoreeCloud support paths",
 }
 
 
@@ -50,7 +53,7 @@ def read(path: str) -> str:
 
 def validate_files() -> None:
     missing = sorted(path for path in REQUIRED_FILES if not (ROOT / path).is_file())
-    require(not missing, f"missing required GoreeVault repository files: {', '.join(missing)}")
+    require(not missing, f"missing required GoreeCloud Vault Server repository files: {', '.join(missing)}")
 
     for path, reason in sorted(FORBIDDEN_INHERITED_REPOSITORY_UX.items()):
         require(not (ROOT / path).exists(), f"forbidden inherited repository UX exists at {path}: {reason}")
@@ -58,14 +61,62 @@ def validate_files() -> None:
 
 def validate_readme() -> None:
     text = read("README.md")
-    require(text.startswith("# GoreeVault Server\n"), "README.md must begin with the GoreeVault Server identity")
-    require("Vaultwarden Logo" not in text, "README.md must not present the upstream Vaultwarden logo as GoreeVault identity")
+    require(
+        text.startswith("# GoreeCloud Vault Server\n"),
+        "README.md must begin with the GoreeCloud Vault Server identity",
+    )
+    require(
+        not text.startswith("# GoreeVault Server\n"),
+        "README.md must not use the retired GoreeVault Server heading",
+    )
+    require("Vaultwarden Logo" not in text, "README.md must not present the upstream Vaultwarden logo as GoreeCloud identity")
     require("vaultwarden/server:latest" not in text, "README.md must not recommend mutable upstream latest images")
-    require("goreevault-server:latest" not in text, "README.md must not recommend a mutable GoreeVault latest image")
+    require("goreevault-server:latest" not in text, "README.md must not recommend the legacy mutable GoreeVault latest image")
+    require(
+        "goreecloud-vault-server:latest" not in text,
+        "README.md must not recommend a mutable GoreeCloud Vault Server latest image",
+    )
+    require("docs/SERVER-IDENTITY.md" in text, "README.md must link the canonical server identity contract")
     require("docs/REPOSITORY-STRUCTURE.md" in text, "README.md must link the repository structure contract")
-    require("multi-user" in text.lower(), "README.md must document GoreeVault multi-user readiness")
+    require("multi-user" in text.lower(), "README.md must document GoreeCloud Vault Server multi-user readiness")
     require("Glaze UI" in text, "README.md must document Glaze UI")
     require("not approved" in text.lower(), "README.md must state the current non-Stable production boundary")
+
+
+def validate_server_identity() -> None:
+    human = read("docs/SERVER-IDENTITY.md")
+    require("# GoreeCloud Vault Server Identity\n" in human, "human-readable server identity heading is missing")
+    require("former server name **GoreeVault Server**" in human, "server identity must record the retired server name")
+    require("GoreeVault` is not automatically retired" in human, "server identity must preserve the client-family naming boundary")
+
+    try:
+        data = json.loads(read("docs/server-identity.json"))
+    except json.JSONDecodeError as exc:
+        raise ReadinessError(f"server identity manifest is invalid JSON: {exc}") from exc
+
+    expected = {
+        "schema_version": 1,
+        "canonical_name": "GoreeCloud Vault Server",
+        "short_name": "Vault Server",
+        "repository": "GoreeCloud/goreecloud-vault-server",
+        "canonical_service_url": "https://vault.goreecloud.com",
+        "former_server_name": "GoreeVault Server",
+        "client_family_name": "GoreeVault",
+        "upstream_project": "Vaultwarden",
+        "upstream_repository": "dani-garcia/vaultwarden",
+        "design_language": "Glaze UI",
+        "security_identity": "Wardveil Security by GoreeCloud",
+        "license": "AGPL-3.0-only",
+        "status": "active",
+    }
+    for key, value in expected.items():
+        require(data.get(key) == value, f"server identity manifest has unexpected {key!r}: {data.get(key)!r}")
+
+    require(
+        data.get("development_model") == "goreecloud-maintained-fork-with-controlled-fork-to-native-transition",
+        "server identity manifest must record the approved development model",
+    )
+    require(set(data) == {*expected, "development_model"}, "server identity manifest contains unsupported fields")
 
 
 def validate_codeowners() -> None:
@@ -180,6 +231,7 @@ def main() -> int:
     try:
         validate_files()
         validate_readme()
+        validate_server_identity()
         validate_codeowners()
         validate_security_reporting()
         validate_goreecloud_gates()
@@ -189,7 +241,7 @@ def main() -> int:
         print(f"Repository readiness validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print("GoreeVault repository readiness validation passed.")
+    print("GoreeCloud Vault Server repository readiness validation passed.")
     return 0
 
 
