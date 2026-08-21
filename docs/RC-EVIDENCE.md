@@ -1,8 +1,10 @@
-# GoreeVault Release Candidate Evidence
+# GoreeCloud Vault Server Release Candidate Evidence
 
-Use this file as the human-readable evidence index for each GoreeVault Release Candidate. Copy it into a versioned/datestamped evidence record or complete an equivalent retained release record before promotion. Do not overwrite evidence from one source commit, browser-vault asset, or OCI digest with results from another.
+Use this file as the human-readable evidence index for each GoreeCloud Vault Server Release Candidate. Copy it into a versioned/datestamped evidence record or complete an equivalent retained release record before promotion. Do not overwrite evidence from one source commit, browser-vault asset, or OCI digest with results from another.
 
-This record complements, but does not replace, the machine-readable `goreevault-stable-evidence.json` required for Stable promotion.
+This record complements, but does not replace, the machine-readable `goreevault-stable-evidence.json` required for Stable promotion. That compatibility-era evidence filename is intentionally retained by current tooling and does not define the canonical server name.
+
+`GoreeVault` remains the broader client-family and historical product identity. Existing workflow display names may retain GoreeVault where changing them provides no security or operational benefit.
 
 ## Evidence-state vocabulary
 
@@ -20,7 +22,7 @@ Do not convert an unsupported or untested requirement to `PASS` merely to comple
 - RC tag:
 - Target Stable version:
 - Source commit SHA:
-- GoreeVault OCI image: `ghcr.io/goreecloud/goreevault-server@sha256:`
+- GoreeCloud Vault Server OCI image: `ghcr.io/goreecloud/goreecloud-vault-server@sha256:`
 - Exact OCI manifest digest:
 - RC semantic image tag:
 - Source-SHA image tag:
@@ -32,11 +34,11 @@ Do not convert an unsupported or untested requirement to `PASS` merely to comple
 - Primary tester/operator:
 - Reviewer:
 
-The source SHA, GoreeVault manifest digest, PostgreSQL image, and browser-vault identity above define this evidence cycle. Client, recovery, migration, security, multi-user, target-environment, and release approval must refer to the same applicable artifacts.
+The source SHA, GoreeCloud Vault Server manifest digest, PostgreSQL image, and browser-vault identity above define this evidence cycle. Client, recovery, migration, security, multi-user, target-environment, and release approval must refer to the same applicable artifacts.
 
 ## Parent/source qualification
 
-- Candidate source is based on the approved GoreeVault maintained-fork baseline: NOT VERIFIED
+- Candidate source is based on the approved GoreeCloud Vault Server maintained-fork baseline: NOT VERIFIED
 - Upstream review completed according to `docs/UPSTREAM.md`: NOT VERIFIED
 - Required upstream security/compatibility changes are dispositioned: NOT VERIFIED
 - No unreviewed source or generated-file drift remains: NOT VERIFIED
@@ -46,7 +48,7 @@ The source SHA, GoreeVault manifest digest, PostgreSQL image, and browser-vault 
 Record the current GitHub repository state rather than assuming settings from a previous RC.
 
 - `main` protected against direct/unreviewed release-source changes: NOT VERIFIED
-- Required GoreeVault checks enforced: NOT VERIFIED
+- Required GoreeCloud Vault Server checks enforced: NOT VERIFIED
 - CODEOWNERS review enforcement verified for protected surfaces: NOT VERIFIED
 - Protected `release` environment exists: NOT VERIFIED
 - Required release reviewer configured: NOT VERIFIED
@@ -83,9 +85,11 @@ Record the GitHub Actions run URL/ID and conclusion for the exact candidate sour
 | Code Spell Checking | | NOT VERIFIED |
 | Security Analysis with zizmor | | NOT VERIFIED |
 
+Workflow display names above are existing automation identifiers, not the canonical product name.
+
 Where a broader workflow contains multiple release-critical jobs, retain enough detail to prove the required jobs passed rather than recording only an ambiguous workflow name.
 
-A skipped inherited/upstream-only check does not satisfy a GoreeVault gate unless the GoreeVault release contract explicitly classifies that skip as acceptable.
+A skipped inherited/upstream-only check does not satisfy a GoreeCloud Vault Server gate unless the release contract explicitly classifies that skip as acceptable.
 
 ## Automated authentication and multi-user regression evidence
 
@@ -129,7 +133,7 @@ Automated synthetic coverage supports release qualification but does not replace
 - PostgreSQL + `/data` destructive restore passed for this source commit: NOT VERIFIED
 - Cipher ciphertext identity verified after restore: NOT VERIFIED
 - Attachment hash/exact bytes verified after restore: NOT VERIFIED
-- Forward handoff from the required Vaultwarden baseline passed: NOT VERIFIED
+- Forward handoff from the required Vaultwarden baseline to GoreeCloud Vault Server passed: NOT VERIFIED
 - Rollback to the required Vaultwarden baseline passed: NOT VERIFIED
 - Exact currently deployed production baseline compatibility separately rehearsed when different from the pinned fork baseline: NOT VERIFIED / N/A
 - Backup/restore evidence contains no reusable credentials or private production vault data: NOT VERIFIED
@@ -140,7 +144,7 @@ Automated synthetic coverage supports release qualification but does not replace
 - Enforced source/dependency scan has no unresolved release-blocking CRITICAL finding: NOT VERIFIED
 - Enforced built-image scan has no unresolved release-blocking HIGH finding: NOT VERIFIED
 - Enforced built-image scan has no unresolved release-blocking CRITICAL finding: NOT VERIFIED
-- GoreeVault-specific authentication/authorization review disposition:
+- GoreeCloud Vault Server-specific authentication/authorization review disposition:
 - Dependency/license review disposition:
 - Known security limitations accepted for this RC:
 - Security exceptions, owners, expiry/removal conditions:
@@ -190,7 +194,7 @@ Exercise `docs/PRODUCTION-DEPLOYMENT.md` in the intended GoreeCloud target envir
 Machine-observed or directly verified controls:
 
 - canonical origin is `https://vault.goreecloud.com`: NOT VERIFIED
-- GoreeVault backend bind is loopback-only: NOT VERIFIED
+- GoreeCloud Vault Server backend bind is loopback-only: NOT VERIFIED
 - trusted reverse proxy provides HTTPS/WSS: NOT VERIFIED
 - PostgreSQL has no host-published port: NOT VERIFIED
 - server runs as approved non-zero numeric UID/GID: NOT VERIFIED
@@ -199,8 +203,8 @@ Machine-observed or directly verified controls:
 - `no-new-privileges` is active: NOT VERIFIED
 - public registration is closed: NOT VERIFIED
 - `/admin` remains disabled under current production policy: NOT VERIFIED
-- GoreeVault and PostgreSQL images are immutable digests: NOT VERIFIED
-- live GoreeVault image matches exact RC manifest digest: NOT VERIFIED
+- GoreeCloud Vault Server and PostgreSQL images are immutable digests: NOT VERIFIED
+- live GoreeCloud Vault Server image matches exact RC manifest digest: NOT VERIFIED
 - pre-deployment backup created: NOT VERIFIED
 - isolated restore rehearsed: NOT VERIFIED
 - rollback recorded/rehearsed as applicable: NOT VERIFIED
@@ -221,8 +225,8 @@ After the work actually occurs, `scripts/collect-target-evidence.py` may be used
 
 ### Server-owned surfaces
 
-- GoreeVault Admin/error surfaces pass repository Glaze UI gate: NOT VERIFIED
-- Transactional email presentation uses GoreeVault identity and approved email-safe Glaze treatment: NOT VERIFIED
+- GoreeCloud Vault Server Admin/error surfaces pass repository Glaze UI gate: NOT VERIFIED
+- Transactional email presentation retains the documented GoreeVault-family identity and approved email-safe Glaze treatment: NOT VERIFIED
 - Server-owned presentation has no unapproved remote analytics/tracking dependency: NOT VERIFIED
 
 ### Product-wide browser ownership
@@ -269,7 +273,7 @@ Use this section to decide whether the candidate qualifies for the specific RC m
 - Required target-environment rehearsal for this RC milestone complete: NO
 - Required repository governance for this RC milestone verified: NO
 - No unresolved blocker that prevents this RC milestone: NO
-- Approved as the stated GoreeVault Server RC milestone: NO
+- Approved as the stated GoreeCloud Vault Server RC milestone: NO
 - RC approver/date/timezone:
 
 Approval of a server RC does not imply product-wide Stable approval.
@@ -280,7 +284,7 @@ Only after every Stable blocker is closed:
 
 - prepare reviewed section files for `rc`, `multi_user`, `clients`, `webauthn`, `glaze_ui`, `target_environment`, `governance`, and `approvals`: NO
 - verify every section contains only the exact schema value and no reusable secrets/private vault data: NO
-- bind exact RC tag, source SHA, GoreeVault manifest digest, PostgreSQL image, and immutable browser-vault asset identity: NO
+- bind exact RC tag, source SHA, GoreeCloud Vault Server manifest digest, PostgreSQL image, and immutable browser-vault asset identity: NO
 - verify all six real-client records have every schema-required check true: NO
 - verify real WebAuthn registration/authentication evidence: NO
 - verify product-wide Glaze UI evidence: NO
@@ -317,7 +321,7 @@ Any source, browser asset, or digest mismatch is a failed Stable promotion even 
 - Client matrix complete: NO
 - Real authenticator passkey evidence complete: NO
 - Target-environment evidence complete: NO
-- Product-wide GoreeVault-owned Glaze UI evidence complete: NO
+- Product-wide GoreeCloud-owned Glaze UI evidence complete: NO
 - Backup/restore/migration/rollback evidence complete: NO
 - No unresolved Stable blocker: NO
 - Approved for Stable promotion: NO
