@@ -1,8 +1,10 @@
-# GoreeVault Security Model — v0.1.0
+# GoreeCloud Vault Server Security Model — v0.1.0
 
 ## Security posture
 
-GoreeVault v0.1.0 is intentionally conservative. It changes ownership and product surface before it changes security-critical implementation.
+GoreeCloud Vault Server v0.1.0 is intentionally conservative. It changes ownership and product surface before it changes security-critical implementation.
+
+`GoreeVault` remains the broader client-family and historical product identity. This server security model uses the canonical GoreeCloud Vault Server name for the backend service.
 
 ## Protected assets
 
@@ -32,7 +34,7 @@ GoreeVault v0.1.0 is intentionally conservative. It changes ownership and produc
 
 ## Transport security boundary
 
-Production client traffic terminates HTTPS/WSS at the trusted GoreeCloud reverse proxy. The GoreeVault Rocket listener is intentionally HTTP-only behind that boundary and must never be directly exposed to untrusted networks.
+Production client traffic terminates HTTPS/WSS at the trusted GoreeCloud reverse proxy. The GoreeCloud Vault Server Rocket listener is intentionally HTTP-only behind that boundary and must never be directly exposed to untrusted networks.
 
 Allowed proxy-to-application transport is limited to a trusted local/private path, such as host loopback or an isolated container/VM network. The current Compose baseline publishes the server only on `127.0.0.1:8080`, while an attached trusted reverse proxy may instead use a private service network.
 
