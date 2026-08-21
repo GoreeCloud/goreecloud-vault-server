@@ -195,7 +195,7 @@ def main() -> None:
 
     # Governance docs must state the stricter transitional ownership boundary,
     # reject a silent production exception, and preserve the Stable blocker.
-    require(glaze_doc, "GoreeVault-owned surfaces", "Glaze ownership boundary")
+    require(glaze_doc, "GoreeCloud-controlled server surfaces", "Glaze ownership boundary")
     require(glaze_doc, "transactional HTML and plain-text email", "transactional email ownership boundary")
     require(glaze_doc, "Transitional compatibility surface", "web-vault transitional boundary")
     require(glaze_doc, "temporary development divergence", "temporary web-vault divergence")
