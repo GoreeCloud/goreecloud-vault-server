@@ -1,6 +1,8 @@
-# GoreeVault Release Process
+# GoreeCloud Vault Server Release Process
 
-GoreeVault release artifacts are built from GitHub Actions identity and published to the GoreeCloud GitHub Container Registry.
+GoreeCloud Vault Server release artifacts are built from GitHub Actions identity and published to the GoreeCloud GitHub Container Registry.
+
+`GoreeVault` remains the broader client-family and historical product identity. Existing workflow names and compatibility-era evidence filenames may retain GoreeVault where changing them is operationally unnecessary; release-facing server artifact identity uses GoreeCloud Vault Server.
 
 ## Release tags
 
@@ -17,13 +19,13 @@ A Stable tag is not allowed to introduce new source or a newly rebuilt container
 
 Pull requests run the same PostgreSQL Debian Dockerfile as a non-publishing Linux AMD64 + ARM64 OCI build. The preflight enables the same BuildKit SBOM and maximum-provenance settings used by the publisher and validates that a multi-architecture OCI manifest digest is produced.
 
-The tag publisher depends on this preflight job. An RC tag is therefore not the first time GoreeVault exercises the multi-architecture release-image path.
+The tag publisher depends on this preflight job. An RC tag is therefore not the first time GoreeCloud Vault Server exercises the multi-architecture release-image path.
 
 ## Registry
 
 The canonical container is:
 
-`ghcr.io/goreecloud/goreevault-server`
+`ghcr.io/goreecloud/goreecloud-vault-server`
 
 Release candidates publish:
 
@@ -43,11 +45,11 @@ The workflow verifies both promoted references resolve to the exact RC digest. R
 
 Release-candidate testing must use the exact published OCI manifest digest, for example:
 
-`ghcr.io/goreecloud/goreevault-server@sha256:<candidate-digest>`
+`ghcr.io/goreecloud/goreecloud-vault-server@sha256:<candidate-digest>`
 
 Record that digest in the RC evidence before running the client matrix. Do not substitute a local source build, the development image, `latest`, or only a mutable semantic tag when collecting release evidence.
 
-`deploy/compose.yaml` is the GoreeVault **development** deployment and builds the server locally. It is not the source of truth for RC/Stable artifact validation.
+`deploy/compose.yaml` is the GoreeCloud Vault Server **development** deployment and builds the server locally. It is not the source of truth for RC/Stable artifact validation.
 
 ## Supply-chain evidence
 
@@ -59,7 +61,7 @@ Deployments should pin the manifest digest whenever practical rather than relyin
 
 ## Required repository setup
 
-Before the first GoreeVault RC tag is created:
+Before the first GoreeCloud Vault Server RC tag is created:
 
 1. Create a GitHub Actions environment named `release`.
 2. Configure at least one required reviewer for that environment.
@@ -80,7 +82,7 @@ Before creating a release tag:
 1. Merge only a stabilization commit for which required CI, compatibility, recovery, migration/rollback, security, and release-image preflight gates are green.
 2. Confirm the protected `release` environment and source-branch protections are active.
 3. Create an RC tag first and deploy that exact digest to the GoreeCloud test environment.
-4. Complete the real Bitwarden client matrix and restore/rollback rehearsal against the RC digest.
+4. Complete the real supported-client matrix and restore/rollback rehearsal against the RC digest.
 5. Create the Stable tag on the **same source commit** only after all release gates are satisfied.
 6. Verify the Stable workflow promotes the exact tested RC digest to the Stable semantic tag and `latest` without rebuilding the image.
 
