@@ -1,16 +1,16 @@
-# GoreeVault Client Compatibility Evidence
+# GoreeCloud Vault Server Client Compatibility Evidence
 
-This document is the release-evidence record for **real client testing** against an exact GoreeVault Release Candidate. Automated API tests do not replace this matrix.
+This document is the release-evidence record for **real client testing** against an exact GoreeCloud Vault Server Release Candidate. Automated API tests do not replace this matrix.
 
-Create one completed copy or dated section for each GoreeVault RC. Do not mark a client class supported from memory, from an older server build, or from a different OCI manifest.
+Create one completed copy or dated section for each GoreeCloud Vault Server RC. Do not mark a client class supported from memory, from an older server build, or from a different OCI manifest.
 
-This matrix is aligned to Stable-evidence schema version 2. Each required client section contains the exact machine-readable check keys consumed by `scripts/validate-stable-evidence.py` so the human test record and final `goreevault-stable-evidence.json` cannot silently diverge.
+This matrix is aligned to Stable-evidence schema version 2. Each required client section contains the exact machine-readable check keys consumed by `scripts/validate-stable-evidence.py` so the human test record and final `goreevault-stable-evidence.json` cannot silently diverge. The compatibility-era evidence filename is intentionally retained and does not change the canonical server identity.
 
 ## Release candidate under test
 
-- GoreeVault tag:
+- GoreeCloud Vault Server tag:
 - Source commit SHA:
-- GoreeVault OCI manifest digest:
+- GoreeCloud Vault Server OCI manifest digest:
 - PostgreSQL image and immutable digest:
 - Browser-vault asset/client name, version, and immutable identity:
 - Test start date/time and timezone:
@@ -231,12 +231,14 @@ For every `FAIL`, record enough non-secret information to reproduce and triage i
 - exact Stable evidence key or supplemental operation that failed;
 - expected behavior;
 - observed behavior/error class;
-- relevant GoreeVault CI/log/test reference after secret review;
+- relevant GoreeCloud Vault Server CI/log/test reference after secret review;
 - disposition: release blocker / accepted non-Stable limitation / client unsupported.
 
 An accepted limitation does not override a schema-required Stable `true` field.
 
 ## Transfer to `goreevault-stable-evidence.json`
+
+The filename is retained for compatibility with existing validation and evidence tooling; it does not represent the current canonical server name.
 
 For each required client:
 
