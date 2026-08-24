@@ -1,12 +1,14 @@
-# GoreeVault Stable Release Evidence
+# GoreeCloud Vault Server Stable Release Evidence
 
 Stable promotion must be backed by one machine-readable evidence record named `goreevault-stable-evidence.json` attached to the matching Release Candidate GitHub release.
+
+The compatibility-era evidence filename is intentionally retained by current release tooling and does not define the canonical server identity. `GoreeVault` remains the broader client-family and historical product identity; the backend service is **GoreeCloud Vault Server**.
 
 The evidence record is not a substitute for testing. It is the fail-closed handoff between completed manual/operational validation and the Stable promotion workflow.
 
 ## Why the evidence lives on the RC release
 
-GoreeVault Stable must promote the exact source commit and exact multi-architecture OCI manifest that were tested as the Release Candidate. Committing evidence after RC testing would change the source SHA and invalidate that guarantee.
+GoreeCloud Vault Server Stable must promote the exact source commit and exact multi-architecture OCI manifest that were tested as the Release Candidate. Committing evidence after RC testing would change the source SHA and invalidate that guarantee.
 
 For that reason:
 
@@ -22,9 +24,9 @@ The Stable release workflow downloads that exact asset from the selected RC rele
 
 ## Schema version 2
 
-Schema version 2 adds explicit **multi-user readiness** and **product-wide Glaze UI readiness** evidence. These are mandatory because GoreeVault is intended for non-administrative users and has controlled user-facing interfaces.
+Schema version 2 adds explicit **multi-user readiness** and **product-wide Glaze UI readiness** evidence. These are mandatory because GoreeCloud Vault Server is intended for non-administrative users and GoreeCloud controls user-facing interfaces across the broader product family.
 
-The validator intentionally does not treat the current upstream-compatible web vault as product-wide Glaze compliance. Stable evidence must represent the GoreeVault-owned/approved production presentation state, not the transitional RC compatibility state.
+The validator intentionally does not treat the current upstream-compatible web vault as product-wide Glaze compliance. Stable evidence must represent the GoreeCloud-owned/approved production presentation state, not the transitional RC compatibility state.
 
 The schema is strict. Unknown fields and duplicate JSON keys are rejected rather than ignored. This prevents ambiguous shadowed values and reduces the risk of accidentally storing unrelated or sensitive information in the release evidence file.
 
@@ -34,14 +36,14 @@ The record must contain:
 
 - exact RC tag;
 - exact 40-character source commit SHA;
-- exact GoreeVault multi-architecture OCI manifest digest;
+- exact GoreeCloud Vault Server multi-architecture OCI manifest digest;
 - PostgreSQL artifact as a syntactically valid immutable `name@sha256:<64-lowercase-hex>` reference;
 - primary browser-vault asset as its own syntactically valid immutable `name@sha256:<64-lowercase-hex>` identity;
-- exact deployed GoreeVault image reference whose digest equals the RC manifest digest;
+- exact deployed GoreeCloud Vault Server image reference whose digest equals the RC manifest digest;
 - previous-known-good rollback artifact as a syntactically valid immutable reference distinct from the candidate server manifest;
 - Central Time-aware or otherwise offset-aware collection/test timestamps.
 
-The PostgreSQL and browser-vault digests must identify their own artifacts rather than reuse the GoreeVault server manifest digest. A semantic version, mutable tag, filename without a checksum, or arbitrary string containing `@sha256:` is not accepted as immutable artifact evidence.
+The PostgreSQL and browser-vault digests must identify their own artifacts rather than reuse the GoreeCloud Vault Server manifest digest. A semantic version, mutable tag, filename without a checksum, or arbitrary string containing `@sha256:` is not accepted as immutable artifact evidence.
 
 The browser asset identity can represent a release bundle, archive, container, or other reviewed browser artifact, but it must use the canonical `name@sha256:<digest>` evidence form so the release record identifies exact bytes rather than only a version label.
 
@@ -88,11 +90,11 @@ Every required client must pass:
 
 ## Required WebAuthn/passkey evidence
 
-A real supported browser/device/authenticator path must prove both registration and authentication against the exact candidate. `docs/CLIENT-COMPATIBILITY.md` maps these to `webauthn.registration` and `webauthn.authentication` so the human evidence and machine record remain traceable.
+A real supported browser/device/authenticator path must prove both registration and authentication against the exact GoreeCloud Vault Server candidate. `docs/CLIENT-COMPATIBILITY.md` maps these to `webauthn.registration` and `webauthn.authentication` so the human evidence and machine record remain traceable.
 
 ## Required Glaze UI evidence
 
-The `glaze_ui` section must prove product-wide readiness for every GoreeVault-controlled user-facing interface, including:
+The `glaze_ui` section must prove product-wide readiness for every GoreeCloud-controlled user-facing interface, including:
 
 - product-wide Glaze UI conformance;
 - GoreeCloud ownership of the primary browser vault presentation;
@@ -103,7 +105,7 @@ The `glaze_ui` section must prove product-wide readiness for every GoreeVault-co
 - increased-contrast support;
 - forced-colors/High Contrast operability;
 - local-only presentation dependencies;
-- absence of analytics/behavioral tracking in GoreeVault-owned presentation;
+- absence of analytics/behavioral tracking in GoreeCloud-owned presentation;
 - a recorded browser/accessibility evidence reference.
 
 The current bundled upstream-compatible web vault is a temporary compatibility dependency. It does not satisfy `product_wide_conformance` or `primary_browser_vault_goreecloud_owned` and therefore cannot produce valid Stable evidence under the current approved path.
@@ -117,7 +119,7 @@ The target rehearsal must verify the production contract at `https://vault.goree
 - backend listener is loopback-only;
 - HTTPS/WSS terminates at the trusted GoreeCloud reverse proxy;
 - PostgreSQL has no host-published port;
-- the GoreeVault server runs non-root;
+- the GoreeCloud Vault Server process runs non-root;
 - the root filesystem is read-only;
 - Linux capabilities are dropped;
 - `no-new-privileges` is active;
@@ -142,11 +144,11 @@ Machine-observed checks include:
 - the reviewed production deployment source validator still passes;
 - the production Compose model renders with the operator-controlled environment file;
 - the production environment file is not group/world accessible;
-- configured and live GoreeVault/PostgreSQL images are immutable digest references;
-- the live GoreeVault image matches the expected RC manifest digest;
-- both GoreeVault and PostgreSQL containers are running and healthy;
-- the GoreeVault server uses the reviewed non-zero numeric UID/GID runtime form;
-- the GoreeVault backend is published only on `127.0.0.1`;
+- configured and live GoreeCloud Vault Server/PostgreSQL images are immutable digest references;
+- the live GoreeCloud Vault Server image matches the expected RC manifest digest;
+- both GoreeCloud Vault Server and PostgreSQL containers are running and healthy;
+- the server uses the reviewed non-zero numeric UID/GID runtime form;
+- the backend is published only on `127.0.0.1`;
 - PostgreSQL has no host-published port;
 - the root filesystem is read-only;
 - all Linux capabilities are dropped;
@@ -165,7 +167,7 @@ Example after a real rehearsal:
 python3 scripts/collect-target-evidence.py \
   --env-file /etc/goreevault/production.env \
   --expected-manifest-digest "sha256:<64-hex RC manifest digest>" \
-  --previous-known-good-image "ghcr.io/goreecloud/goreevault-server@sha256:<64-hex previous digest>" \
+  --previous-known-good-image "ghcr.io/goreecloud/goreecloud-vault-server@sha256:<64-hex previous digest>" \
   --backup-reference "<approved backup or snapshot reference>" \
   --rollback-reference "<rollback rehearsal/runbook reference>" \
   --reverse-proxy-https-wss \
@@ -177,6 +179,8 @@ python3 scripts/collect-target-evidence.py \
   --netbird-path-verified \
   --output target-environment.json
 ```
+
+The `/etc/goreevault` path is a compatibility-era operational identifier intentionally retained by the current deployment contract; it does not define the current product name.
 
 The default evidence timestamp uses `America/Chicago`, matching GoreeCloud's Central Time documentation convention. The resulting `target-environment.json` is the value for the full Stable record's `target_environment` field; it must still be reviewed before insertion and final validation.
 
@@ -288,4 +292,4 @@ On a Stable tag, `.github/workflows/goreevault-release.yml`:
 5. validates the evidence against the selected RC tag, source SHA, manifest, immutable supporting artifacts, multi-user gate, product-wide Glaze UI gate, real-client matrix, WebAuthn, target environment, governance, and approvals;
 6. only then promotes the exact RC manifest to the Stable version and `latest`.
 
-A missing or invalid evidence asset blocks Stable publication.
+The workflow filename is a compatibility-era internal identifier. A missing or invalid evidence asset blocks Stable publication.

@@ -1,11 +1,13 @@
-# GoreeVault Roadmap
+# GoreeCloud Vault Server Roadmap
+
+This roadmap uses **GoreeCloud Vault Server** for the canonical server identity while preserving **GoreeVault** for the client family and historical product identity. See `SERVER-IDENTITY.md` for the authoritative naming boundary.
 
 ## v0.1.0 — Foundation
 
 Established:
 
 - Vaultwarden-derived server baseline with preserved AGPL/upstream provenance;
-- GoreeVault product-facing server and administration identity;
+- GoreeCloud Vault Server product-facing server and administration identity;
 - PostgreSQL target architecture;
 - exact-head CI and security gates;
 - zero-knowledge/client-side cryptographic boundary;
@@ -14,7 +16,7 @@ Established:
 
 ## v0.2.0 — Server compatibility, recovery, and hardening
 
-v0.2 is the GoreeVault Server Release Candidate milestone. It proves the maintained server, compatibility, recovery, deployment, and release foundations. It does **not** by itself authorize product-wide Stable use because the primary browser vault remains an upstream compatibility dependency rather than a GoreeVault-owned Glaze UI surface.
+v0.2 is the GoreeCloud Vault Server Release Candidate milestone. It proves the maintained server, compatibility, recovery, deployment, and release foundations. It does **not** by itself authorize product-wide Stable use because the primary browser vault remains an upstream compatibility dependency rather than a GoreeCloud-owned GoreeVault Web Glaze UI surface.
 
 ### Automated API, multi-user, and authentication gates
 
@@ -39,12 +41,12 @@ Established or under exact-head validation:
 Established on the certified baseline and required on every release candidate:
 
 - destructive PostgreSQL plus `/data` backup/restore rehearsal;
-- exact Vaultwarden baseline to GoreeVault migration rehearsal;
+- exact Vaultwarden baseline to GoreeCloud Vault Server migration rehearsal;
 - rollback rehearsal to the pre-migration state;
 - non-publishing AMD64/ARM64 release-image build;
 - source and built-image HIGH/CRITICAL security gates;
 - hardened production Compose validation;
-- repository-readiness and GoreeVault-owned Glaze UI conformance checks;
+- repository-readiness and GoreeCloud-owned Glaze UI conformance checks;
 - fail-closed exact-RC Stable evidence contract;
 - read-only, secret-minimizing target-environment evidence collector with unit tests and explicit operator attestations for controls that cannot be proven from container metadata alone.
 
@@ -71,7 +73,7 @@ This milestone is required for the current product-wide Stable path because Gore
 `docs/WEB-CLIENT-CONTRACT.md` now defines the implementation boundary before a dedicated client repository is created. The contract establishes:
 
 - Role and Purpose for the browser client;
-- separation between GoreeVault Web and GoreeVault Server responsibilities;
+- separation between GoreeVault Web and GoreeCloud Vault Server responsibilities;
 - client-side zero-knowledge and cryptographic boundaries;
 - multi-user account/session isolation requirements;
 - browser storage and key-lifecycle rules;
@@ -95,7 +97,7 @@ The dedicated GoreeVault Web repository/application remains to be created and im
 - client-side vault encryption/decryption architecture using mature compatible cryptographic primitives;
 - secure session locking and memory/key-lifecycle policy;
 - import/export strategy;
-- compatibility test coverage against the GoreeVault server;
+- compatibility test coverage against GoreeCloud Vault Server;
 - migration/fallback path from the bundled upstream web-vault dependency;
 - browser accessibility and Glaze UI acceptance evidence.
 
@@ -145,7 +147,7 @@ Stable promotion requires the exact candidate artifact to satisfy `docs/PRODUCTI
 - hardened production deployment validation;
 - protected repository/release governance;
 - target-environment operational evidence;
-- product-wide Glaze UI conformance for every GoreeVault-controlled user-facing surface;
+- product-wide Glaze UI conformance for every GoreeCloud-controlled user-facing surface;
 - fail-closed validation of the RC-bound Stable evidence asset before the Stable and `latest` image tags are created.
 
 Under the current approved path, GoreeVault Web must reach its security, compatibility, accessibility, and Glaze UI gates before v1.0 Stable promotion. A future formally approved material exception could alter that dependency only if it satisfies the GoreeCloud exception standard; no such exception is currently approved.

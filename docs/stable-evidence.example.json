@@ -177,7 +177,7 @@
     "monitoring_verified": true,
     "logs_reviewed_for_sensitive_data": true,
     "netbird_path_verified": true,
-    "goreevault_image": "ghcr.io/goreecloud/goreevault-server@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "goreevault_image": "ghcr.io/goreecloud/goreecloud-vault-server@sha256:2222222222222222222222222222222222222222222222222222222222222222",
     "previous_known_good_image": "REPLACE_ME_previous_image@sha256:4444444444444444444444444444444444444444444444444444444444444444",
     "backup_reference": "REPLACE_ME_backup_snapshot_or_job_reference",
     "rollback_reference": "REPLACE_ME_rollback_runbook_or_evidence_reference"

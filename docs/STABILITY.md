@@ -1,6 +1,8 @@
-# GoreeVault Stability Policy
+# GoreeCloud Vault Server Stability Policy
 
-GoreeVault is a security-sensitive GoreeCloud service. A successful build is necessary, but it is not enough to call a release stable. Release maturity is determined by reproducible evidence across compatibility, authorization, authentication, recovery, migration, supply-chain, and real-client gates.
+GoreeCloud Vault Server is a security-sensitive GoreeCloud service. A successful build is necessary, but it is not enough to call a release stable. Release maturity is determined by reproducible evidence across compatibility, authorization, authentication, recovery, migration, supply-chain, and real-client gates.
+
+`GoreeVault` remains the broader client-family and historical product identity. This policy uses the canonical GoreeCloud Vault Server name for server maturity and release decisions.
 
 ## Release maturity
 
@@ -52,9 +54,9 @@ Required in addition to Preview:
 - immutable semantic-version and source-SHA image references
 - SBOM and build provenance for the release image
 - GitHub OIDC/Sigstore artifact attestation for the published image digest
-- GoreeVault-owned vulnerability scanning that actually executes against both repository dependencies/source and the built production container image
+- GoreeCloud Vault Server-owned vulnerability scanning that actually executes against both repository dependencies/source and the built production container image
 - no unresolved fixed HIGH or CRITICAL vulnerability finding in either enforced vulnerability surface
-- security review of GoreeVault-specific authentication, authorization, deployment, migration, and release changes
+- security review of GoreeCloud Vault Server-specific authentication, authorization, deployment, migration, and release changes
 
 ### Stable / v1.0.0
 
@@ -66,18 +68,18 @@ The Stable tag must point to the same tested source commit that passed the final
 
 The following are release-blocking requirements:
 
-1. **Zero-knowledge compatibility is preserved.** GoreeVault must not introduce server-side plaintext vault decryption.
+1. **Zero-knowledge compatibility is preserved.** GoreeCloud Vault Server must not introduce server-side plaintext vault decryption.
 2. **Production data is never used for first-run migration testing.** Migration is rehearsed against a verified copy or reproducible upstream fixture first.
 3. **Backups are verified by restoration.** Creating a backup file alone does not prove recoverability.
 4. **Public registration is closed by default.** Any deployment that enables it is an explicit operator choice.
 5. **The admin interface is disabled unless an Argon2 PHC `ADMIN_TOKEN` is deliberately configured.** Plaintext admin passwords are forbidden.
-6. **PostgreSQL is not exposed to the public edge network.** Only the GoreeVault server may reach the database network in the standard deployment.
+6. **PostgreSQL is not exposed to the public edge network.** Only GoreeCloud Vault Server may reach the database network in the standard deployment.
 7. **Changes to cryptography, authentication, migrations, or authorization receive dedicated compatibility tests before production promotion.**
-8. **Upstream provenance remains documented.** GoreeVault may change product identity without obscuring the Vaultwarden-derived implementation and license obligations.
+8. **Upstream provenance remains documented.** GoreeCloud Vault Server may change product identity without obscuring the Vaultwarden-derived implementation and license obligations.
 9. **Refresh-token replay resistance is verified for both sequential and concurrent use.** A consumed password refresh token must not be successfully reused, including during competing refresh requests.
 10. **Organization boundaries are fail-closed.** A user must not gain collection access before membership confirmation, retain removed collection access after reassignment, or retain organization access after membership removal.
 11. **Release artifacts are traceable to source.** Production images must be identifiable by immutable digest and source commit and carry verifiable provenance/attestation.
-12. **Security checks must execute, not merely appear in the check list.** A skipped upstream-only scanner does not satisfy a GoreeVault release gate, and both source/dependency and built-image vulnerability scans must execute successfully.
+12. **Security checks must execute, not merely appear in the check list.** A skipped upstream-only scanner does not satisfy a GoreeCloud Vault Server release gate, and both source/dependency and built-image vulnerability scans must execute successfully.
 13. **The tested rollback path remains available until production migration is accepted.** A release is not considered safely promoted if rollback was never rehearsed against the same storage contract.
 
 ## Required supported-client matrix
@@ -114,8 +116,8 @@ Release evidence must describe what actually passed. Prepared tests or skipped c
 
 ## Current status
 
-The v0.1.0 foundation established GoreeVault ownership, PostgreSQL deployment, CI, security documentation, and minimal product-facing branding.
+The v0.1.0 foundation established GoreeCloud Vault Server ownership, PostgreSQL deployment, CI, security documentation, and minimal product-facing branding.
 
 The v0.2.0 stabilization track is building the evidence required for Release Candidate maturity: runtime compatibility, tenant authorization, 2FA/passkey regression coverage, destructive recovery, reversible migration, GoreeCloud-owned release artifacts, executed source and built-image vulnerability scanning, and concurrent refresh-token replay resistance.
 
-Until every Release Candidate gate above is satisfied, GoreeVault remains a stabilization/Preview candidate rather than a production replacement for the existing vault service.
+Until every Release Candidate gate above is satisfied, GoreeCloud Vault Server remains a stabilization/Preview candidate rather than a production replacement for the existing vault service.

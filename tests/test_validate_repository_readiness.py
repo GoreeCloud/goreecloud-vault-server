@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for GoreeVault repository-readiness policy validation.
+"""Unit tests for GoreeCloud Vault Server repository-readiness policy validation.
 
 The tests redirect the validator's repository root into isolated temporary
 fixtures so fail-closed policy behavior is exercised without modifying real
@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "validate-repository-readiness.py"
-SPEC = importlib.util.spec_from_file_location("goreevault_repository_readiness", MODULE_PATH)
+SPEC = importlib.util.spec_from_file_location("goreecloud_vault_server_repository_readiness", MODULE_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Unable to load validator from {MODULE_PATH}")
 VALIDATOR = importlib.util.module_from_spec(SPEC)
@@ -55,8 +55,66 @@ class RepositoryReadinessTests(unittest.TestCase):
 
     def test_readme_rejects_upstream_identity(self) -> None:
         self.write("README.md", "# Vaultwarden\nVaultwarden Logo\n")
-        with self.assertRaisesRegex(VALIDATOR.ReadinessError, "GoreeVault Server identity"):
+        with self.assertRaisesRegex(VALIDATOR.ReadinessError, "GoreeCloud Vault Server identity"):
             VALIDATOR.validate_readme()
+
+    def test_readme_rejects_retired_server_heading(self) -> None:
+        self.write("README.md", "# GoreeVault Server\n")
+        with self.assertRaisesRegex(VALIDATOR.ReadinessError, "GoreeCloud Vault Server identity"):
+            VALIDATOR.validate_readme()
+
+    def test_server_identity_manifest_requires_canonical_name(self) -> None:
+        self.write(
+            "docs/SERVER-IDENTITY.md",
+            "# GoreeCloud Vault Server Identity\nformer server name **GoreeVault Server**\n`GoreeVault` is not automatically retired\n",
+        )
+        self.write(
+            "docs/server-identity.json",
+            "{\n"
+            '  "schema_version": 1,\n'
+            '  "canonical_name": "GoreeVault Server",\n'
+            '  "short_name": "Vault Server",\n'
+            '  "repository": "GoreeCloud/goreecloud-vault-server",\n'
+            '  "canonical_service_url": "https://vault.goreecloud.com",\n'
+            '  "former_server_name": "GoreeVault Server",\n'
+            '  "client_family_name": "GoreeVault",\n'
+            '  "upstream_project": "Vaultwarden",\n'
+            '  "upstream_repository": "dani-garcia/vaultwarden",\n'
+            '  "development_model": "goreecloud-maintained-fork-with-controlled-fork-to-native-transition",\n'
+            '  "design_language": "Glaze UI",\n'
+            '  "security_identity": "Wardveil Security by GoreeCloud",\n'
+            '  "license": "AGPL-3.0-only",\n'
+            '  "status": "active"\n'
+            "}\n",
+        )
+        with self.assertRaisesRegex(VALIDATOR.ReadinessError, "canonical_name"):
+            VALIDATOR.validate_server_identity()
+
+    def test_server_identity_manifest_accepts_canonical_contract(self) -> None:
+        self.write(
+            "docs/SERVER-IDENTITY.md",
+            "# GoreeCloud Vault Server Identity\nformer server name **GoreeVault Server**\n`GoreeVault` is not automatically retired\n",
+        )
+        self.write(
+            "docs/server-identity.json",
+            "{\n"
+            '  "schema_version": 1,\n'
+            '  "canonical_name": "GoreeCloud Vault Server",\n'
+            '  "short_name": "Vault Server",\n'
+            '  "repository": "GoreeCloud/goreecloud-vault-server",\n'
+            '  "canonical_service_url": "https://vault.goreecloud.com",\n'
+            '  "former_server_name": "GoreeVault Server",\n'
+            '  "client_family_name": "GoreeVault",\n'
+            '  "upstream_project": "Vaultwarden",\n'
+            '  "upstream_repository": "dani-garcia/vaultwarden",\n'
+            '  "development_model": "goreecloud-maintained-fork-with-controlled-fork-to-native-transition",\n'
+            '  "design_language": "Glaze UI",\n'
+            '  "security_identity": "Wardveil Security by GoreeCloud",\n'
+            '  "license": "AGPL-3.0-only",\n'
+            '  "status": "active"\n'
+            "}\n",
+        )
+        VALIDATOR.validate_server_identity()
 
     def test_security_reporting_requires_private_goreecloud_path(self) -> None:
         self.write("SECURITY.md", "Please open a public issue.\n")
@@ -64,7 +122,7 @@ class RepositoryReadinessTests(unittest.TestCase):
             VALIDATOR.validate_security_reporting()
 
     def test_mutable_latest_production_image_is_rejected(self) -> None:
-        self.write("README.md", "docker run ghcr.io/goreecloud/goreevault-server:latest\n")
+        self.write("README.md", "docker run ghcr.io/goreecloud/goreecloud-vault-server:latest\n")
         self.write("docs/PRODUCTION-DEPLOYMENT.md", "immutable deployment only\n")
         self.write("deploy/compose.production.yaml", "services: {}\n")
         self.write("deploy/.env.production.example", "IMAGE=example@sha256:" + "a" * 64 + "\n")
@@ -73,10 +131,10 @@ class RepositoryReadinessTests(unittest.TestCase):
 
     def test_immutable_production_examples_pass(self) -> None:
         digest = "sha256:" + "a" * 64
-        self.write("README.md", f"docker pull ghcr.io/goreecloud/goreevault-server@{digest}\n")
-        self.write("docs/PRODUCTION-DEPLOYMENT.md", f"docker run ghcr.io/goreecloud/goreevault-server@{digest}\n")
-        self.write("deploy/compose.production.yaml", f"services:\n  app:\n    image: ghcr.io/goreecloud/goreevault-server@{digest}\n")
-        self.write("deploy/.env.production.example", f"GOREEVAULT_IMAGE=ghcr.io/goreecloud/goreevault-server@{digest}\n")
+        self.write("README.md", f"docker pull ghcr.io/goreecloud/goreecloud-vault-server@{digest}\n")
+        self.write("docs/PRODUCTION-DEPLOYMENT.md", f"docker run ghcr.io/goreecloud/goreecloud-vault-server@{digest}\n")
+        self.write("deploy/compose.production.yaml", f"services:\n  app:\n    image: ghcr.io/goreecloud/goreecloud-vault-server@{digest}\n")
+        self.write("deploy/.env.production.example", f"GOREECLOUD_VAULT_SERVER_IMAGE=ghcr.io/goreecloud/goreecloud-vault-server@{digest}\n")
         VALIDATOR.validate_mutable_production_examples()
 
     def test_open_blocker_tracker_must_preserve_all_stable_gates(self) -> None:

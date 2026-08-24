@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Source-level GoreeVault Glaze UI conformance checks.
+"""Source-level GoreeCloud Vault Server Glaze UI conformance checks.
 
-This checker validates GoreeVault-owned browser and transactional-email
-presentation surfaces. The bundled Bitwarden-compatible web vault remains a
-transitional compatibility asset until GoreeVault Web owns that presentation
-layer.
+This checker validates GoreeCloud Vault Server-owned browser administration/error
+surfaces and GoreeVault-family transactional-email presentation. The bundled
+Bitwarden-compatible web vault remains a transitional compatibility asset until
+GoreeVault Web owns that presentation layer.
 """
 
 from __future__ import annotations
@@ -112,8 +112,8 @@ def main() -> None:
     glaze_doc = read(GLAZE_DOC)
     readiness = read(READINESS_DOC)
 
-    # GoreeVault identity and privacy metadata on owned browser surfaces.
-    require(admin_base, "GoreeVault Admin", "admin shell identity")
+    # Canonical server identity and privacy metadata on server-owned browser surfaces.
+    require(admin_base, "GoreeCloud Vault Server Admin", "admin shell identity")
     require(admin_base, 'content="noindex,nofollow,noarchive"', "admin robots policy")
     require(admin_base, 'content="same-origin"', "admin referrer policy")
     require(admin_base, 'href="#gv-main"', "admin skip link")
@@ -122,7 +122,7 @@ def main() -> None:
     require(admin_base, 'data-bs-theme-value="dark"', "admin Dark appearance")
 
     # The private Admin sign-in path must not regress to placeholder-only input.
-    require(admin_login, "Sign in to GoreeVault Admin", "admin sign-in identity")
+    require(admin_login, "Sign in to GoreeCloud Vault Server Admin", "admin sign-in identity")
     require(admin_login, 'for="gv-admin-token"', "admin token visible label")
     require(admin_login, 'id="gv-admin-token"', "admin token label target")
     require(admin_login, 'autocomplete="current-password"', "admin token autocomplete semantics")
@@ -131,14 +131,14 @@ def main() -> None:
     require(admin_login, 'role="alert"', "admin sign-in error semantics")
     require(admin_login, 'aria-live="polite"', "admin sign-in live error semantics")
 
-    require(error_template, "GoreeVault", "404 GoreeVault identity")
+    require(error_template, "GoreeCloud Vault Server", "404 server identity")
     require(error_template, 'content="noindex,nofollow,noarchive"', "404 robots policy")
     require(error_template, 'content="same-origin"', "404 referrer policy")
     require(error_template, 'id="gv-main"', "404 main target")
     require(error_template, 'tabindex="-1"', "404 focusable main target")
     require(error_template, 'href="#gv-main"', "404 skip link")
 
-    # Product-facing legacy branding must not survive on GoreeVault-owned shells.
+    # Product-facing legacy upstream branding must not survive on server-owned shells.
     for owned_text, label in (
         (admin_base, "admin shell"),
         (admin_login, "admin sign-in"),
@@ -150,8 +150,8 @@ def main() -> None:
         reject(owned_text, "vaultwarden-favicon.png", label)
         reject(owned_text, "github.com/dani-garcia/vaultwarden", label)
 
-    # GoreeVault-owned transactional email must use GoreeVault identity without
-    # requiring upstream branding or remote presentation/tracking resources.
+    # GoreeVault-family transactional email retains the client-family identity
+    # while server administration uses the canonical GoreeCloud Vault Server name.
     require(email_header, "<title>GoreeVault</title>", "email document identity")
     require(email_header, ">GoreeVault</div>", "email visible GoreeVault identity")
     require(email_header, "GoreeCloud secure vault", "email GoreeCloud relationship")
@@ -169,8 +169,10 @@ def main() -> None:
     reject(email_header, "logo-gray.png", "email upstream logo asset")
     validate_email_dependencies(email_header + email_footer)
 
-    # Browser-local, privacy-preserving appearance contract.
-    require(admin_js, 'THEME_STORAGE_KEY = "goreecloud-goreevault-theme"', "GoreeCloud theme storage key")
+    # Browser-local, privacy-preserving appearance contract. The storage key is
+    # retained as a compatibility identifier so existing local appearance choice
+    # is not needlessly discarded by the server display-name change.
+    require(admin_js, 'THEME_STORAGE_KEY = "goreecloud-goreevault-theme"', "compatible GoreeCloud theme storage key")
     require(admin_js, 'new Set(["system", "light", "dark"])', "allowed appearance modes")
     require(admin_js, 'removeItem(THEME_STORAGE_KEY)', "System removes appearance override")
     require(admin_js, 'matchMedia("(prefers-color-scheme: dark)")', "System color-scheme support")
@@ -188,12 +190,12 @@ def main() -> None:
 
     # GoreeCloud presentation assets must be local. User-activated links are not
     # dependencies; this checks scripts/styles/CSS imports/assets only.
-    validate_local_browser_dependencies(admin_base + admin_login, admin_css, "GoreeVault Admin")
-    validate_local_browser_dependencies(error_template, error_css, "GoreeVault 404")
+    validate_local_browser_dependencies(admin_base + admin_login, admin_css, "GoreeCloud Vault Server Admin")
+    validate_local_browser_dependencies(error_template, error_css, "GoreeCloud Vault Server 404")
 
     # Governance docs must state the stricter transitional ownership boundary,
     # reject a silent production exception, and preserve the Stable blocker.
-    require(glaze_doc, "GoreeVault-owned surfaces", "Glaze ownership boundary")
+    require(glaze_doc, "GoreeCloud-controlled server surfaces", "Glaze ownership boundary")
     require(glaze_doc, "transactional HTML and plain-text email", "transactional email ownership boundary")
     require(glaze_doc, "Transitional compatibility surface", "web-vault transitional boundary")
     require(glaze_doc, "temporary development divergence", "temporary web-vault divergence")
@@ -215,7 +217,7 @@ def main() -> None:
     require(readiness, "Known repository-state blocker", "manual governance blockers")
     require(readiness, "Stable is therefore blocked", "product-wide Glaze release blocker")
 
-    print("GoreeVault Glaze UI source conformance validated.")
+    print("GoreeCloud Vault Server Glaze UI source conformance validated.")
 
 
 if __name__ == "__main__":
