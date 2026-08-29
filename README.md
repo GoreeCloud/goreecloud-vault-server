@@ -47,6 +47,17 @@ The current stabilization chain has established automated evidence for:
 
 Stable remains blocked until every requirement in `docs/PRODUCTION-READINESS.md` is satisfied, including real supported-client testing, a real WebAuthn/passkey path, target-environment evidence, repository governance, multi-user readiness evidence, and product-wide Glaze UI compliance.
 
+## Mandatory GoreeCloud platform gates
+
+Stable qualification requires current, validated evidence for all four mandatory GoreeCloud platform systems. Passing repository CI, compatibility tests, or deployment validation does not substitute for these gates.
+
+- **Glaze UI** — every GoreeCloud-controlled user-facing interface must satisfy the approved presentation, accessibility, adaptive-layout, appearance, and interaction contract.
+- **Wardveil Security** — the applicable security, protection, trust-state, diagnostics, and evidence-backed security integration must be implemented and validated for the release candidate and target environment.
+- **Privacy Shield** — privacy controls, data minimization, sensitive-data handling, retention boundaries, and application adapters must be implemented and validated rather than inferred from encryption or private networking alone.
+- **Everkeep** — backup, restore, rollback, preservation, portability, continuity, and recovery obligations must be implemented and validated for the applicable server, client, and target-environment scope.
+
+A missing, materially outdated, failed, or unverified mandatory platform gate keeps GoreeCloud Vault Server non-Stable. These requirements are additive to the exact-RC, multi-user, real-client, WebAuthn, governance, migration, recovery, and target-environment evidence already required by the release process.
+
 ## Glaze UI
 
 **Glaze UI is mandatory for every GoreeCloud-controlled user-facing interface.**
