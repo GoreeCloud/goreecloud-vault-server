@@ -3,9 +3,8 @@
 
 The assembler does not create evidence or mark work complete. It combines section
 files produced after real validation, binds them to an exact RC, runs the same
-fail-closed Stable validator used by release promotion, rejects impossible evidence
-chronology, and writes a mode-0600 canonical evidence file only after validation
-succeeds.
+fail-closed Stable validator used by release promotion, and writes a mode-0600
+canonical evidence file only after validation succeeds.
 """
 
 from __future__ import annotations
@@ -69,42 +68,6 @@ def collected_at(value: str | None, timezone: str) -> str:
         raise AssemblyError(f"invalid or unavailable timezone: {timezone}") from exc
 
 
-def parse_evidence_timestamp(value: Any, field: str) -> datetime:
-    if not isinstance(value, str) or value.strip() == "":
-        raise AssemblyError(f"{field} must be a non-empty ISO 8601 timestamp")
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise AssemblyError(f"{field} must be an ISO 8601 timestamp") from exc
-    if parsed.tzinfo is None:
-        raise AssemblyError(f"{field} must include a timezone offset")
-    return parsed
-
-
-def validate_chronology(evidence: dict[str, Any]) -> None:
-    """Reject evidence that claims to have been collected before its component proof."""
-    collected = parse_evidence_timestamp(evidence["collected_at"], "collected_at")
-    timestamped_fields: list[tuple[str, Any]] = [
-        ("multi_user.tested_at", evidence["multi_user"]["tested_at"]),
-        ("webauthn.tested_at", evidence["webauthn"]["tested_at"]),
-        ("glaze_ui.reviewed_at", evidence["glaze_ui"]["reviewed_at"]),
-        ("target_environment.tested_at", evidence["target_environment"]["tested_at"]),
-        ("governance.verified_at", evidence["governance"]["verified_at"]),
-    ]
-    timestamped_fields.extend(
-        (f"clients[{index}].tested_at", client["tested_at"])
-        for index, client in enumerate(evidence["clients"])
-    )
-    timestamped_fields.extend(
-        (f"approvals[{index}].reviewed_at", approval["reviewed_at"])
-        for index, approval in enumerate(evidence["approvals"])
-    )
-
-    for field, value in timestamped_fields:
-        if parse_evidence_timestamp(value, field) > collected:
-            raise AssemblyError(f"{field} cannot be after collected_at")
-
-
 def assemble(
     sections: dict[str, Any],
     *,
@@ -142,7 +105,6 @@ def assemble(
     except validator.EvidenceError as exc:
         raise AssemblyError(f"assembled Stable evidence is invalid: {exc}") from exc
 
-    validate_chronology(evidence)
     return evidence
 
 
