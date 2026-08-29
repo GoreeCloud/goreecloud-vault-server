@@ -30,15 +30,20 @@ jobs:
         run: |
           python3 -m py_compile \
             scripts/assemble-stable-evidence.py \
+            scripts/collect-github-governance-evidence.py \
             scripts/collect-target-evidence.py \
             scripts/validate-evidence-tooling.py \
             scripts/validate-stable-evidence.py \
             tests/test_assemble_stable_evidence.py \
+            tests/test_collect_github_governance_evidence.py \
             tests/test_collect_target_evidence.py \
             tests/test_validate_stable_evidence.py
 
       - name: Run target evidence collector unit tests
         run: python3 tests/test_collect_target_evidence.py
+
+      - name: Run GitHub governance evidence collector unit tests
+        run: python3 tests/test_collect_github_governance_evidence.py
 
       - name: Run Stable evidence assembler unit tests
         run: python3 tests/test_assemble_stable_evidence.py
@@ -49,10 +54,19 @@ jobs:
       - name: Validate target, client, RC, Web, and assembly contracts
         run: python3 scripts/validate-evidence-tooling.py
 
-      - name: Verify collector fails closed without required inputs
+      - name: Verify target collector fails closed without required inputs
         run: |
           if python3 scripts/collect-target-evidence.py; then
-            echo 'collector unexpectedly succeeded without required production evidence inputs' >&2
+            echo 'target collector unexpectedly succeeded without required production evidence inputs' >&2
+            exit 1
+          fi
+
+      - name: Verify governance collector fails closed without a token
+        run: |
+          if env -u GITHUB_TOKEN python3 scripts/collect-github-governance-evidence.py \
+            --repository GoreeCloud/goreecloud-vault-server \
+            --output /tmp/governance.json; then
+            echo 'governance collector unexpectedly succeeded without a GitHub token' >&2
             exit 1
           fi
 
