@@ -211,13 +211,25 @@ def require_true_fields(mapping: dict[str, Any], keys: set[str], field: str) -> 
         require(mapping.get(key) is True, f"{field}.{key} must be true")
 
 
-def parse_timestamp(value: Any, field: str) -> None:
+def parse_timestamp(value: Any, field: str) -> datetime:
     text = require_nonempty_string(value, field)
     try:
         parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError as exc:
         raise EvidenceError(f"{field} must be an ISO 8601 timestamp") from exc
     require(parsed.tzinfo is not None, f"{field} must include a timezone offset")
+    return parsed
+
+
+def require_timestamp_at_or_before(
+    value: Any,
+    field: str,
+    ceiling: datetime,
+    ceiling_field: str,
+) -> datetime:
+    parsed = parse_timestamp(value, field)
+    require(parsed <= ceiling, f"{field} cannot be after {ceiling_field}")
+    return parsed
 
 
 def validate_evidence(
@@ -233,7 +245,7 @@ def validate_evidence(
         reject_placeholders(data)
 
     require(data.get("schema_version") == 2, "schema_version must equal 2")
-    parse_timestamp(data.get("collected_at"), "collected_at")
+    collected_at = parse_timestamp(data.get("collected_at"), "collected_at")
 
     rc = data.get("rc")
     require_exact_keys(rc, RC_KEYS, "rc")
@@ -274,7 +286,9 @@ def validate_evidence(
     require_exact_keys(multi_user, MULTI_USER_KEYS, "multi_user")
     assert isinstance(multi_user, dict)
     require(multi_user.get("result") == "pass", "multi_user.result must equal 'pass'")
-    parse_timestamp(multi_user.get("tested_at"), "multi_user.tested_at")
+    require_timestamp_at_or_before(
+        multi_user.get("tested_at"), "multi_user.tested_at", collected_at, "collected_at"
+    )
     require_true_fields(multi_user, REQUIRED_MULTI_USER_FLAGS, "multi_user")
     require_nonempty_string(multi_user.get("evidence_reference"), "multi_user.evidence_reference")
 
@@ -293,7 +307,9 @@ def validate_evidence(
         require_nonempty_string(client.get("name"), f"{field}.name")
         require_nonempty_string(client.get("platform"), f"{field}.platform")
         require_nonempty_string(client.get("version"), f"{field}.version")
-        parse_timestamp(client.get("tested_at"), f"{field}.tested_at")
+        require_timestamp_at_or_before(
+            client.get("tested_at"), f"{field}.tested_at", collected_at, "collected_at"
+        )
         require(client.get("result") == "pass", f"{field}.result must equal 'pass'")
         checks = client.get("checks")
         require_exact_keys(checks, REQUIRED_CLIENT_CHECKS, f"{field}.checks")
@@ -311,7 +327,9 @@ def validate_evidence(
     require_nonempty_string(webauthn.get("browser_version"), "webauthn.browser_version")
     require_nonempty_string(webauthn.get("platform"), "webauthn.platform")
     require_nonempty_string(webauthn.get("authenticator"), "webauthn.authenticator")
-    parse_timestamp(webauthn.get("tested_at"), "webauthn.tested_at")
+    require_timestamp_at_or_before(
+        webauthn.get("tested_at"), "webauthn.tested_at", collected_at, "collected_at"
+    )
     require(webauthn.get("registration") is True, "webauthn.registration must be true")
     require(webauthn.get("authentication") is True, "webauthn.authentication must be true")
 
@@ -319,7 +337,9 @@ def validate_evidence(
     require_exact_keys(glaze, GLAZE_KEYS, "glaze_ui")
     assert isinstance(glaze, dict)
     require(glaze.get("result") == "pass", "glaze_ui.result must equal 'pass'")
-    parse_timestamp(glaze.get("reviewed_at"), "glaze_ui.reviewed_at")
+    require_timestamp_at_or_before(
+        glaze.get("reviewed_at"), "glaze_ui.reviewed_at", collected_at, "collected_at"
+    )
     require_true_fields(glaze, REQUIRED_GLAZE_FLAGS, "glaze_ui")
     require_nonempty_string(glaze.get("evidence_reference"), "glaze_ui.evidence_reference")
 
@@ -331,7 +351,9 @@ def validate_evidence(
         target.get("origin") == "https://vault.goreecloud.com",
         "target_environment.origin must equal https://vault.goreecloud.com",
     )
-    parse_timestamp(target.get("tested_at"), "target_environment.tested_at")
+    require_timestamp_at_or_before(
+        target.get("tested_at"), "target_environment.tested_at", collected_at, "collected_at"
+    )
     require_true_fields(target, REQUIRED_TARGET_FLAGS, "target_environment")
     goreevault_image = require_immutable_reference(
         target.get("goreevault_image"),
@@ -355,7 +377,9 @@ def validate_evidence(
     governance = data.get("governance")
     require_exact_keys(governance, GOVERNANCE_KEYS, "governance")
     assert isinstance(governance, dict)
-    parse_timestamp(governance.get("verified_at"), "governance.verified_at")
+    require_timestamp_at_or_before(
+        governance.get("verified_at"), "governance.verified_at", collected_at, "collected_at"
+    )
     require_true_fields(governance, REQUIRED_GOVERNANCE_FLAGS, "governance")
     for key in sorted(CONDITIONAL_GOVERNANCE_CONTROLS):
         state = governance.get(key)
@@ -371,7 +395,9 @@ def validate_evidence(
         require_exact_keys(approval, APPROVAL_KEYS, field)
         assert isinstance(approval, dict)
         require_nonempty_string(approval.get("reviewer"), f"{field}.reviewer")
-        parse_timestamp(approval.get("reviewed_at"), f"{field}.reviewed_at")
+        require_timestamp_at_or_before(
+            approval.get("reviewed_at"), f"{field}.reviewed_at", collected_at, "collected_at"
+        )
         require(approval.get("result") == "approved", f"{field}.result must equal 'approved'")
 
 
