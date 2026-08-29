@@ -78,16 +78,29 @@ class GovernanceCollectorTests(unittest.TestCase):
 
     def test_complete_governance_state_passes(self):
         result = self.collect()
-        for key in (
+        expected_keys = {
+            "verified_at",
             "main_protected",
             "required_checks_enforced",
-            "required_approval_enforced",
             "codeowners_review_enforced",
             "release_environment_protected",
             "release_reviewer_required",
             "release_self_review_prevented",
             "actions_default_read_only",
-            "actions_pr_approval_disabled",
+            "dependabot_alerts_enabled",
+            "secret_scanning",
+            "push_protection",
+            "private_vulnerability_reporting",
+        }
+        self.assertEqual(set(result), expected_keys)
+        for key in (
+            "main_protected",
+            "required_checks_enforced",
+            "codeowners_review_enforced",
+            "release_environment_protected",
+            "release_reviewer_required",
+            "release_self_review_prevented",
+            "actions_default_read_only",
             "dependabot_alerts_enabled",
         ):
             self.assertIs(result[key], True)
