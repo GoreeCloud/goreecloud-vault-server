@@ -89,6 +89,17 @@ class StableEvidenceValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(VALIDATOR.EvidenceError, "timezone offset"):
             VALIDATOR.parse_timestamp("2026-08-15T12:00:00", "tested_at")
 
+    def test_component_timestamp_after_collection_is_rejected(self) -> None:
+        data = copy.deepcopy(complete_evidence())
+        data["governance"]["verified_at"] = "2026-08-15T04:11:00-05:00"
+        with self.assertRaisesRegex(VALIDATOR.EvidenceError, "governance.verified_at"):
+            self.validate(data)
+
+    def test_timestamp_offsets_are_compared_by_instant(self) -> None:
+        data = copy.deepcopy(complete_evidence())
+        data["approvals"][0]["reviewed_at"] = "2026-08-15T09:09:00+00:00"
+        self.validate(data)
+
     def test_unknown_root_field_is_rejected(self) -> None:
         data = copy.deepcopy(complete_evidence())
         data["unexpected"] = True

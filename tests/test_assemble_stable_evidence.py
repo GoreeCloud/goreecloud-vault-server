@@ -78,6 +78,32 @@ class StableEvidenceAssemblerTests(unittest.TestCase):
         self.assertEqual(assembled["target_environment"], source["target_environment"])
         self.assertEqual(assembled["collected_at"], "2026-08-15T06:30:00-05:00")
 
+    def test_assemble_rejects_component_timestamp_after_collected_at(self) -> None:
+        source = concrete_template()
+        source["governance"]["verified_at"] = "2026-08-15T06:31:00-05:00"
+        with self.assertRaisesRegex(assembler.AssemblyError, "governance.verified_at"):
+            assembler.assemble(
+                section_map(source),
+                assembled_at="2026-08-15T06:30:00-05:00",
+                expected_source_sha=source["rc"]["source_sha"],
+                expected_rc_tag=source["rc"]["tag"],
+                expected_manifest_digest=source["rc"]["manifest_digest"],
+                validator=validator,
+            )
+
+    def test_assemble_compares_timestamp_offsets_by_instant(self) -> None:
+        source = concrete_template()
+        source["approvals"][0]["reviewed_at"] = "2026-08-15T11:29:00+00:00"
+        assembled = assembler.assemble(
+            section_map(source),
+            assembled_at="2026-08-15T06:30:00-05:00",
+            expected_source_sha=source["rc"]["source_sha"],
+            expected_rc_tag=source["rc"]["tag"],
+            expected_manifest_digest=source["rc"]["manifest_digest"],
+            validator=validator,
+        )
+        self.assertEqual(assembled["approvals"][0]["reviewed_at"], "2026-08-15T11:29:00+00:00")
+
     def test_assemble_rejects_wrong_expected_source(self) -> None:
         source = concrete_template()
         with self.assertRaises(assembler.AssemblyError):
