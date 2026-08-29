@@ -127,17 +127,19 @@ def collect(client: Any, repository: str, branch: str, release_environment: str)
     if private_reporting.get("enabled") is not True:
         raise EvidenceError("private vulnerability reporting is disabled")
 
+    # Enforce a positive approval count and disabled Actions PR-approval
+    # capability above, but serialize exactly the schema-v2 governance object
+    # accepted by validate-stable-evidence.py. This keeps collection stricter
+    # than the persisted shape without making a real artifact fail as unknown.
     return {
         "verified_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "main_protected": True,
         "required_checks_enforced": True,
-        "required_approval_enforced": True,
         "codeowners_review_enforced": True,
         "release_environment_protected": True,
         "release_reviewer_required": True,
         "release_self_review_prevented": True,
         "actions_default_read_only": True,
-        "actions_pr_approval_disabled": True,
         "dependabot_alerts_enabled": True,
         "secret_scanning": secret_scanning,
         "push_protection": push_protection,
