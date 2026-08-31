@@ -97,8 +97,14 @@ class StableEvidenceValidatorTests(unittest.TestCase):
 
     def test_timestamp_offsets_are_compared_by_instant(self) -> None:
         data = copy.deepcopy(complete_evidence())
-        data["approvals"][0]["reviewed_at"] = "2026-08-15T09:09:00+00:00"
+        data["approvals"][0]["reviewed_at"] = "2026-08-15T08:42:00+00:00"
         self.validate(data)
+
+    def test_approval_before_latest_non_approval_evidence_is_rejected(self) -> None:
+        data = copy.deepcopy(complete_evidence())
+        data["approvals"][0]["reviewed_at"] = "2026-08-15T03:41:59-05:00"
+        with self.assertRaisesRegex(VALIDATOR.EvidenceError, "latest non-approval evidence"):
+            self.validate(data)
 
     def test_unknown_root_field_is_rejected(self) -> None:
         data = copy.deepcopy(complete_evidence())

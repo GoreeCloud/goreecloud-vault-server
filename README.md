@@ -110,7 +110,7 @@ src/           Rust server runtime plus GoreeCloud-owned server presentation
 tests/         compatibility and release-blocking regression/tooling coverage
 ```
 
-See `docs/REPOSITORY-STRUCTURE.md` before adding a new top-level component or moving a compatibility-sensitive file.
+See `docs/REPOSITORY-STRUCTURE.md` before adding a new top-level component or moving a compatibility-sensitive file. Current operator and user-facing guidance is summarized in `USER-MANUAL.md`.
 
 ## Development validation
 
@@ -133,6 +133,8 @@ python3 scripts/validate-stable-evidence.py goreevault-stable-evidence.json \
   --expected-rc-tag 'vX.Y.Z-rc.N' \
   --expected-manifest-digest 'sha256:<64-hex manifest digest>'
 ```
+
+Every non-approval evidence timestamp must be at or before the bundle `collected_at` instant. Final approvals must be at or after the latest non-approval evidence instant and still at or before `collected_at`; an approval that predates evidence gathered later is not a final approval of that bundle. Timezone-aware timestamps are compared as absolute instants, and this rule does not introduce an arbitrary evidence-expiration window.
 
 After a real target-environment rehearsal, `scripts/collect-target-evidence.py` can produce only the non-secret `target_environment` section described by `docs/STABLE-EVIDENCE.md`. It does not deploy GoreeCloud Vault Server and does not create a complete Stable evidence record.
 
