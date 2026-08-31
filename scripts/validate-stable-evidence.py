@@ -404,11 +404,18 @@ def validate_evidence(
     latest_evidence_at = max(evidence_timestamps)
     approvals = data.get("approvals")
     require(isinstance(approvals, list) and approvals, "approvals must contain at least one reviewer record")
+    seen_reviewers: set[str] = set()
     for index, approval in enumerate(approvals):
         field = f"approvals[{index}]"
         require_exact_keys(approval, APPROVAL_KEYS, field)
         assert isinstance(approval, dict)
-        require_nonempty_string(approval.get("reviewer"), f"{field}.reviewer")
+        reviewer = require_nonempty_string(approval.get("reviewer"), f"{field}.reviewer")
+        reviewer_identity = reviewer.casefold()
+        require(
+            reviewer_identity not in seen_reviewers,
+            f"duplicate approval reviewer is not allowed: {reviewer}",
+        )
+        seen_reviewers.add(reviewer_identity)
         reviewed_at = require_timestamp_at_or_before(
             approval.get("reviewed_at"), f"{field}.reviewed_at", collected_at, "collected_at"
         )
