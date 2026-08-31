@@ -106,6 +106,21 @@ class StableEvidenceValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(VALIDATOR.EvidenceError, "latest non-approval evidence"):
             self.validate(data)
 
+    def test_duplicate_approval_reviewers_are_rejected_case_insensitively(self) -> None:
+        data = copy.deepcopy(complete_evidence())
+        duplicate = copy.deepcopy(data["approvals"][0])
+        duplicate["reviewer"] = "  " + data["approvals"][0]["reviewer"].upper() + "  "
+        data["approvals"].append(duplicate)
+        with self.assertRaisesRegex(VALIDATOR.EvidenceError, "duplicate approval reviewer"):
+            self.validate(data)
+
+    def test_distinct_approval_reviewers_are_allowed(self) -> None:
+        data = copy.deepcopy(complete_evidence())
+        second = copy.deepcopy(data["approvals"][0])
+        second["reviewer"] = "independent-reviewer"
+        data["approvals"].append(second)
+        self.validate(data)
+
     def test_unknown_root_field_is_rejected(self) -> None:
         data = copy.deepcopy(complete_evidence())
         data["unexpected"] = True
