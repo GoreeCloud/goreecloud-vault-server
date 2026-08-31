@@ -79,6 +79,8 @@ Timezone-aware timestamps are compared as absolute instants. Equivalent timestam
 
 An approval recorded before later multi-user, client, WebAuthn, Glaze UI, target-environment, or governance evidence is not final approval of that evidence and must be repeated after the later evidence exists.
 
+If the bundle contains multiple approval records, each reviewer identity must be distinct after whitespace normalization and case-insensitive comparison. Repeating the same reviewer under different casing or surrounding whitespace is rejected rather than represented as additional independent approval evidence. This uniqueness check does not by itself define how many reviewers a release requires or prove that a named reviewer has repository authority; those remain separate governance/authorization controls.
+
 ## Mandatory GoreeCloud platform gates
 
 Stable promotion also requires current validated application integration with:
@@ -116,6 +118,8 @@ Each state requires its own evidence and authority.
 If validation fails because a component timestamp is after `collected_at`, correct the evidence collection order or recollect the bundle. Do not edit timestamps merely to make validation pass.
 
 If validation fails because an approval predates the latest non-approval evidence, obtain a new final approval after reviewing the complete evidence set.
+
+If validation fails because the same reviewer appears more than once, keep one record for that reviewer or obtain a genuinely distinct reviewer only when the applicable governance process requires another approval. Do not alter spelling/casing merely to bypass duplicate detection.
 
 If validation fails on a candidate identity, use the exact selected RC source SHA, tag, manifest digest, PostgreSQL artifact, and browser-vault asset. Do not reuse another artifact's digest to satisfy a field.
 
