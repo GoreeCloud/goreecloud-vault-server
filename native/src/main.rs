@@ -21,7 +21,7 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         }
-        Some("help") | Some("--help") | Some("-h") | None => {
+        Some("help" | "--help" | "-h") | None => {
             print_help();
             ExitCode::SUCCESS
         }

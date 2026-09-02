@@ -81,11 +81,10 @@ pub fn blocked_gate_names() -> Vec<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{NATIVE_FOUNDATION, REQUIRED_PRODUCTION_GATES, blocked_gate_names, production_ready};
+    use super::{REQUIRED_PRODUCTION_GATES, blocked_gate_names, production_ready};
 
     #[test]
-    fn native_foundation_is_present_but_production_stays_fail_closed() {
-        assert!(NATIVE_FOUNDATION.ready);
+    fn production_stays_fail_closed_while_required_gates_are_blocked() {
         assert!(!production_ready());
         assert_eq!(blocked_gate_names().len(), REQUIRED_PRODUCTION_GATES.len());
     }

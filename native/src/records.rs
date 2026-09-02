@@ -189,7 +189,7 @@ fn validate_ciphertext(ciphertext: &[u8]) -> Result<(), StoreError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_CIPHERTEXT_BYTES, MAX_IDENTIFIER_BYTES, MemoryStore, StoreError};
+    use super::{EncryptedRecord, MAX_CIPHERTEXT_BYTES, MAX_IDENTIFIER_BYTES, MemoryStore, StoreError};
 
     #[test]
     fn same_record_identifier_is_isolated_between_owners() {
@@ -198,11 +198,11 @@ mod tests {
         assert_eq!(store.put("owner-b", "record-1", b"ciphertext-b".to_vec(), 1), Ok(()));
 
         assert_eq!(
-            store.get("owner-a", "record-1").map(|record| record.map(|record| record.ciphertext())),
+            store.get("owner-a", "record-1").map(|record| record.map(EncryptedRecord::ciphertext)),
             Ok(Some(&b"ciphertext-a"[..]))
         );
         assert_eq!(
-            store.get("owner-b", "record-1").map(|record| record.map(|record| record.ciphertext())),
+            store.get("owner-b", "record-1").map(|record| record.map(EncryptedRecord::ciphertext)),
             Ok(Some(&b"ciphertext-b"[..]))
         );
     }
@@ -223,9 +223,9 @@ mod tests {
         assert_eq!(store.put("owner-b", "record-c", b"ciphertext-c".to_vec(), 1), Ok(()));
 
         assert_eq!(
-            store
-                .list("owner-a")
-                .map(|records| { records.into_iter().map(|record| record.record_id()).collect::<Vec<_>>() }),
+            store.list("owner-a").map(|records| {
+                records.into_iter().map(EncryptedRecord::record_id).collect::<Vec<_>>()
+            }),
             Ok(vec!["record-a", "record-b"])
         );
 
