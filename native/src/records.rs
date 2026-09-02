@@ -223,9 +223,9 @@ mod tests {
         assert_eq!(store.put("owner-b", "record-c", b"ciphertext-c".to_vec(), 1), Ok(()));
 
         assert_eq!(
-            store.list("owner-a").map(|records| {
-                records.into_iter().map(EncryptedRecord::record_id).collect::<Vec<_>>()
-            }),
+            store
+                .list("owner-a")
+                .map(|records| { records.into_iter().map(EncryptedRecord::record_id).collect::<Vec<_>>() }),
             Ok(vec!["record-a", "record-b"])
         );
 
