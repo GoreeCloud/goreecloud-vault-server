@@ -1,18 +1,27 @@
-# GoreeVault review ownership
+# GoreeCloud review ownership
 #
-# GoreeVault is maintained by GoreeCloud. Upstream Vaultwarden maintainers are
-# not automatically responsible for reviewing GoreeVault-specific changes.
+# GoreeCloud Vault Server is maintained by GoreeCloud. Upstream Vaultwarden
+# maintainers are not automatically responsible for reviewing GoreeCloud-specific
+# changes.
 
 # Repository automation, policy, release, security, and public project identity
 /.github/** @GoreeCloud
 /README.md @GoreeCloud
+/SPECIFICATIONS.md @GoreeCloud
+/FEATURES.md @GoreeCloud
+/BENEFITS.md @GoreeCloud
+/COMPETITIVE-OBJECTIVES.md @GoreeCloud
+/BRANDING.md @GoreeCloud
 /SECURITY.md @GoreeCloud
 /CONTRIBUTING.md @GoreeCloud
 /GOREVAULT.md @GoreeCloud
 /.trivyignore.yaml @GoreeCloud
 /docs/** @GoreeCloud
 
-# Dependency and build inputs
+# First-party native GoreeCloud Vault Server implementation.
+/native/** @GoreeCloud
+
+# Dependency and build inputs for the transitional compatibility runtime.
 /Cargo.toml @GoreeCloud
 /Cargo.lock @GoreeCloud
 /rust-toolchain.toml @GoreeCloud
@@ -23,9 +32,9 @@
 /docker/** @GoreeCloud
 /deploy/** @GoreeCloud
 
-# All GoreeVault runtime source, including authentication, cryptography,
-# authorization, persistence, SSO, rate limiting, configuration, and the
-# GoreeVault-owned Glaze UI presentation layer.
+# Transitional Vaultwarden-compatible runtime source. These paths remain
+# security-sensitive until native replacement and migration acceptance are
+# complete.
 /src/** @GoreeCloud
 /migrations/** @GoreeCloud
 

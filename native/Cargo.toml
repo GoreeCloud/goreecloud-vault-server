@@ -1,0 +1,20 @@
+[package]
+name = "goreecloud-vault-native"
+version = "0.1.0-dev.0"
+description = "Native GoreeCloud Vault Server development foundation."
+license = "AGPL-3.0-only"
+publish = false
+edition = "2024"
+rust-version = "1.97"
+
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

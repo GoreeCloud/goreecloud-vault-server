@@ -1,0 +1,87 @@
+name: GoreeCloud Vault Native Foundation
+
+on:
+  pull_request:
+    paths:
+      - 'native/**'
+      - 'README.md'
+      - 'SPECIFICATIONS.md'
+      - 'FEATURES.md'
+      - 'BENEFITS.md'
+      - 'COMPETITIVE-OBJECTIVES.md'
+      - 'docs/REPOSITORY-STRUCTURE.md'
+      - '.github/CODEOWNERS'
+      - '.github/workflows/goreevault-native-foundation.yml'
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - 'native/**'
+      - 'README.md'
+      - 'SPECIFICATIONS.md'
+      - 'FEATURES.md'
+      - 'BENEFITS.md'
+      - 'COMPETITIVE-OBJECTIVES.md'
+      - 'docs/REPOSITORY-STRUCTURE.md'
+      - '.github/CODEOWNERS'
+      - '.github/workflows/goreevault-native-foundation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goreecloud-vault-native-foundation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate native GoreeCloud-owned foundation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout GoreeCloud Vault Server
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Show pinned Rust toolchain
+        run: rustc --version && cargo --version
+
+      - name: Verify isolated dependency lock
+        run: |
+          cargo generate-lockfile --manifest-path native/Cargo.toml
+          sha256sum native/Cargo.lock
+          cat native/Cargo.lock
+          git diff --exit-code -- native/Cargo.lock
+
+      - name: Validate formatting
+        run: cargo fmt --manifest-path native/Cargo.toml -- --check
+
+      - name: Lint all native targets
+        run: cargo clippy --locked --manifest-path native/Cargo.toml --all-targets -- -D warnings
+
+      - name: Run native regression tests
+        run: cargo test --locked --manifest-path native/Cargo.toml
+
+      - name: Build native development binary
+        run: cargo build --locked --manifest-path native/Cargo.toml
+
+      - name: Verify bounded fail-closed lifecycle status
+        run: |
+          STATUS="$(cargo run --quiet --locked --manifest-path native/Cargo.toml -- status)"
+          printf '%s\n' "$STATUS"
+          grep -Fx 'native_foundation=true' <<<"$STATUS"
+          grep -Fx 'goreecloud_identity=false' <<<"$STATUS"
+          grep -Fx 'privacy_shield=false' <<<"$STATUS"
+          grep -Fx 'everkeep=false' <<<"$STATUS"
+          grep -Fx 'production_approval=false' <<<"$STATUS"
+          grep -Fx 'production_ready=false' <<<"$STATUS"
+
+      - name: Require production readiness to fail closed
+        run: |
+          if cargo run --quiet --locked --manifest-path native/Cargo.toml -- ready; then
+            echo 'Native foundation unexpectedly reported production readiness.' >&2
+            exit 1
+          fi
