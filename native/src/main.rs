@@ -2,7 +2,7 @@ use std::env;
 use std::process::ExitCode;
 
 use goreecloud_vault_native::readiness::{
-    blocked_gate_names, production_ready, NATIVE_FOUNDATION, REQUIRED_PRODUCTION_GATES,
+    NATIVE_FOUNDATION, REQUIRED_PRODUCTION_GATES, blocked_gate_names, production_ready,
 };
 
 fn main() -> ExitCode {

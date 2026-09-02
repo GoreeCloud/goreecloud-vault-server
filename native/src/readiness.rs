@@ -76,16 +76,12 @@ pub fn production_ready() -> bool {
 
 #[must_use]
 pub fn blocked_gate_names() -> Vec<&'static str> {
-    REQUIRED_PRODUCTION_GATES
-        .iter()
-        .filter(|gate| !gate.ready)
-        .map(|gate| gate.name)
-        .collect()
+    REQUIRED_PRODUCTION_GATES.iter().filter(|gate| !gate.ready).map(|gate| gate.name).collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{blocked_gate_names, production_ready, NATIVE_FOUNDATION, REQUIRED_PRODUCTION_GATES};
+    use super::{NATIVE_FOUNDATION, REQUIRED_PRODUCTION_GATES, blocked_gate_names, production_ready};
 
     #[test]
     fn native_foundation_is_present_but_production_stays_fail_closed() {
@@ -97,11 +93,7 @@ mod tests {
     #[test]
     fn every_current_production_gate_is_explicitly_blocked() {
         assert!(REQUIRED_PRODUCTION_GATES.iter().all(|gate| !gate.ready));
-        assert!(REQUIRED_PRODUCTION_GATES
-            .iter()
-            .any(|gate| gate.name == "privacy_shield"));
-        assert!(REQUIRED_PRODUCTION_GATES
-            .iter()
-            .any(|gate| gate.name == "everkeep"));
+        assert!(REQUIRED_PRODUCTION_GATES.iter().any(|gate| gate.name == "privacy_shield"));
+        assert!(REQUIRED_PRODUCTION_GATES.iter().any(|gate| gate.name == "everkeep"));
     }
 }

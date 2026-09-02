@@ -106,10 +106,7 @@ impl MemoryStore {
             ciphertext,
             revision,
         };
-        self.records_by_owner
-            .entry(owner_id.to_owned())
-            .or_default()
-            .insert(record_id.to_owned(), record);
+        self.records_by_owner.entry(owner_id.to_owned()).or_default().insert(record_id.to_owned(), record);
         Ok(())
     }
 
@@ -118,17 +115,10 @@ impl MemoryStore {
     /// # Errors
     ///
     /// Returns a bounded [`StoreError`] when the owner or record identifier is invalid.
-    pub fn get(
-        &self,
-        owner_id: &str,
-        record_id: &str,
-    ) -> Result<Option<&EncryptedRecord>, StoreError> {
+    pub fn get(&self, owner_id: &str, record_id: &str) -> Result<Option<&EncryptedRecord>, StoreError> {
         validate_owner(owner_id)?;
         validate_record_id(record_id)?;
-        Ok(self
-            .records_by_owner
-            .get(owner_id)
-            .and_then(|records| records.get(record_id)))
+        Ok(self.records_by_owner.get(owner_id).and_then(|records| records.get(record_id)))
     }
 
     /// Return the supplied owner's records ordered by record identifier.
@@ -138,12 +128,8 @@ impl MemoryStore {
     /// Returns [`StoreError::InvalidOwner`] when the owner identifier is invalid.
     pub fn list(&self, owner_id: &str) -> Result<Vec<&EncryptedRecord>, StoreError> {
         validate_owner(owner_id)?;
-        let mut records: Vec<&EncryptedRecord> = self
-            .records_by_owner
-            .get(owner_id)
-            .into_iter()
-            .flat_map(|records| records.values())
-            .collect();
+        let mut records: Vec<&EncryptedRecord> =
+            self.records_by_owner.get(owner_id).into_iter().flat_map(|records| records.values()).collect();
         records.sort_unstable_by(|left, right| left.record_id.cmp(&right.record_id));
         Ok(records)
     }
@@ -203,30 +189,20 @@ fn validate_ciphertext(ciphertext: &[u8]) -> Result<(), StoreError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MemoryStore, StoreError, MAX_CIPHERTEXT_BYTES, MAX_IDENTIFIER_BYTES};
+    use super::{MAX_CIPHERTEXT_BYTES, MAX_IDENTIFIER_BYTES, MemoryStore, StoreError};
 
     #[test]
     fn same_record_identifier_is_isolated_between_owners() {
         let mut store = MemoryStore::new();
-        assert_eq!(
-            store.put("owner-a", "record-1", b"ciphertext-a".to_vec(), 1),
-            Ok(())
-        );
-        assert_eq!(
-            store.put("owner-b", "record-1", b"ciphertext-b".to_vec(), 1),
-            Ok(())
-        );
+        assert_eq!(store.put("owner-a", "record-1", b"ciphertext-a".to_vec(), 1), Ok(()));
+        assert_eq!(store.put("owner-b", "record-1", b"ciphertext-b".to_vec(), 1), Ok(()));
 
         assert_eq!(
-            store
-                .get("owner-a", "record-1")
-                .map(|record| record.map(|record| record.ciphertext())),
+            store.get("owner-a", "record-1").map(|record| record.map(|record| record.ciphertext())),
             Ok(Some(&b"ciphertext-a"[..]))
         );
         assert_eq!(
-            store
-                .get("owner-b", "record-1")
-                .map(|record| record.map(|record| record.ciphertext())),
+            store.get("owner-b", "record-1").map(|record| record.map(|record| record.ciphertext())),
             Ok(Some(&b"ciphertext-b"[..]))
         );
     }
@@ -234,10 +210,7 @@ mod tests {
     #[test]
     fn cross_owner_lookup_does_not_return_another_owners_record() {
         let mut store = MemoryStore::new();
-        assert_eq!(
-            store.put("owner-a", "record-1", b"opaque-data".to_vec(), 1),
-            Ok(())
-        );
+        assert_eq!(store.put("owner-a", "record-1", b"opaque-data".to_vec(), 1), Ok(()));
 
         assert_eq!(store.get("owner-b", "record-1"), Ok(None));
     }
@@ -245,26 +218,14 @@ mod tests {
     #[test]
     fn list_and_delete_remain_owner_scoped() {
         let mut store = MemoryStore::new();
-        assert_eq!(
-            store.put("owner-a", "record-b", b"ciphertext-b".to_vec(), 1),
-            Ok(())
-        );
-        assert_eq!(
-            store.put("owner-a", "record-a", b"ciphertext-a".to_vec(), 2),
-            Ok(())
-        );
-        assert_eq!(
-            store.put("owner-b", "record-c", b"ciphertext-c".to_vec(), 1),
-            Ok(())
-        );
+        assert_eq!(store.put("owner-a", "record-b", b"ciphertext-b".to_vec(), 1), Ok(()));
+        assert_eq!(store.put("owner-a", "record-a", b"ciphertext-a".to_vec(), 2), Ok(()));
+        assert_eq!(store.put("owner-b", "record-c", b"ciphertext-c".to_vec(), 1), Ok(()));
 
         assert_eq!(
-            store.list("owner-a").map(|records| {
-                records
-                    .into_iter()
-                    .map(|record| record.record_id())
-                    .collect::<Vec<_>>()
-            }),
+            store
+                .list("owner-a")
+                .map(|records| { records.into_iter().map(|record| record.record_id()).collect::<Vec<_>>() }),
             Ok(vec!["record-a", "record-b"])
         );
 
@@ -278,38 +239,22 @@ mod tests {
         assert_eq!(store.get("", "record-1"), Err(StoreError::InvalidOwner));
 
         let oversized = "x".repeat(MAX_IDENTIFIER_BYTES + 1);
-        assert_eq!(
-            store.get("owner-a", &oversized),
-            Err(StoreError::InvalidRecordId)
-        );
+        assert_eq!(store.get("owner-a", &oversized), Err(StoreError::InvalidRecordId));
     }
 
     #[test]
     fn ciphertext_is_bounded_without_being_interpreted() {
         let mut store = MemoryStore::new();
+        assert_eq!(store.put("owner-a", "record-1", Vec::new(), 1), Err(StoreError::EmptyCiphertext));
         assert_eq!(
-            store.put("owner-a", "record-1", Vec::new(), 1),
-            Err(StoreError::EmptyCiphertext)
-        );
-        assert_eq!(
-            store.put(
-                "owner-a",
-                "record-1",
-                vec![0_u8; MAX_CIPHERTEXT_BYTES + 1],
-                1,
-            ),
+            store.put("owner-a", "record-1", vec![0_u8; MAX_CIPHERTEXT_BYTES + 1], 1,),
             Err(StoreError::CiphertextTooLarge)
         );
 
         let arbitrary_bytes = vec![0, 255, 17, 42];
+        assert_eq!(store.put("owner-a", "record-2", arbitrary_bytes.clone(), 1), Ok(()));
         assert_eq!(
-            store.put("owner-a", "record-2", arbitrary_bytes.clone(), 1),
-            Ok(())
-        );
-        assert_eq!(
-            store
-                .get("owner-a", "record-2")
-                .map(|record| record.map(|record| record.ciphertext().to_vec())),
+            store.get("owner-a", "record-2").map(|record| record.map(|record| record.ciphertext().to_vec())),
             Ok(Some(arbitrary_bytes))
         );
     }
@@ -317,14 +262,9 @@ mod tests {
     #[test]
     fn debug_output_does_not_include_ciphertext_bytes() {
         let mut store = MemoryStore::new();
-        assert_eq!(
-            store.put("owner-a", "record-1", b"never-log-this".to_vec(), 1),
-            Ok(())
-        );
+        assert_eq!(store.put("owner-a", "record-1", b"never-log-this".to_vec(), 1), Ok(()));
 
-        let rendered = store
-            .get("owner-a", "record-1")
-            .map(|record| record.map(|record| format!("{record:?}")));
+        let rendered = store.get("owner-a", "record-1").map(|record| record.map(|record| format!("{record:?}")));
         assert!(matches!(
             rendered,
             Ok(Some(text)) if text.contains("ciphertext_len") && !text.contains("never-log-this")
@@ -334,9 +274,6 @@ mod tests {
     #[test]
     fn revision_zero_is_rejected() {
         let mut store = MemoryStore::new();
-        assert_eq!(
-            store.put("owner-a", "record-1", b"ciphertext".to_vec(), 0),
-            Err(StoreError::InvalidRevision)
-        );
+        assert_eq!(store.put("owner-a", "record-1", b"ciphertext".to_vec(), 0), Err(StoreError::InvalidRevision));
     }
 }
